@@ -1,0 +1,12 @@
+# requirements.txt
+Django
+djangorestframework
+django-cors-headers
+djangorestframework-simplejwt
+psycopg2-binary
+python-decouple
+Pillow
+cloudinary
+celery
+redis
+django-filter
