@@ -40,7 +40,9 @@ export default function DashboardPage() {
       ])
       
       setAccount(accountData)
-      setTransactions(transactionsData.slice(0, 5)) // Show only 5 recent transactions
+      // Handle paginated response from Django REST Framework
+      const transactionsArray = 'results' in transactionsData ? transactionsData.results : (Array.isArray(transactionsData) ? transactionsData : [])
+      setTransactions(transactionsArray.slice(0, 5)) // Show only 5 recent transactions
       setCards(cardsData)
     } catch (error) {
       console.error('Error loading dashboard data:', error)

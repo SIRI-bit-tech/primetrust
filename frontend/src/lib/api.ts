@@ -13,7 +13,8 @@ import {
   Investment,
   InvestmentPurchase,
   Bill,
-  BillPayment
+  BillPayment,
+  UserNotification
 } from '@/types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
@@ -139,7 +140,7 @@ export const bankingAPI = {
 
 // Transactions API
 export const transactionsAPI = {
-  getTransactions: async (): Promise<Transaction[]> => {
+  getTransactions: async (): Promise<{ results: Transaction[] } | Transaction[]> => {
     const response = await api.get('/transactions/')
     return response.data
   },
@@ -249,6 +250,40 @@ export const investmentsAPI = {
   }> => {
     const response = await api.get('/investments/market-data/')
     return response.data
+  },
+}
+
+// Notifications API
+export const notificationsAPI = {
+  getNotifications: async (): Promise<{ results: UserNotification[] } | UserNotification[]> => {
+    const response = await api.get('/notifications/')
+    return response.data
+  },
+
+  getNotification: async (id: number): Promise<UserNotification> => {
+    const response = await api.get(`/notifications/${id}/`)
+    return response.data
+  },
+
+  markAsRead: async (notificationIds?: number[]): Promise<void> => {
+    await api.post('/notifications/mark-read/', { notification_ids: notificationIds })
+  },
+
+  getSettings: async (): Promise<{
+    email_notifications: boolean
+    sms_notifications: boolean
+    marketing_emails: boolean
+  }> => {
+    const response = await api.get('/notifications/settings/')
+    return response.data
+  },
+
+  updateSettings: async (settings: {
+    email_notifications?: boolean
+    sms_notifications?: boolean
+    marketing_emails?: boolean
+  }): Promise<void> => {
+    await api.post('/notifications/settings/', settings)
   },
 }
 

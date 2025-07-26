@@ -11,15 +11,16 @@ import {
   LogOut, 
   Menu, 
   X,
-  Bell,
   Search,
   DollarSign,
   TrendingUp,
   Receipt
 } from 'lucide-react'
+import NotificationDropdown from './NotificationDropdown'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useNotifications } from '@/hooks/useNotifications'
 import { cn } from '@/lib/utils'
 
 interface DashboardLayoutProps {
@@ -42,6 +43,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const { unreadCount } = useNotifications()
 
   const handleLogout = async () => {
     try {
@@ -145,10 +147,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             <div className="flex items-center space-x-4">
               {/* Notifications */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 relative">
-                <Bell className="w-6 h-6" />
-                <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400"></span>
-              </button>
+              <NotificationDropdown />
 
               {/* User menu */}
               <div className="flex items-center space-x-3">

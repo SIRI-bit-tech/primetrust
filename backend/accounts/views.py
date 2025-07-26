@@ -19,6 +19,7 @@ from .serializers import (
     PasswordResetRequestSerializer, PasswordResetSerializer, BalanceSerializer,
     TwoFactorSetupSerializer, AccountStatusSerializer
 )
+from api.services import trigger_account_created_notification
 
 
 class UserRegistrationView(APIView):
@@ -45,6 +46,9 @@ class UserRegistrationView(APIView):
             
             # Send verification email
             self.send_verification_email(user, code)
+            
+            # Trigger welcome notification
+            trigger_account_created_notification(user)
             
             return Response({
                 'message': 'User registered successfully. Please check your email to verify your account.',
@@ -124,19 +128,30 @@ class UserLoginView(APIView):
 class UserLogoutView(APIView):
     """View for user logout."""
     
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Allow logout even with expired tokens
     
     def post(self, request):
         """Logout user and blacklist refresh token."""
+        print(f"Logout request received. Data: {request.data}")
+        print(f"Headers: {request.headers}")
+        
         try:
             refresh_token = request.data.get('refresh_token')
             if refresh_token:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
+                try:
+                    token = RefreshToken(refresh_token)
+                    token.blacklist()
+                    print("Token blacklisted successfully")
+                except Exception as e:
+                    print(f"Token blacklist failed: {e}")
+                    # Token might be invalid, but that's okay for logout
+                    pass
             
             return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+            print(f"Logout exception: {e}")
+            # Always return success for logout, even if token is invalid
+            return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
 
 
 class EmailVerificationView(APIView):

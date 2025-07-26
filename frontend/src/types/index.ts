@@ -173,4 +173,22 @@ export interface BillPayment {
   bill_id: number
   amount: number
   payment_method: 'account_balance' | 'virtual_card'
+}
+
+export interface UserNotification {
+  id: number
+  notification_type: 'transaction' | 'security' | 'account' | 'investment' | 'loan' | 'bill' | 'system'
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  title: string
+  message: string
+  is_read: boolean
+  is_sent: boolean
+  data: Record<string, unknown>
+  created_at: string
+  read_at: string | null
+  sent_at: string | null
+  related_transaction?: number
+  related_investment?: number
+  related_bill?: number
+  user?: number
 } 

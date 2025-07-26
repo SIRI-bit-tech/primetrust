@@ -15,6 +15,7 @@ from .serializers import (
     TransactionSerializer, BillSerializer, BillCreateSerializer,
     InvestmentSerializer, InvestmentCreateSerializer
 )
+from api.services import trigger_transaction_notification, trigger_bill_notification, trigger_investment_notification
 
 
 # Transaction Views
@@ -116,7 +117,9 @@ class BillCreateView(generics.CreateAPIView):
     serializer_class = BillCreateSerializer
     
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        bill = serializer.save(user=self.request.user)
+        # Trigger notification for new bill
+        trigger_bill_notification(self.request.user, bill, 'added')
 
 
 class BillDetailView(generics.RetrieveAPIView):
@@ -160,6 +163,8 @@ class BillPayView(APIView):
         success, message = bill.pay_bill(payment_amount)
         
         if success:
+            # Trigger notification for bill payment
+            trigger_bill_notification(request.user, bill, 'paid')
             return Response({'message': message}, status=status.HTTP_200_OK)
         else:
             return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
@@ -208,6 +213,9 @@ class InvestmentCreateView(generics.CreateAPIView):
         
         if not success:
             raise serializers.ValidationError(message)
+        else:
+            # Trigger notification for investment purchase
+            trigger_investment_notification(self.request.user, investment, 'purchased')
 
 
 class InvestmentDetailView(generics.RetrieveAPIView):
