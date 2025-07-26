@@ -85,6 +85,6 @@ celerybeat.pid
 # Redis
 dump.rdb
 
-# Backup files
-*.bak
-*.backup 
+# Logs
+logs/
+*.log 

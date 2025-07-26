@@ -15,8 +15,35 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # API endpoints
+    path('api/auth/', include('accounts.urls')),
+    path('api/banking/', include('banking.urls')),
+    path('api/transactions/', include('transactions.urls')),
+    path('api/', include('api.urls')),
+    
+    # New apps
+    path('api/loans/', include('loans.urls')),
+    path('api/location/', include('location.urls')),
+    path('api/admin/', include('admin_api.urls')),
+    
+    # URL redirects to fix frontend mismatches (using different namespaces)
+    path('api/investments/', include('transactions.urls', namespace='investments')),
+    path('api/bills/', include('transactions.urls', namespace='bills')),
+    path('api/users/profile/', include('accounts.urls', namespace='users_profile')),
+    
+    # JWT token refresh
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
+
+# Serve static and media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

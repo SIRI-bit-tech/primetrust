@@ -1,12 +1,83 @@
-# requirements.txt
+# Core Django
 Django
 djangorestframework
-django-cors-headers
 djangorestframework-simplejwt
+django-cors-headers
+django-filter
+
+# Database
 psycopg2-binary
-python-decouple
+
+# Environment and configuration
+django-environ
+
+# File handling and media
 Pillow
 cloudinary
+
+# Background tasks and caching
 celery
 redis
-django-filter
+
+# Security
+cryptography
+
+# HTTP requests
+requests
+
+# Data processing
+pandas
+numpy
+
+# Date and time
+python-dateutil
+
+# Email
+django-anymail
+
+# Monitoring and logging
+sentry-sdk
+
+# API documentation
+drf-yasg
+
+# Testing
+pytest
+pytest-django
+factory-boy
+
+# Development tools
+django-debug-toolbar
+django-extensions
+
+# Production
+gunicorn
+whitenoise
+
+# AWS (if using S3)
+boto3
+
+
+# Market data APIs
+alpha-vantage
+pycoingecko
+
+# Excel export
+openpyxl
+xlsxwriter
+
+# PDF generation
+reportlab
+
+# WebSocket support (if needed)
+channels
+channels-redis
+
+# Health checks
+django-health-check
+
+# Rate limiting
+django-ratelimit
+
+# API versioning
+djangorestframework-versioning

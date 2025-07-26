@@ -54,10 +54,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (data: RegisterData) => {
     try {
       const response = await authAPI.register(data)
-      localStorage.setItem('access_token', response.access)
-      localStorage.setItem('refresh_token', response.refresh)
-      localStorage.setItem('user', JSON.stringify(response.user))
-      setUser(response.user)
+      // Store email for verification page
+      localStorage.setItem('pending_verification_email', data.email)
+      // Don't set user as logged in until email is verified
+      // localStorage.setItem('access_token', response.access)
+      // localStorage.setItem('refresh_token', response.refresh)
+      // localStorage.setItem('user', JSON.stringify(response.user))
+      // setUser(response.user)
     } catch (error) {
       throw error
     }

@@ -20,7 +20,7 @@ const registerSchema = z.object({
     required_error: 'Please select your gender',
   }),
   state: z.string().min(1, 'Please select your state'),
-  city: z.string().min(1, 'Please select your city'),
+  city: z.string().min(1, 'Please enter your city'),
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirm_password: z.string(),
@@ -84,13 +84,14 @@ const US_STATES = [
   { name: 'Wyoming', abbreviation: 'WY' },
 ]
 
+
+
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [cities, setCities] = useState<{ name: string; state: string }[]>([])
-  const [isLoadingCities, setIsLoadingCities] = useState(false)
+
   const router = useRouter()
   const { register: registerUser } = useAuth()
 
@@ -104,26 +105,26 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
   })
 
-  const selectedState = watch('state')
 
-  useEffect(() => {
-    if (selectedState) {
-      loadCities(selectedState)
-      setValue('city', '')
-    }
-  }, [selectedState, setValue])
 
-  const loadCities = async (state: string) => {
-    setIsLoadingCities(true)
-    try {
-      const citiesData = await locationAPI.getCities(state)
-      setCities(citiesData)
-    } catch (error) {
-      console.error('Error loading cities:', error)
-      setCities([])
-    } finally {
-      setIsLoadingCities(false)
+  // Phone number formatting function
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digits
+    const phoneNumber = value.replace(/\D/g, '')
+    
+    // Format as (XXX) XXX-XXXX
+    if (phoneNumber.length <= 3) {
+      return phoneNumber
+    } else if (phoneNumber.length <= 6) {
+      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`
+    } else {
+      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`
     }
+  }
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value)
+    setValue('phone_number', formatted)
   }
 
   const onSubmit = async (data: RegisterFormData) => {
@@ -131,7 +132,24 @@ export default function RegisterPage() {
     setError('')
 
     try {
-      await registerUser(data)
+      // Clean phone number for backend (remove formatting)
+      const cleanPhoneNumber = data.phone_number.replace(/\D/g, '')
+      
+      // Find state name from abbreviation
+      const selectedStateData = US_STATES.find(state => state.abbreviation === data.state)
+      const stateName = selectedStateData?.name || data.state
+
+      const registrationData = {
+        ...data,
+        phone_number: cleanPhoneNumber,
+        state: stateName,
+        // Split full name into first and last name
+        first_name: data.full_name.split(' ')[0] || '',
+        last_name: data.full_name.split(' ').slice(1).join(' ') || '',
+        username: data.email, // Use email as username
+      }
+
+      await registerUser(registrationData)
       router.push('/verify-email')
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
@@ -210,6 +228,7 @@ export default function RegisterPage() {
                     {...register('phone_number')}
                     type="tel"
                     id="phone_number"
+                    onChange={handlePhoneChange}
                     className={cn(
                       "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
                       errors.phone_number
@@ -217,6 +236,7 @@ export default function RegisterPage() {
                         : "border-gray-300 focus:ring-primary-dark"
                     )}
                     placeholder="(555) 123-4567"
+                    maxLength={14}
                   />
                 </div>
                 {errors.phone_number && (
@@ -316,27 +336,18 @@ export default function RegisterPage() {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <MapPin className="h-5 w-5 text-gray-400" />
                   </div>
-                  <select
+                  <input
                     {...register('city')}
+                    type="text"
                     id="city"
-                    disabled={!selectedState || isLoadingCities}
                     className={cn(
                       "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
                       errors.city
                         ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark",
-                      (!selectedState || isLoadingCities) && "opacity-50 cursor-not-allowed"
+                        : "border-gray-300 focus:ring-primary-dark"
                     )}
-                  >
-                    <option value="">
-                      {isLoadingCities ? 'Loading cities...' : selectedState ? 'Select city' : 'Select state first'}
-                    </option>
-                    {cities.map((city) => (
-                      <option key={city.name} value={city.name}>
-                        {city.name}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Enter your city"
+                  />
                 </div>
                 {errors.city && (
                   <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>

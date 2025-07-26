@@ -86,7 +86,7 @@ export const authAPI = {
   },
 
   verifyEmail: async (email: string, code: string): Promise<{ message: string }> => {
-    const response = await api.post('/auth/verify-email/', { email, code })
+    const response = await api.post('/auth/verify-email/', { code })
     return response.data
   },
 
@@ -179,7 +179,7 @@ export const locationAPI = {
     return response.data
   },
 
-  getCities: async (state: string): Promise<{ name: string; state: string }[]> => {
+  getCities: async (state: string): Promise<{ id: number; name: string; state: { id: number; name: string; abbreviation: string } }[]> => {
     const response = await api.get(`/location/cities/?state=${state}`)
     return response.data
   },
