@@ -55,10 +55,10 @@ api.interceptors.response.use(
             refresh: refreshToken,
           })
           
-          const { access } = response.data
-          localStorage.setItem('access_token', access)
+                     const { access_token } = response.data
+           localStorage.setItem('access_token', access_token)
           
-          originalRequest.headers.Authorization = `Bearer ${access}`
+                     originalRequest.headers.Authorization = `Bearer ${access_token}`
           return api(originalRequest)
         }
       } catch {
@@ -91,19 +91,20 @@ export const authAPI = {
   },
 
   logout: async (): Promise<void> => {
-    await api.post('/auth/logout/')
+    const refreshToken = localStorage.getItem('refresh_token')
+    await api.post('/auth/logout/', { refresh_token: refreshToken })
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('user')
   },
 
   getProfile: async (): Promise<User> => {
-    const response = await api.get('/users/profile/')
+    const response = await api.get('/auth/profile/')
     return response.data
   },
 
   updateProfile: async (data: Partial<User>): Promise<User> => {
-    const response = await api.put('/users/profile/', data)
+    const response = await api.put('/auth/update/', data)
     return response.data
   },
 }
@@ -111,7 +112,7 @@ export const authAPI = {
 // Banking API
 export const bankingAPI = {
   getBalance: async (): Promise<Account> => {
-    const response = await api.get('/users/balance/')
+    const response = await api.get('/auth/balance/')
     return response.data
   },
 

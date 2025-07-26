@@ -42,8 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       const response = await authAPI.login({ email, password })
-      localStorage.setItem('access_token', response.access)
-      localStorage.setItem('refresh_token', response.refresh)
+      localStorage.setItem('access_token', response.access_token)
+      localStorage.setItem('refresh_token', response.refresh_token)
       localStorage.setItem('user', JSON.stringify(response.user))
       setUser(response.user)
     } catch (error) {
@@ -71,7 +71,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authAPI.logout()
     } catch (error) {
       console.error('Logout error:', error)
+      // Continue with logout even if backend call fails
     } finally {
+      // Always clear local storage and user state
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
+      localStorage.removeItem('user')
       setUser(null)
     }
   }

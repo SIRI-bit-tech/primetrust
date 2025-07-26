@@ -57,9 +57,9 @@ export default function VerifyEmailPage() {
       setSuccess(true)
       localStorage.removeItem('pending_verification_email')
       
-      // Redirect to dashboard after 2 seconds
+      // Redirect to login after 2 seconds
       setTimeout(() => {
-        router.push('/dashboard')
+        router.push('/login')
       }, 2000)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
