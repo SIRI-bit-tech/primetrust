@@ -1,15 +1,41 @@
+export interface UserProfile {
+  date_of_birth: string
+  gender: 'male' | 'female' | 'other'
+  employer: string
+  job_title: string
+  annual_income: number
+  preferred_currency: string
+  language: string
+  timezone: string
+  receive_email_notifications: boolean
+  receive_sms_notifications: boolean
+  receive_marketing_emails: boolean
+}
+
 export interface User {
   id: number
   email: string
+  username: string
+  first_name: string
+  last_name: string
   full_name: string
   phone_number: string
-  date_of_birth: string
-  gender: 'male' | 'female' | 'other'
-  state: string
+  address: string
   city: string
-  is_active: boolean
-  date_joined: string
-  last_login: string
+  state: string
+  zip_code: string
+  country: string
+  account_number: string
+  routing_number: string
+  balance: number
+  bitcoin_balance: string
+  is_verified: boolean
+  email_verified: boolean
+  phone_verified: boolean
+  two_factor_enabled: boolean
+  created_at: string
+  last_activity: string
+  profile: UserProfile
 }
 
 export interface Account {
@@ -196,4 +222,18 @@ export interface UserNotification {
   related_investment?: number
   related_bill?: number
   user?: number
+}
+
+export interface BitcoinBalance {
+  bitcoin_balance: string
+  bitcoin_wallet_address: string
+  bitcoin_price_usd: number
+  bitcoin_balance_usd: number
+}
+
+export interface BitcoinPrice {
+  price_usd: number
+  price_change_24h: number
+  price_change_percentage_24h: number
+  last_updated: string
 } 

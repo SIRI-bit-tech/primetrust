@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { bitcoinAPI } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
+import { BitcoinBalance, BitcoinPrice } from '@/types'
 import DashboardLayout from '@/components/DashboardLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,12 +16,10 @@ import {
   ArrowLeft, 
   Bitcoin, 
   Building, 
-  Check, 
-  Copy,
+  Check,
   Eye,
   EyeOff,
   AlertTriangle,
-  ChevronDown
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -28,8 +27,8 @@ export default function SendBitcoinPage() {
   const router = useRouter()
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [bitcoinData, setBitcoinData] = useState<any>(null)
-  const [priceData, setPriceData] = useState<any>(null)
+  const [bitcoinData, setBitcoinData] = useState<BitcoinBalance | null>(null)
+  const [priceData, setPriceData] = useState<BitcoinPrice | null>(null)
   
   // Form state
   const [balanceSource, setBalanceSource] = useState<'fiat' | 'bitcoin'>('fiat')
@@ -84,7 +83,13 @@ export default function SendBitcoinPage() {
 
     setIsLoading(true)
     try {
-      const data: any = {
+      const data: {
+        balance_source: 'fiat' | 'bitcoin'
+        recipient_wallet_address: string
+        transaction_pin: string
+        amount_usd?: number
+        amount_btc?: number
+      } = {
         balance_source: balanceSource,
         recipient_wallet_address: recipientAddress,
         transaction_pin: transactionPin
@@ -99,8 +104,9 @@ export default function SendBitcoinPage() {
       const response = await bitcoinAPI.sendBitcoin(data)
       alert('Bitcoin transaction initiated successfully!')
       router.push('/dashboard')
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to send Bitcoin')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send Bitcoin'
+      alert(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -109,16 +115,6 @@ export default function SendBitcoinPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/dashboard">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Link>
-          </Button>
-        </div>
-
         {/* Cryptocurrency Withdrawal Card */}
         <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white border-0">
           <CardContent className="p-6">
@@ -140,27 +136,31 @@ export default function SendBitcoinPage() {
           <CardContent className="space-y-4">
             {/* Fiat Balance Card */}
             <div 
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
                 balanceSource === 'fiat' 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-blue-500 bg-blue-500/10 shadow-lg' 
+                  : 'border-border hover:border-blue-300/50 bg-card'
               }`}
               onClick={() => setBalanceSource('fiat')}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Building className="w-5 h-5 text-blue-600" />
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    balanceSource === 'fiat' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400'
+                  }`}>
+                    <Building className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="font-medium">Fiat Balance</p>
                     <p className="text-2xl font-bold">{formatCurrency(user?.balance || 0)}</p>
                   </div>
                 </div>
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
                   balanceSource === 'fiat' 
-                    ? 'border-blue-500 bg-blue-500' 
-                    : 'border-gray-300'
+                    ? 'border-blue-500 bg-blue-500 scale-110' 
+                    : 'border-muted-foreground/30'
                 }`}>
                   {balanceSource === 'fiat' && <Check className="w-4 h-4 text-white" />}
                 </div>
@@ -169,17 +169,21 @@ export default function SendBitcoinPage() {
 
             {/* Bitcoin Balance Card */}
             <div 
-              className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
                 balanceSource === 'bitcoin' 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-orange-500 bg-orange-500/10 shadow-lg' 
+                  : 'border-border hover:border-orange-300/50 bg-card'
               }`}
               onClick={() => setBalanceSource('bitcoin')}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                    <Bitcoin className="w-5 h-5 text-orange-600" />
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    balanceSource === 'bitcoin' 
+                      ? 'bg-orange-500 text-white' 
+                      : 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400'
+                  }`}>
+                    <Bitcoin className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="font-medium">Bitcoin Balance</p>
@@ -189,10 +193,10 @@ export default function SendBitcoinPage() {
                     </p>
                   </div>
                 </div>
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
                   balanceSource === 'bitcoin' 
-                    ? 'border-blue-500 bg-blue-500' 
-                    : 'border-gray-300'
+                    ? 'border-orange-500 bg-orange-500 scale-110' 
+                    : 'border-muted-foreground/30'
                 }`}>
                   {balanceSource === 'bitcoin' && <Check className="w-4 h-4 text-white" />}
                 </div>

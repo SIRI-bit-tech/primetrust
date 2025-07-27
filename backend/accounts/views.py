@@ -12,7 +12,7 @@ from datetime import timedelta
 import uuid
 import random
 
-from .models import User, UserProfile, EmailVerification, PasswordReset
+from .models import User, UserProfile, EmailVerification, PasswordReset, BitcoinTransaction
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer, UserSerializer,
     UserUpdateSerializer, PasswordChangeSerializer, EmailVerificationSerializer,
