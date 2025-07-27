@@ -36,6 +36,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { ThemeToggle } from './theme-toggle'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -107,6 +108,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
+                  <SidebarMenuItem>
+                    <ThemeToggle />
+                  </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton onClick={handleLogout}>
                       <LogOut className="h-4 w-4" />
