@@ -142,3 +142,67 @@
 .auth-gradient {
   background: linear-gradient(135deg, var(--primary-navy) 0%, var(--primary-dark) 50%, #1e40af 100%);
 }
+
+/* Dashboard specific enhancements */
+.dashboard-card {
+  @apply shadow-sm border-0;
+  background: hsl(var(--card));
+  backdrop-filter: blur(10px);
+}
+
+.dashboard-card:hover {
+  @apply shadow-md;
+  transform: translateY(-1px);
+}
+
+/* Enhanced progress bars */
+.progress-enhanced {
+  @apply h-2 rounded-full;
+  background: hsl(var(--muted));
+}
+
+.progress-enhanced > div {
+  @apply h-full rounded-full transition-all duration-300;
+  background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%);
+}
+
+/* Card gradient overlays */
+.card-gradient-blue {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.card-gradient-emerald {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.card-gradient-purple {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+/* Enhanced button styles */
+.btn-enhanced {
+  @apply transition-all duration-200;
+}
+
+.btn-enhanced:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Dark mode specific enhancements */
+.dark .dashboard-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .card-gradient-blue {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+}
+
+.dark .card-gradient-emerald {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.dark .card-gradient-purple {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
