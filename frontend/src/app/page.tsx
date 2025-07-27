@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 
 export default function LandingPage() {
   const { user } = useAuth()
-  
+
   // Scroll animation hook
   const useScrollAnimation = () => {
     const [isVisible, setIsVisible] = useState(false)

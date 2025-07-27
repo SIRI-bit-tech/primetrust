@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { 
   Home, 
   CreditCard, 
@@ -9,19 +8,34 @@ import {
   User, 
   Settings, 
   LogOut, 
-  Menu, 
-  X,
   Search,
   DollarSign,
   TrendingUp,
-  Receipt
+  Receipt,
 } from 'lucide-react'
 import NotificationDropdown from './NotificationDropdown'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useNotifications } from '@/hooks/useNotifications'
-import { cn } from '@/lib/utils'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -40,7 +54,6 @@ const navigation = [
 ]
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const { unreadCount } = useNotifications()
@@ -54,124 +67,94 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-primary-dark">PrimeTrust</h1>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <nav className="mt-6 px-3">
-          <div className="space-y-1">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                    isActive
-                      ? "bg-primary-dark text-white"
-                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                  )}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <item.icon className={cn(
-                    "mr-3 h-5 w-5",
-                    isActive ? "text-white" : "text-gray-400 group-hover:text-gray-500"
-                  )} />
-                  {item.name}
-                </Link>
-              )
-            })}
-          </div>
-
-          {/* Logout button */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <button
-              onClick={handleLogout}
-              className="group flex items-center w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 transition-colors"
-            >
-              <LogOut className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
-              Logout
-            </button>
-          </div>
-        </nav>
-      </div>
-
-      {/* Main content */}
-      <div className="flex flex-col flex-1">
-        {/* Top header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-              
-              {/* Search bar */}
-              <div className="ml-4 flex-1 max-w-lg">
+    <SidebarProvider>
+      <div className="grid w-full lg:grid-cols-[auto_1fr]">
+        <Sidebar>
+          <SidebarHeader>
+            <div className="flex items-center gap-2 px-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <span className="text-sm font-bold">P</span>
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">PrimeTrust</span>
+                <span className="truncate text-xs">Banking Platform</span>
+              </div>
+            </div>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {navigation.map((item) => {
+                    const isActive = pathname === item.href
+                    return (
+                      <SidebarMenuItem key={item.name}>
+                        <SidebarMenuButton asChild isActive={isActive}>
+                          <Link href={item.href}>
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.name}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={handleLogout}>
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarFooter>
+        </Sidebar>
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+            <div className="flex items-center gap-2 px-4">
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mr-2 h-4" />
+              <div className="flex-1">
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
                     placeholder="Search transactions, cards..."
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-dark focus:border-primary-dark"
+                    className="pl-8 w-80"
                   />
                 </div>
               </div>
             </div>
-
-            <div className="flex items-center space-x-4">
-              {/* Notifications */}
+            <div className="flex items-center gap-2 px-4 ml-auto">
               <NotificationDropdown />
-
-              {/* User menu */}
-              <div className="flex items-center space-x-3">
-                <div className="hidden sm:block">
-                  <p className="text-sm font-medium text-gray-700">{user?.full_name}</p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
+              <Separator orientation="vertical" className="h-4" />
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:block text-right">
+                  <p className="text-sm font-medium">{user?.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
-                <div className="w-8 h-8 bg-primary-dark rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src="" alt={user?.full_name} />
+                  <AvatarFallback className="bg-primary text-primary-foreground">
                     {user?.full_name?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
+                  </AvatarFallback>
+                </Avatar>
               </div>
             </div>
-          </div>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1">
-          <div className="px-4 sm:px-6 lg:px-8">
+          </header>
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
             {children}
           </div>
-        </main>
+        </SidebarInset>
       </div>
-    </div>
+    </SidebarProvider>
   )
 } 

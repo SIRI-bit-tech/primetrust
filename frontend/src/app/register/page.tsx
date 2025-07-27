@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,6 +10,12 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import { locationAPI } from '@/lib/api'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const registerSchema = z.object({
   full_name: z.string().min(2, 'Full name must be at least 2 characters'),
@@ -84,8 +89,6 @@ const US_STATES = [
   { name: 'Wyoming', abbreviation: 'WY' },
 ]
 
-
-
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -98,21 +101,14 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
     formState: { errors },
+    setValue,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
   })
 
-
-
-  // Phone number formatting function
   const formatPhoneNumber = (value: string) => {
-    // Remove all non-digits
     const phoneNumber = value.replace(/\D/g, '')
-    
-    // Format as (XXX) XXX-XXXX
     if (phoneNumber.length <= 3) {
       return phoneNumber
     } else if (phoneNumber.length <= 6) {
@@ -132,24 +128,11 @@ export default function RegisterPage() {
     setError('')
 
     try {
-      // Clean phone number for backend (remove formatting)
-      const cleanPhoneNumber = data.phone_number.replace(/\D/g, '')
+      // Clean phone number for backend
+      const cleanPhone = data.phone_number.replace(/\D/g, '')
+      const submitData = { ...data, phone_number: cleanPhone }
       
-      // Find state name from abbreviation
-      const selectedStateData = US_STATES.find(state => state.abbreviation === data.state)
-      const stateName = selectedStateData?.name || data.state
-
-      const registrationData = {
-        ...data,
-        phone_number: cleanPhoneNumber,
-        state: stateName,
-        // Split full name into first and last name
-        first_name: data.full_name.split(' ')[0] || '',
-        last_name: data.full_name.split(' ').slice(1).join(' ') || '',
-        username: data.email, // Use email as username
-      }
-
-      await registerUser(registrationData)
+      await registerUser(submitData)
       router.push('/verify-email')
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
@@ -173,330 +156,264 @@ export default function RegisterPage() {
           </Link>
         </div>
 
-        {/* Register Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8 animate-in slide-in-from-bottom-4 duration-500 delay-100">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-            <p className="text-gray-600">Join PrimeTrust and start your banking journey</p>
-          </div>
+        {/* Registration Card */}
+        <Card className="animate-in slide-in-from-bottom-4 duration-500 delay-100">
+          <CardHeader className="text-center">
+            <CardTitle className="text-3xl font-bold">Create Your Account</CardTitle>
+            <CardDescription className="text-lg">
+              Join PrimeTrust and start your financial journey today
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {error && (
+              <Alert variant="destructive" className="animate-in slide-in-from-top-2 duration-300">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg animate-in slide-in-from-top-2 duration-300">
-              <p className="text-red-600 text-sm">{error}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Full Name */}
-              <div>
-                <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {/* Personal Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground">Personal Information</h3>
+                
+                {/* Full Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      {...register('full_name')}
+                      id="full_name"
+                      placeholder="Enter your full name"
+                      className={cn(
+                        "pl-10",
+                        errors.full_name && "border-destructive focus-visible:ring-destructive"
+                      )}
+                    />
                   </div>
-                  <input
-                    {...register('full_name')}
-                    type="text"
-                    id="full_name"
-                    className={cn(
-                      "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                      errors.full_name
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark"
-                    )}
-                    placeholder="Enter your full name"
-                  />
-                </div>
-                {errors.full_name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.full_name.message}</p>
-                )}
-              </div>
-
-              {/* Phone Number */}
-              <div>
-                <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    {...register('phone_number')}
-                    type="tel"
-                    id="phone_number"
-                    onChange={handlePhoneChange}
-                    className={cn(
-                      "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                      errors.phone_number
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark"
-                    )}
-                    placeholder="(555) 123-4567"
-                    maxLength={14}
-                  />
-                </div>
-                {errors.phone_number && (
-                  <p className="mt-1 text-sm text-red-600">{errors.phone_number.message}</p>
-                )}
-              </div>
-
-              {/* Date of Birth */}
-              <div>
-                <label htmlFor="date_of_birth" className="block text-sm font-medium text-gray-700 mb-2">
-                  Date of Birth
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Calendar className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    {...register('date_of_birth')}
-                    type="date"
-                    id="date_of_birth"
-                    className={cn(
-                      "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                      errors.date_of_birth
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark"
-                    )}
-                  />
-                </div>
-                {errors.date_of_birth && (
-                  <p className="mt-1 text-sm text-red-600">{errors.date_of_birth.message}</p>
-                )}
-              </div>
-
-              {/* Gender */}
-              <div>
-                <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
-                  Gender
-                </label>
-                <select
-                  {...register('gender')}
-                  id="gender"
-                  className={cn(
-                    "block w-full py-3 px-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                    errors.gender
-                      ? "border-red-300 focus:ring-red-500"
-                      : "border-gray-300 focus:ring-primary-dark"
+                  {errors.full_name && (
+                    <p className="text-sm text-destructive">{errors.full_name.message}</p>
                   )}
-                >
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-                {errors.gender && (
-                  <p className="mt-1 text-sm text-red-600">{errors.gender.message}</p>
-                )}
-              </div>
+                </div>
 
-              {/* State */}
-              <div>
-                <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
-                  State
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MapPin className="h-5 w-5 text-gray-400" />
+                {/* Phone Number */}
+                <div className="space-y-2">
+                  <Label htmlFor="phone_number">Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      {...register('phone_number')}
+                      id="phone_number"
+                      placeholder="(555) 123-4567"
+                      onChange={handlePhoneChange}
+                      className={cn(
+                        "pl-10",
+                        errors.phone_number && "border-destructive focus-visible:ring-destructive"
+                      )}
+                    />
                   </div>
-                  <select
-                    {...register('state')}
-                    id="state"
-                    className={cn(
-                      "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                      errors.state
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark"
-                    )}
-                  >
-                    <option value="">Select state</option>
-                    {US_STATES.map((state) => (
-                      <option key={state.abbreviation} value={state.abbreviation}>
-                        {state.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {errors.state && (
-                  <p className="mt-1 text-sm text-red-600">{errors.state.message}</p>
-                )}
-              </div>
-
-              {/* City */}
-              <div>
-                <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
-                  City
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MapPin className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    {...register('city')}
-                    type="text"
-                    id="city"
-                    className={cn(
-                      "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                      errors.city
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark"
-                    )}
-                    placeholder="Enter your city"
-                  />
-                </div>
-                {errors.city && (
-                  <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  {...register('email')}
-                  type="email"
-                  id="email"
-                  className={cn(
-                    "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                    errors.email
-                      ? "border-red-300 focus:ring-red-500"
-                      : "border-gray-300 focus:ring-primary-dark"
+                  {errors.phone_number && (
+                    <p className="text-sm text-destructive">{errors.phone_number.message}</p>
                   )}
-                  placeholder="Enter your email"
-                />
-              </div>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-              )}
-            </div>
+                </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Password */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Eye className="h-5 w-5 text-gray-400" />
+                {/* Date of Birth and Gender */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="date_of_birth">Date of Birth</Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        {...register('date_of_birth')}
+                        type="date"
+                        id="date_of_birth"
+                        className={cn(
+                          "pl-10",
+                          errors.date_of_birth && "border-destructive focus-visible:ring-destructive"
+                        )}
+                      />
+                    </div>
+                    {errors.date_of_birth && (
+                      <p className="text-sm text-destructive">{errors.date_of_birth.message}</p>
+                    )}
                   </div>
-                  <input
-                    {...register('password')}
-                    type={showPassword ? 'text' : 'password'}
-                    id="password"
-                    className={cn(
-                      "block w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                      errors.password
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark"
-                    )}
-                    placeholder="Enter your password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    )}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-                )}
-              </div>
 
-              {/* Confirm Password */}
-              <div>
-                <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Eye className="h-5 w-5 text-gray-400" />
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <Select onValueChange={(value) => setValue('gender', value as 'male' | 'female' | 'other')}>
+                      <SelectTrigger className={cn(
+                        errors.gender && "border-destructive focus-visible:ring-destructive"
+                      )}>
+                        <SelectValue placeholder="Select your gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors.gender && (
+                      <p className="text-sm text-destructive">{errors.gender.message}</p>
+                    )}
                   </div>
-                  <input
-                    {...register('confirm_password')}
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    id="confirm_password"
-                    className={cn(
-                      "block w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                      errors.confirm_password
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark"
-                    )}
-                    placeholder="Confirm your password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    )}
-                  </button>
                 </div>
-                {errors.confirm_password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.confirm_password.message}</p>
-                )}
+
+                {/* Location */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="state">State</Label>
+                    <Select onValueChange={(value) => setValue('state', value)}>
+                      <SelectTrigger className={cn(
+                        errors.state && "border-destructive focus-visible:ring-destructive"
+                      )}>
+                        <SelectValue placeholder="Select your state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {US_STATES.map((state) => (
+                          <SelectItem key={state.abbreviation} value={state.abbreviation}>
+                            {state.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.state && (
+                      <p className="text-sm text-destructive">{errors.state.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        {...register('city')}
+                        id="city"
+                        placeholder="Enter your city"
+                        className={cn(
+                          "pl-10",
+                          errors.city && "border-destructive focus-visible:ring-destructive"
+                        )}
+                      />
+                    </div>
+                    {errors.city && (
+                      <p className="text-sm text-destructive">{errors.city.message}</p>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-primary-dark to-primary-navy text-white py-3 px-4 rounded-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Creating Account...
+              {/* Account Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-foreground">Account Information</h3>
+                
+                {/* Email */}
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      {...register('email')}
+                      type="email"
+                      id="email"
+                      placeholder="Enter your email"
+                      className={cn(
+                        "pl-10",
+                        errors.email && "border-destructive focus-visible:ring-destructive"
+                      )}
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email.message}</p>
+                  )}
                 </div>
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </form>
 
-          {/* Login Link */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
-              Already have an account?{' '}
-              <Link
-                href="/login"
-                className="text-primary-dark hover:text-primary-navy font-semibold transition-colors"
+                {/* Password */}
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Input
+                      {...register('password')}
+                      type={showPassword ? 'text' : 'password'}
+                      id="password"
+                      placeholder="Create a strong password"
+                      className={cn(
+                        "pr-10",
+                        errors.password && "border-destructive focus-visible:ring-destructive"
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password.message}</p>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div className="space-y-2">
+                  <Label htmlFor="confirm_password">Confirm Password</Label>
+                  <div className="relative">
+                    <Input
+                      {...register('confirm_password')}
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      id="confirm_password"
+                      placeholder="Confirm your password"
+                      className={cn(
+                        "pr-10",
+                        errors.confirm_password && "border-destructive focus-visible:ring-destructive"
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.confirm_password && (
+                    <p className="text-sm text-destructive">{errors.confirm_password.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading}
               >
-                Sign in here
-              </Link>
-            </p>
-          </div>
-        </div>
+                {isLoading ? 'Creating Account...' : 'Create Account'}
+              </Button>
+            </form>
 
-        {/* Security Notice */}
-        <div className="mt-6 text-center animate-in fade-in duration-500 delay-300">
-          <p className="text-white/80 text-sm">
-            Your security is our priority. All data is encrypted and secure.
-          </p>
-        </div>
+            {/* Login Link */}
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">
+                Already have an account?{' '}
+                <Link
+                  href="/login"
+                  className="text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  Sign in here
+                </Link>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
