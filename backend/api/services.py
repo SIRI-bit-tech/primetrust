@@ -210,28 +210,51 @@ def trigger_loan_notification(user, loan, action_type):
         priority=priority
     )
 
-def trigger_investment_notification(user, investment, action_type):
-    """Trigger notification for investment actions."""
-    if action_type == 'purchased':
-        title = 'Investment Purchased'
-        message = f'You have successfully purchased {investment.name} for ${investment.amount_invested}'
-        priority = 'medium'
-    elif action_type == 'sold':
-        title = 'Investment Sold'
-        message = f'You have sold {investment.name}. Profit/Loss: ${investment.profit_loss}'
-        priority = 'medium'
-    elif action_type == 'value_changed':
-        title = 'Investment Value Updated'
-        message = f'{investment.name} value changed. Current value: ${investment.current_value}'
-        priority = 'low'
-    
-    return NotificationService.create_notification(
-        user=user,
-        notification_type='investment',
-        title=title,
-        message=message,
-        priority=priority
-    )
+def trigger_investment_notification(user, investment):
+    """Trigger notification for investment creation."""
+    try:
+        notification = Notification.objects.create(
+            user=user,
+            title="Investment Created",
+            message=f"Your investment of ${investment.amount} has been created successfully.",
+            notification_type="investment",
+            data={
+                'investment_id': investment.id,
+                'amount': str(investment.amount),
+                'investment_type': investment.investment_type,
+                'status': investment.status
+            }
+        )
+        return notification
+    except Exception as e:
+        print(f"Error creating investment notification: {e}")
+        return None
+
+
+def trigger_bitcoin_transaction_notification(user, transaction):
+    """Trigger notification for Bitcoin transaction."""
+    try:
+        amount_display = f"${transaction.amount_usd}" if transaction.balance_source == 'fiat' else f"{transaction.amount_btc} BTC"
+        
+        notification = Notification.objects.create(
+            user=user,
+            title="Bitcoin Transaction",
+            message=f"Your Bitcoin transaction of {amount_display} has been initiated successfully.",
+            notification_type="bitcoin_transaction",
+            data={
+                'transaction_id': transaction.id,
+                'amount_usd': str(transaction.amount_usd),
+                'amount_btc': str(transaction.amount_btc),
+                'balance_source': transaction.balance_source,
+                'recipient_address': transaction.recipient_wallet_address,
+                'status': transaction.status,
+                'blockchain_tx_id': transaction.blockchain_tx_id
+            }
+        )
+        return notification
+    except Exception as e:
+        print(f"Error creating Bitcoin transaction notification: {e}")
+        return None
 
 def trigger_bill_notification(user, bill, action_type):
     """Trigger notification for bill actions."""

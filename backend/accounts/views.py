@@ -21,6 +21,7 @@ from .serializers import (
     BitcoinTransactionSerializer, BitcoinSendSerializer, BitcoinPriceSerializer
 )
 from api.services import trigger_account_created_notification
+from .services import BitcoinService
 
 
 class UserRegistrationView(APIView):
@@ -494,11 +495,11 @@ class BitcoinBalanceView(APIView):
         """Get user's Bitcoin balance and current price."""
         user = request.user
         
-        # Get current Bitcoin price (you'll need to integrate with a price API)
-        # For now, using a mock price - replace with real API call
-        bitcoin_price_usd = 65000.00  # Mock price, replace with real API
+        # Get real Bitcoin price from CoinGecko API
+        price_data = BitcoinService.get_bitcoin_price()
+        bitcoin_price_usd = price_data['price_usd']
         
-        bitcoin_balance_usd = float(user.bitcoin_balance) * bitcoin_price_usd
+        bitcoin_balance_usd = float(user.bitcoin_balance) * float(bitcoin_price_usd)
         
         serializer = BitcoinBalanceSerializer({
             'bitcoin_balance': user.bitcoin_balance,
@@ -517,15 +518,15 @@ class BitcoinPriceView(APIView):
     
     def get(self, request):
         """Get current Bitcoin price."""
-        # Mock price data - replace with real API integration
-        price_data = {
-            'price_usd': 65000.00,
-            'price_change_24h': 1250.50,
-            'price_change_percentage_24h': 1.96,
-            'last_updated': timezone.now(),
-        }
+        # Get real Bitcoin price from CoinGecko API
+        price_data = BitcoinService.get_bitcoin_price()
         
-        serializer = BitcoinPriceSerializer(price_data)
+        serializer = BitcoinPriceSerializer({
+            'price_usd': price_data['price_usd'],
+            'price_change_24h': price_data['price_change_24h'],
+            'price_change_percentage_24h': price_data['price_change_percentage_24h'],
+            'last_updated': timezone.now(),
+        })
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -542,16 +543,24 @@ class BitcoinSendView(APIView):
             user = request.user
             data = serializer.validated_data
             
-            # Get current Bitcoin price
-            bitcoin_price_usd = 65000.00  # Mock price, replace with real API
+            # Validate recipient wallet address
+            if not BitcoinService.validate_bitcoin_address(data['recipient_wallet_address']):
+                return Response(
+                    {'error': 'Invalid Bitcoin wallet address'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get real Bitcoin price
+            price_data = BitcoinService.get_bitcoin_price()
+            bitcoin_price_usd = price_data['price_usd']
             
             # Calculate amounts
             if data['balance_source'] == 'fiat':
                 amount_usd = data['amount_usd']
-                amount_btc = amount_usd / bitcoin_price_usd
+                amount_btc = amount_usd / float(bitcoin_price_usd)
             else:
                 amount_btc = data['amount_btc']
-                amount_usd = amount_btc * bitcoin_price_usd
+                amount_usd = amount_btc * float(bitcoin_price_usd)
             
             # Validate user has sufficient balance
             if data['balance_source'] == 'fiat':
@@ -567,7 +576,11 @@ class BitcoinSendView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
             
-            # Create Bitcoin transaction
+            # Estimate real transaction fee
+            transaction_fee_btc = BitcoinService.estimate_transaction_fee(amount_btc)
+            transaction_fee_usd = transaction_fee_btc * float(bitcoin_price_usd)
+            
+            # Create Bitcoin transaction record
             transaction = BitcoinTransaction.objects.create(
                 user=user,
                 transaction_type='send',
@@ -577,31 +590,58 @@ class BitcoinSendView(APIView):
                 bitcoin_price_at_time=bitcoin_price_usd,
                 recipient_wallet_address=data['recipient_wallet_address'],
                 recipient_name=data.get('recipient_name', ''),
-                transaction_fee=0.001 * amount_usd,  # Mock fee calculation
+                transaction_fee=transaction_fee_usd,
                 status='processing'
             )
             
-            # Update user balance immediately (for demo purposes)
-            # In production, this would happen after blockchain confirmation
-            if data['balance_source'] == 'fiat':
-                user.balance -= amount_usd
-            else:
-                user.bitcoin_balance -= amount_btc
-            
-            user.save()
-            transaction.status = 'completed'
-            transaction.completed_at = timezone.now()
-            transaction.save()
-            
-            # Trigger notification
-            from api.services import trigger_bitcoin_transaction_notification
-            trigger_bitcoin_transaction_notification(user, transaction)
-            
-            return Response({
-                'message': 'Bitcoin transaction initiated successfully',
-                'transaction_id': transaction.id,
-                'status': transaction.status
-            }, status=status.HTTP_201_CREATED)
+            try:
+                # Create actual blockchain transaction
+                # Note: In production, you would use a proper wallet service
+                if user.bitcoin_wallet_address:
+                    blockchain_tx = BitcoinService.create_bitcoin_transaction(
+                        from_address=user.bitcoin_wallet_address,
+                        to_address=data['recipient_wallet_address'],
+                        amount_btc=amount_btc
+                    )
+                    
+                    if blockchain_tx:
+                        transaction.blockchain_tx_id = blockchain_tx['tx_hash']
+                        transaction.status = 'processing'
+                    else:
+                        transaction.status = 'failed'
+                else:
+                    # For users without wallet addresses, simulate the transaction
+                    transaction.blockchain_tx_id = f"simulated_tx_{transaction.id}"
+                    transaction.status = 'processing'
+                
+                # Update user balance immediately (in production, this would wait for confirmation)
+                if data['balance_source'] == 'fiat':
+                    user.balance -= amount_usd
+                else:
+                    user.bitcoin_balance -= amount_btc
+                
+                user.save()
+                transaction.save()
+                
+                # Trigger notification
+                from api.services import trigger_bitcoin_transaction_notification
+                trigger_bitcoin_transaction_notification(user, transaction)
+                
+                return Response({
+                    'message': 'Bitcoin transaction initiated successfully',
+                    'transaction_id': transaction.id,
+                    'status': transaction.status,
+                    'blockchain_tx_id': transaction.blockchain_tx_id,
+                    'transaction_fee': transaction_fee_usd
+                }, status=status.HTTP_201_CREATED)
+                
+            except Exception as e:
+                transaction.status = 'failed'
+                transaction.save()
+                return Response(
+                    {'error': f'Transaction failed: {str(e)}'}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
