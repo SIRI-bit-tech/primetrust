@@ -70,14 +70,21 @@ class User(AbstractUser):
     
     def generate_account_number(self):
         """Generate a unique 10-digit account number."""
+        import random
         while True:
-            account_number = str(uuid.uuid4().int)[:10]
+            # Generate a 10-digit number starting with 1-9 (not 0)
+            account_number = str(random.randint(1000000000, 9999999999))
             if not User.objects.filter(account_number=account_number).exists():
                 return account_number
     
     def generate_routing_number(self):
-        """Generate a standard routing number."""
-        return "021000021"  # Standard routing number for demo
+        """Generate a unique 9-digit routing number."""
+        import random
+        while True:
+            # Generate a 9-digit routing number starting with 1-9 (not 0)
+            routing_number = str(random.randint(100000000, 999999999))
+            if not User.objects.filter(routing_number=routing_number).exists():
+                return routing_number
     
     def get_full_name(self):
         """Return the full name of the user."""

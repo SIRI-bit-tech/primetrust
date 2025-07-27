@@ -16,15 +16,17 @@ import {
   Clock,
   ShoppingCart,
   Coffee,
-  Car
+  Car,
+  Copy,
+  Check,
 } from 'lucide-react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { bankingAPI, transactionsAPI } from '@/lib/api'
 import { Account, Transaction, VirtualCard } from '@/types'
-import { formatCurrency, maskCardNumber } from '@/lib/utils'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { formatCurrency } from '@/lib/utils'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
@@ -35,30 +37,51 @@ export default function DashboardPage() {
   const [cards, setCards] = useState<VirtualCard[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showBalance, setShowBalance] = useState(true)
+  const [copiedAccount, setCopiedAccount] = useState(false)
+  const [copiedRouting, setCopiedRouting] = useState(false)
 
-  useEffect(() => {
-    loadDashboardData()
-  }, [])
-
-  const loadDashboardData = async () => {
+  const copyToClipboard = async (text: string, type: 'account' | 'routing') => {
     try {
-      const [accountData, transactionsData, cardsData] = await Promise.all([
-        bankingAPI.getBalance(),
-        transactionsAPI.getTransactions(),
-        bankingAPI.getCards(),
-      ])
-      
-      setAccount(accountData)
-      // Handle paginated response from Django REST Framework
-      const transactionsArray = 'results' in transactionsData ? transactionsData.results : (Array.isArray(transactionsData) ? transactionsData : [])
-      setTransactions(transactionsArray.slice(0, 5)) // Show only 5 recent transactions
-      setCards(cardsData)
-    } catch (error) {
-      console.error('Error loading dashboard data:', error)
-    } finally {
-      setIsLoading(false)
+      await navigator.clipboard.writeText(text)
+      if (type === 'account') {
+        setCopiedAccount(true)
+        setTimeout(() => setCopiedAccount(false), 2000)
+      } else {
+        setCopiedRouting(true)
+        setTimeout(() => setCopiedRouting(false), 2000)
+      }
+    } catch (err) {
+      console.error('Failed to copy text: ', err)
     }
   }
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true)
+        
+        // Fetch account information
+        const accountData = await bankingAPI.getAccountInfo()
+        setAccount(accountData)
+        
+        // Fetch recent transactions
+        const transactionsData = await transactionsAPI.getTransactions()
+        const transactionsArray = Array.isArray(transactionsData) ? transactionsData : transactionsData.results || []
+        setTransactions(transactionsArray.slice(0, 5))
+        
+        // Fetch virtual cards
+        const cardsData = await bankingAPI.getCards()
+        setCards(cardsData)
+        
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -110,7 +133,7 @@ export default function DashboardPage() {
               Welcome back, {user?.full_name?.split(' ')[0]}! 👋
             </h1>
             <p className="text-muted-foreground mt-1">
-              Here's your financial overview for today
+              Here&apos;s your financial overview for today
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -148,11 +171,6 @@ export default function DashboardPage() {
                       {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  {account?.account_number && (
-                    <p className="text-blue-100 text-sm mt-2">
-                      Account: {account.account_number}
-                    </p>
-                  )}
                 </div>
                 <div className="flex flex-col items-end">
                   <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
@@ -171,9 +189,45 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-muted-foreground">Account Number</p>
-                  <p className="font-mono text-sm font-medium">
-                    {account?.account_number || 'Not available'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-mono text-sm font-medium">
+                      {account?.account_number || 'Not available'}
+                    </p>
+                    {account?.account_number && (
+                      <button
+                        onClick={() => copyToClipboard(account.account_number, 'account')}
+                        className="p-1 rounded hover:bg-muted transition-colors"
+                        title="Copy Account Number"
+                      >
+                        {copiedAccount ? (
+                          <Check className="w-3 h-3 text-green-600" />
+                        ) : (
+                          <Copy className="w-3 h-3 text-muted-foreground" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Routing Number</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-mono text-sm font-medium">
+                      {account?.routing_number || 'Not available'}
+                    </p>
+                    {account?.routing_number && (
+                      <button
+                        onClick={() => copyToClipboard(account.routing_number, 'routing')}
+                        className="p-1 rounded hover:bg-muted transition-colors"
+                        title="Copy Routing Number"
+                      >
+                        {copiedRouting ? (
+                          <Check className="w-3 h-3 text-green-600" />
+                        ) : (
+                          <Copy className="w-3 h-3 text-muted-foreground" />
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Account Type</p>
@@ -183,9 +237,10 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge variant="secondary" className="text-xs">
-                    Active
-                  </Badge>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                    <span className="text-sm font-medium">Active</span>
+                  </div>
                 </div>
               </div>
             </CardContent>

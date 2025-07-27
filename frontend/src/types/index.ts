@@ -14,12 +14,17 @@ export interface User {
 
 export interface Account {
   id: number
-  user: User
   account_number: string
+  routing_number: string
   balance: number
-  account_type: 'checking' | 'savings'
+  account_type: string
+  status: string
+  currency: string
   created_at: string
-  updated_at: string
+  last_updated: string
+  is_verified: boolean
+  email_verified: boolean
+  phone_verified: boolean
 }
 
 export interface Transaction {
@@ -55,8 +60,8 @@ export interface EmailVerification {
 }
 
 export interface AuthResponse {
-  access: string
-  refresh: string
+  access_token: string
+  refresh_token: string
   user: User
 }
 

@@ -52,6 +52,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validated_data.pop('confirm_password')
         user = User.objects.create_user(**validated_data)
         
+        # Ensure account number is generated
+        if not user.account_number:
+            user.save()  # This will trigger account number generation
+        
         # Create user profile
         UserProfile.objects.create(user=user)
         

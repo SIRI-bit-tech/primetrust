@@ -113,7 +113,12 @@ export const authAPI = {
 // Banking API
 export const bankingAPI = {
   getBalance: async (): Promise<Account> => {
-    const response = await api.get('/auth/balance/')
+    const response = await api.get('/auth/account-info/')
+    return response.data
+  },
+
+  getAccountInfo: async (): Promise<Account> => {
+    const response = await api.get('/auth/account-info/')
     return response.data
   },
 

@@ -339,8 +339,12 @@ class BalanceView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request):
-        """Get user account balance."""
+        """Get user account balance and basic info."""
         user = request.user
+        
+        # Ensure account number is generated if not exists
+        if not user.account_number:
+            user.save()  # This will trigger account number generation
         
         serializer = BalanceSerializer({
             'balance': user.balance,
@@ -349,6 +353,37 @@ class BalanceView(APIView):
         })
         
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AccountInfoView(APIView):
+    """View for complete account information."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get complete user account information."""
+        user = request.user
+        
+        # Ensure account number is generated if not exists
+        if not user.account_number:
+            user.save()  # This will trigger account number generation
+        
+        account_data = {
+            'id': user.id,
+            'account_number': user.account_number,
+            'routing_number': user.routing_number,
+            'balance': user.balance,
+            'account_type': 'Savings',  # Default account type
+            'status': 'Active',
+            'currency': 'USD',
+            'created_at': user.created_at,
+            'last_updated': user.updated_at,
+            'is_verified': user.is_verified,
+            'email_verified': user.email_verified,
+            'phone_verified': user.phone_verified,
+        }
+        
+        return Response(account_data, status=status.HTTP_200_OK)
 
 
 class TwoFactorSetupView(APIView):
