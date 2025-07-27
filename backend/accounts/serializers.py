@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from .models import User, UserProfile, EmailVerification, PasswordReset
+from .models import User, UserProfile, EmailVerification, PasswordReset, BitcoinTransaction
 from django.utils import timezone
 from datetime import timedelta
 import uuid
@@ -290,3 +290,76 @@ class AccountStatusSerializer(serializers.Serializer):
     account_locked = serializers.BooleanField()
     failed_login_attempts = serializers.IntegerField()
     account_locked_until = serializers.DateTimeField(allow_null=True) 
+
+
+class BitcoinBalanceSerializer(serializers.Serializer):
+    """Serializer for Bitcoin balance information."""
+    
+    bitcoin_balance = serializers.DecimalField(max_digits=20, decimal_places=8)
+    bitcoin_wallet_address = serializers.CharField(allow_blank=True)
+    bitcoin_price_usd = serializers.DecimalField(max_digits=15, decimal_places=2)
+    bitcoin_balance_usd = serializers.DecimalField(max_digits=15, decimal_places=2)
+
+
+class BitcoinTransactionSerializer(serializers.ModelSerializer):
+    """Serializer for Bitcoin transactions."""
+    
+    class Meta:
+        model = BitcoinTransaction
+        fields = [
+            'id', 'transaction_type', 'balance_source', 'amount_usd', 'amount_btc',
+            'bitcoin_price_at_time', 'recipient_wallet_address', 'recipient_name',
+            'transaction_fee', 'status', 'blockchain_tx_id', 'confirmation_count',
+            'created_at', 'updated_at', 'completed_at'
+        ]
+        read_only_fields = [
+            'id', 'bitcoin_price_at_time', 'status', 'blockchain_tx_id',
+            'confirmation_count', 'created_at', 'updated_at', 'completed_at'
+        ]
+
+
+class BitcoinSendSerializer(serializers.Serializer):
+    """Serializer for sending Bitcoin."""
+    
+    balance_source = serializers.ChoiceField(choices=[('fiat', 'Fiat Balance'), ('bitcoin', 'Bitcoin Balance')])
+    amount_usd = serializers.DecimalField(max_digits=15, decimal_places=2, required=False)
+    amount_btc = serializers.DecimalField(max_digits=20, decimal_places=8, required=False)
+    recipient_wallet_address = serializers.CharField(max_length=100)
+    recipient_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    transaction_pin = serializers.CharField(max_length=10, min_length=4)
+    
+    def validate(self, attrs):
+        """Validate the Bitcoin send transaction."""
+        balance_source = attrs.get('balance_source')
+        amount_usd = attrs.get('amount_usd')
+        amount_btc = attrs.get('amount_btc')
+        
+        # Ensure at least one amount is provided
+        if not amount_usd and not amount_btc:
+            raise serializers.ValidationError("Either amount_usd or amount_btc must be provided")
+        
+        # Validate based on balance source
+        if balance_source == 'fiat':
+            if not amount_usd:
+                raise serializers.ValidationError("USD amount is required when using fiat balance")
+            if amount_usd > 100000:
+                raise serializers.ValidationError("Maximum transfer limit is $100,000")
+        else:  # bitcoin balance
+            if not amount_btc:
+                raise serializers.ValidationError("BTC amount is required when using bitcoin balance")
+        
+        # Validate transaction PIN
+        user = self.context['request'].user
+        if attrs.get('transaction_pin') != user.transaction_pin:
+            raise serializers.ValidationError("Invalid transaction PIN")
+        
+        return attrs
+
+
+class BitcoinPriceSerializer(serializers.Serializer):
+    """Serializer for Bitcoin price information."""
+    
+    price_usd = serializers.DecimalField(max_digits=15, decimal_places=2)
+    price_change_24h = serializers.DecimalField(max_digits=10, decimal_places=2)
+    price_change_percentage_24h = serializers.DecimalField(max_digits=10, decimal_places=2)
+    last_updated = serializers.DateTimeField() 

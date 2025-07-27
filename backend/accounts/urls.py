@@ -27,4 +27,11 @@ urlpatterns = [
     # Security
     path('two-factor-setup/', views.TwoFactorSetupView.as_view(), name='two-factor-setup'),
     path('account-status/', views.AccountStatusView.as_view(), name='account-status'),
+    
+    # Bitcoin
+    path('bitcoin/balance/', views.BitcoinBalanceView.as_view(), name='bitcoin-balance'),
+    path('bitcoin/price/', views.BitcoinPriceView.as_view(), name='bitcoin-price'),
+    path('bitcoin/send/', views.BitcoinSendView.as_view(), name='bitcoin-send'),
+    path('bitcoin/transactions/', views.BitcoinTransactionListView.as_view(), name='bitcoin-transactions'),
+    path('bitcoin/transactions/<int:transaction_id>/', views.BitcoinTransactionDetailView.as_view(), name='bitcoin-transaction-detail'),
 ] 

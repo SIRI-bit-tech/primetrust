@@ -324,4 +324,85 @@ export const billsAPI = {
   },
 }
 
+// Bitcoin API
+export const bitcoinAPI = {
+  getBalance: async (): Promise<{
+    bitcoin_balance: string
+    bitcoin_wallet_address: string
+    bitcoin_price_usd: number
+    bitcoin_balance_usd: number
+  }> => {
+    const response = await api.get('/auth/bitcoin/balance/')
+    return response.data
+  },
+
+  getPrice: async (): Promise<{
+    price_usd: number
+    price_change_24h: number
+    price_change_percentage_24h: number
+    last_updated: string
+  }> => {
+    const response = await api.get('/auth/bitcoin/price/')
+    return response.data
+  },
+
+  sendBitcoin: async (data: {
+    balance_source: 'fiat' | 'bitcoin'
+    amount_usd?: number
+    amount_btc?: number
+    recipient_wallet_address: string
+    recipient_name?: string
+    transaction_pin: string
+  }): Promise<{
+    message: string
+    transaction_id: number
+    status: string
+  }> => {
+    const response = await api.post('/auth/bitcoin/send/', data)
+    return response.data
+  },
+
+  getTransactions: async (): Promise<{
+    id: number
+    transaction_type: string
+    balance_source: string
+    amount_usd: number
+    amount_btc: number
+    bitcoin_price_at_time: number
+    recipient_wallet_address: string
+    recipient_name: string
+    transaction_fee: number
+    status: string
+    blockchain_tx_id: string
+    confirmation_count: number
+    created_at: string
+    updated_at: string
+    completed_at: string | null
+  }[]> => {
+    const response = await api.get('/auth/bitcoin/transactions/')
+    return response.data
+  },
+
+  getTransaction: async (transactionId: number): Promise<{
+    id: number
+    transaction_type: string
+    balance_source: string
+    amount_usd: number
+    amount_btc: number
+    bitcoin_price_at_time: number
+    recipient_wallet_address: string
+    recipient_name: string
+    transaction_fee: number
+    status: string
+    blockchain_tx_id: string
+    confirmation_count: number
+    created_at: string
+    updated_at: string
+    completed_at: string | null
+  }> => {
+    const response = await api.get(`/auth/bitcoin/transactions/${transactionId}/`)
+    return response.data
+  },
+}
+
 export default api 

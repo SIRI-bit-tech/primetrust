@@ -17,7 +17,8 @@ from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer, UserSerializer,
     UserUpdateSerializer, PasswordChangeSerializer, EmailVerificationSerializer,
     PasswordResetRequestSerializer, PasswordResetSerializer, BalanceSerializer,
-    TwoFactorSetupSerializer, AccountStatusSerializer
+    TwoFactorSetupSerializer, AccountStatusSerializer, BitcoinBalanceSerializer,
+    BitcoinTransactionSerializer, BitcoinSendSerializer, BitcoinPriceSerializer
 )
 from api.services import trigger_account_created_notification
 
@@ -482,3 +483,159 @@ def resend_verification_email(request):
         
     except Exception as e:
         return Response({'error': 'Failed to send verification email'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BitcoinBalanceView(APIView):
+    """View for Bitcoin balance information."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get user's Bitcoin balance and current price."""
+        user = request.user
+        
+        # Get current Bitcoin price (you'll need to integrate with a price API)
+        # For now, using a mock price - replace with real API call
+        bitcoin_price_usd = 65000.00  # Mock price, replace with real API
+        
+        bitcoin_balance_usd = float(user.bitcoin_balance) * bitcoin_price_usd
+        
+        serializer = BitcoinBalanceSerializer({
+            'bitcoin_balance': user.bitcoin_balance,
+            'bitcoin_wallet_address': user.bitcoin_wallet_address,
+            'bitcoin_price_usd': bitcoin_price_usd,
+            'bitcoin_balance_usd': bitcoin_balance_usd,
+        })
+        
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class BitcoinPriceView(APIView):
+    """View for current Bitcoin price."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get current Bitcoin price."""
+        # Mock price data - replace with real API integration
+        price_data = {
+            'price_usd': 65000.00,
+            'price_change_24h': 1250.50,
+            'price_change_percentage_24h': 1.96,
+            'last_updated': timezone.now(),
+        }
+        
+        serializer = BitcoinPriceSerializer(price_data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class BitcoinSendView(APIView):
+    """View for sending Bitcoin."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        """Send Bitcoin transaction."""
+        serializer = BitcoinSendSerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            user = request.user
+            data = serializer.validated_data
+            
+            # Get current Bitcoin price
+            bitcoin_price_usd = 65000.00  # Mock price, replace with real API
+            
+            # Calculate amounts
+            if data['balance_source'] == 'fiat':
+                amount_usd = data['amount_usd']
+                amount_btc = amount_usd / bitcoin_price_usd
+            else:
+                amount_btc = data['amount_btc']
+                amount_usd = amount_btc * bitcoin_price_usd
+            
+            # Validate user has sufficient balance
+            if data['balance_source'] == 'fiat':
+                if user.balance < amount_usd:
+                    return Response(
+                        {'error': 'Insufficient fiat balance'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                if user.bitcoin_balance < amount_btc:
+                    return Response(
+                        {'error': 'Insufficient Bitcoin balance'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Create Bitcoin transaction
+            transaction = BitcoinTransaction.objects.create(
+                user=user,
+                transaction_type='send',
+                balance_source=data['balance_source'],
+                amount_usd=amount_usd,
+                amount_btc=amount_btc,
+                bitcoin_price_at_time=bitcoin_price_usd,
+                recipient_wallet_address=data['recipient_wallet_address'],
+                recipient_name=data.get('recipient_name', ''),
+                transaction_fee=0.001 * amount_usd,  # Mock fee calculation
+                status='processing'
+            )
+            
+            # Update user balance immediately (for demo purposes)
+            # In production, this would happen after blockchain confirmation
+            if data['balance_source'] == 'fiat':
+                user.balance -= amount_usd
+            else:
+                user.bitcoin_balance -= amount_btc
+            
+            user.save()
+            transaction.status = 'completed'
+            transaction.completed_at = timezone.now()
+            transaction.save()
+            
+            # Trigger notification
+            from api.services import trigger_bitcoin_transaction_notification
+            trigger_bitcoin_transaction_notification(user, transaction)
+            
+            return Response({
+                'message': 'Bitcoin transaction initiated successfully',
+                'transaction_id': transaction.id,
+                'status': transaction.status
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BitcoinTransactionListView(APIView):
+    """View for listing Bitcoin transactions."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get user's Bitcoin transaction history."""
+        user = request.user
+        transactions = BitcoinTransaction.objects.filter(user=user)
+        
+        serializer = BitcoinTransactionSerializer(transactions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class BitcoinTransactionDetailView(APIView):
+    """View for Bitcoin transaction details."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, transaction_id):
+        """Get specific Bitcoin transaction details."""
+        try:
+            transaction = BitcoinTransaction.objects.get(
+                id=transaction_id, 
+                user=request.user
+            )
+            serializer = BitcoinTransactionSerializer(transaction)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except BitcoinTransaction.DoesNotExist:
+            return Response(
+                {'error': 'Transaction not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )

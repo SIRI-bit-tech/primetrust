@@ -28,6 +28,14 @@ class User(AbstractUser):
     routing_number = models.CharField(max_length=9, blank=True)
     balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
     
+    # Bitcoin information
+    bitcoin_balance = models.DecimalField(max_digits=20, decimal_places=8, default=0.00000000)
+    bitcoin_wallet_address = models.CharField(max_length=100, blank=True)
+    bitcoin_qr_code = models.TextField(blank=True)  # Store QR code data or URL
+    
+    # Transaction PIN for Bitcoin transactions
+    transaction_pin = models.CharField(max_length=10, blank=True)  # 4-digit PIN
+    
     # Verification and status
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -241,3 +249,73 @@ class UserProfile(models.Model):
                 (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
             )
         return None
+
+
+class BitcoinTransaction(models.Model):
+    """Model for Bitcoin transactions."""
+    
+    TRANSACTION_TYPES = [
+        ('send', 'Send'),
+        ('receive', 'Receive'),
+    ]
+    
+    BALANCE_SOURCES = [
+        ('fiat', 'Fiat Balance'),
+        ('bitcoin', 'Bitcoin Balance'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bitcoin_transactions')
+    
+    # Transaction details
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    balance_source = models.CharField(max_length=10, choices=BALANCE_SOURCES)
+    amount_usd = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    amount_btc = models.DecimalField(max_digits=20, decimal_places=8)
+    bitcoin_price_at_time = models.DecimalField(max_digits=15, decimal_places=2)  # BTC price when transaction was made
+    
+    # Recipient details
+    recipient_wallet_address = models.CharField(max_length=100)
+    recipient_name = models.CharField(max_length=100, blank=True)
+    
+    # Transaction fees
+    transaction_fee = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
+    
+    # Status and tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    blockchain_tx_id = models.CharField(max_length=100, blank=True)  # Bitcoin transaction hash
+    confirmation_count = models.PositiveIntegerField(default=0)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'bitcoin_transactions'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Bitcoin {self.transaction_type} - {self.user.email} - {self.amount_btc} BTC"
+    
+    def save(self, *args, **kwargs):
+        # Update user's Bitcoin balance when transaction is completed
+        if self.status == 'completed' and not self._state.adding:
+            if self.transaction_type == 'send':
+                if self.balance_source == 'bitcoin':
+                    self.user.bitcoin_balance -= self.amount_btc
+                else:  # fiat balance
+                    self.user.balance -= self.amount_usd
+            else:  # receive
+                self.user.bitcoin_balance += self.amount_btc
+            
+            self.user.save()
+        
+        super().save(*args, **kwargs)

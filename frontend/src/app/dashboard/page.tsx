@@ -19,6 +19,9 @@ import {
   Car,
   Copy,
   Check,
+  Bitcoin,
+  ArrowUpDown,
+  ArrowDownUp
 } from 'lucide-react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -271,27 +274,23 @@ export default function DashboardPage() {
                 </Button>
                 
                 <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                  <Link href="/dashboard/cards">
-                    <CreditCard className="w-6 h-6" />
-                    <span className="text-sm">Manage Cards</span>
+                  <Link href="/dashboard/send-bitcoin">
+                    <Bitcoin className="w-6 h-6" />
+                    <span className="text-sm">Send Bitcoin</span>
                   </Link>
                 </Button>
                 
                 <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                  <Link href="/dashboard/transactions">
-                    <Download className="w-6 h-6" />
-                    <span className="text-sm">View History</span>
+                  <Link href="/dashboard/receive-bitcoin">
+                    <ArrowDownUp className="w-6 h-6" />
+                    <span className="text-sm">Receive Bitcoin</span>
                   </Link>
                 </Button>
                 
                 <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                  <Link href="/dashboard/profile">
-                    <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                      <span className="text-primary-foreground text-xs font-medium">
-                        {user?.full_name?.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <span className="text-sm">Profile</span>
+                  <Link href="/dashboard/swap-bitcoin">
+                    <ArrowUpDown className="w-6 h-6" />
+                    <span className="text-sm">Swap Bitcoin</span>
                   </Link>
                 </Button>
               </div>
