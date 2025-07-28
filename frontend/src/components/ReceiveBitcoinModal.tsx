@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -32,10 +32,13 @@ export default function ReceiveBitcoinModal({ isOpen, onClose }: ReceiveBitcoinM
   const [isCopying, setIsCopying] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const { toast, toasts, removeToast } = useToast();
+  const toastRef = useRef(toast);
+  const isLoadingRef = useRef(false);
 
   const fetchWalletData = useCallback(async () => {
-    if (isLoading) return; // Prevent multiple simultaneous requests
+    if (isLoadingRef.current) return; // Prevent multiple simultaneous requests
     
+    isLoadingRef.current = true;
     setIsLoading(true);
     try {
       const walletData = await bitcoinAPI.getWallet();
@@ -43,15 +46,16 @@ export default function ReceiveBitcoinModal({ isOpen, onClose }: ReceiveBitcoinM
     } catch (error: unknown) {
       console.error('Error fetching wallet data:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load wallet information';
-      toast({
+      toastRef.current({
         title: "Error",
         description: errorMessage,
         variant: "destructive",
       });
     } finally {
+      isLoadingRef.current = false;
       setIsLoading(false);
     }
-  }, [toast, isLoading]);
+  }, []);
 
   // Fetch wallet data when modal opens
   useEffect(() => {
@@ -138,136 +142,106 @@ export default function ReceiveBitcoinModal({ isOpen, onClose }: ReceiveBitcoinM
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-center">
             <QrCode className="h-5 w-5" />
             Receive Bitcoin
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="flex items-center justify-center py-6">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
             </div>
           ) : wallet ? (
             <>
               {/* QR Code Section */}
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-center space-y-4">
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                      <QrCode className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Scan QR Code</h3>
+              <div className="text-center space-y-3">
+                <div className="flex items-center justify-center gap-2">
+                  <QrCode className="h-4 w-4 text-primary" />
+                  <h3 className="text-base font-semibold">QR Code</h3>
+                </div>
+                
+                {wallet.qr_code_url ? (
+                  <div className="space-y-3">
+                    <div className="bg-white p-3 rounded-lg inline-block">
+                      <Image
+                        src={wallet.qr_code_url}
+                        alt="Bitcoin QR Code"
+                        width={160}
+                        height={160}
+                        className="object-contain"
+                      />
                     </div>
                     
-                    {wallet.qr_code_url ? (
-                      <div className="space-y-4">
-                        <div className="bg-white p-4 rounded-lg inline-block">
-                          <Image
-                            src={wallet.qr_code_url}
-                            alt="Bitcoin QR Code"
-                            width={192}
-                            height={192}
-                            className="object-contain"
-                          />
-                        </div>
-                        
-                        <div className="flex gap-2 justify-center">
-                          <Button
-                            onClick={downloadQRCode}
-                            disabled={isDownloading}
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-2"
-                          >
-                            <Download className="h-4 w-4" />
-                            {isDownloading ? 'Downloading...' : 'Download'}
-                          </Button>
-                          
-                          <Button
-                            onClick={copyQRCode}
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-2"
-                          >
-                            <Copy className="h-4 w-4" />
-                            Copy QR
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <QrCode className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">
-                          QR code not available. Please contact admin.
-                        </p>
-                      </div>
-                    )}
+                                         <div className="flex justify-center">
+                       <Button
+                         onClick={downloadQRCode}
+                         disabled={isDownloading}
+                         variant="outline"
+                         size="sm"
+                         className="flex items-center gap-1 text-xs"
+                       >
+                         <Download className="h-3 w-3" />
+                         {isDownloading ? 'Downloading...' : 'Download'}
+                       </Button>
+                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                ) : (
+                  <div className="text-center py-4">
+                    <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      QR code not available
+                    </p>
+                  </div>
+                )}
+              </div>
 
               {/* Wallet Address Section */}
-              <Card>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Wallet className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Wallet Address</h3>
-                      <Badge variant={wallet.is_active ? "default" : "secondary"}>
-                        {wallet.is_active ? "Active" : "Inactive"}
-                      </Badge>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  <h3 className="text-base font-semibold">Wallet Address</h3>
+                  <Badge variant={wallet.is_active ? "default" : "secondary"} className="text-xs">
+                    {wallet.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+                
+                {wallet.wallet_address ? (
+                  <div className="space-y-2">
+                    <div className="bg-muted p-2 rounded-lg">
+                      <p className="font-mono text-xs break-all">
+                        {wallet.wallet_address}
+                      </p>
                     </div>
                     
-                    {wallet.wallet_address ? (
-                      <div className="space-y-3">
-                        <div className="bg-muted p-3 rounded-lg">
-                          <p className="font-mono text-sm break-all">
-                            {wallet.wallet_address}
-                          </p>
-                        </div>
-                        
-                        <Button
-                          onClick={copyWalletAddress}
-                          disabled={isCopying}
-                          className="w-full flex items-center gap-2"
-                        >
-                          <Copy className="h-4 w-4" />
-                          {isCopying ? 'Copying...' : 'Copy Address'}
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="text-center py-4">
-                        <Wallet className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-muted-foreground">
-                          Wallet address not set. Please contact admin.
-                        </p>
-                      </div>
-                    )}
+                    <Button
+                      onClick={copyWalletAddress}
+                      disabled={isCopying}
+                      size="sm"
+                      className="w-full flex items-center gap-2 text-xs"
+                    >
+                      <Copy className="h-3 w-3" />
+                      {isCopying ? 'Copying...' : 'Copy Address'}
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Instructions */}
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-3">How to Receive Bitcoin</h3>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>1. Share your wallet address or QR code with the sender</p>
-                    <p>2. Wait for the transaction to be confirmed on the blockchain</p>
-                    <p>3. Your balance will be updated automatically</p>
-                    <p>4. You&apos;ll receive a notification when the transaction is completed</p>
+                ) : (
+                  <div className="text-center py-3">
+                    <Wallet className="h-8 w-8 text-muted-foreground mx-auto mb-1" />
+                    <p className="text-sm text-muted-foreground">
+                      Wallet address not set
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             </>
           ) : (
-            <div className="text-center py-8">
-              <QrCode className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                Bitcoin wallet not found. Please contact admin to set up your wallet.
+            <div className="text-center py-6">
+              <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">
+                Bitcoin wallet not found
               </p>
             </div>
           )}
