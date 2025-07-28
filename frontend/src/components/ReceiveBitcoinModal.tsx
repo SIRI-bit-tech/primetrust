@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Copy, Download, QrCode, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -116,29 +115,6 @@ export default function ReceiveBitcoinModal({ isOpen, onClose }: ReceiveBitcoinM
     }
   };
 
-  const copyQRCode = async () => {
-    if (!wallet?.qr_code_url) return;
-    
-    try {
-      const response = await fetch(wallet.qr_code_url);
-      const blob = await response.blob();
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          [blob.type]: blob
-        })
-      ]);
-      toast({
-        title: "Copied!",
-        description: "QR code copied to clipboard",
-      });
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to copy QR code",
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
