@@ -25,6 +25,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
+import ReceiveBitcoinModal from '@/components/ReceiveBitcoinModal'
+import { ToastContainer } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { bankingAPI, transactionsAPI } from '@/lib/api'
 import { Account, Transaction, VirtualCard } from '@/types'
@@ -42,6 +44,8 @@ export default function DashboardPage() {
   const [showBalance, setShowBalance] = useState(true)
   const [copiedAccount, setCopiedAccount] = useState(false)
   const [copiedRouting, setCopiedRouting] = useState(false)
+  const [isReceiveBitcoinModalOpen, setIsReceiveBitcoinModalOpen] = useState(false)
+  const [toasts, setToasts] = useState<any[]>([])
 
   const copyToClipboard = async (text: string, type: 'account' | 'routing') => {
     try {
@@ -280,11 +284,13 @@ export default function DashboardPage() {
                   </Link>
                 </Button>
                 
-                <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                  <Link href="/dashboard/receive-bitcoin">
-                    <ArrowDownUp className="w-6 h-6" />
-                    <span className="text-sm">Receive Bitcoin</span>
-                  </Link>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex-col gap-2"
+                  onClick={() => setIsReceiveBitcoinModalOpen(true)}
+                >
+                  <ArrowDownUp className="w-6 h-6" />
+                  <span className="text-sm">Receive Bitcoin</span>
                 </Button>
                 
                 <Button variant="outline" className="h-20 flex-col gap-2" asChild>
@@ -369,6 +375,15 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Receive Bitcoin Modal */}
+      <ReceiveBitcoinModal
+        isOpen={isReceiveBitcoinModalOpen}
+        onClose={() => setIsReceiveBitcoinModalOpen(false)}
+      />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
     </DashboardLayout>
   )
 } 

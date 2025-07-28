@@ -14,7 +14,9 @@ import {
   InvestmentPurchase,
   Bill,
   BillPayment,
-  UserNotification
+  UserNotification,
+  BitcoinWallet,
+  IncomingBitcoinTransaction
 } from '@/types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
@@ -403,6 +405,24 @@ export const bitcoinAPI = {
     const response = await api.get(`/auth/bitcoin/transactions/${transactionId}/`)
     return response.data
   },
+
+  // New Bitcoin wallet and incoming transaction functions
+  getWallet: async (): Promise<BitcoinWallet> => {
+    const response = await api.get('/bitcoin-wallet/wallets/my_wallet/')
+    return response.data
+  },
+
+  getIncomingTransactions: async (): Promise<IncomingBitcoinTransaction[]> => {
+    const response = await api.get('/bitcoin-wallet/transactions/my_transactions/')
+    return response.data
+  },
+
+  getIncomingTransaction: async (id: number): Promise<IncomingBitcoinTransaction> => {
+    const response = await api.get(`/bitcoin-wallet/transactions/${id}/`)
+    return response.data
+  },
 }
+
+
 
 export default api 

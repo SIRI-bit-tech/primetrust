@@ -33,6 +33,7 @@ urlpatterns = [
     path('api/loans/', include('loans.urls')),
     path('api/location/', include('location.urls')),
     path('api/admin/', include('admin_api.urls')),
+    path('api/bitcoin-wallet/', include('bitcoin_wallet.urls')),
     
     # URL redirects to fix frontend mismatches (using different namespaces)
     path('api/investments/', include('transactions.urls', namespace='investments')),

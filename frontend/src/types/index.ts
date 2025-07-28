@@ -236,4 +236,33 @@ export interface BitcoinPrice {
   price_change_24h: number
   price_change_percentage_24h: number
   last_updated: string
+}
+
+export interface BitcoinWallet {
+  id: number
+  user: string
+  wallet_address: string
+  qr_code_url: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface IncomingBitcoinTransaction {
+  id: number
+  user: string
+  transaction_hash: string
+  amount_btc: string
+  amount_usd: string
+  sender_address: string
+  status: 'pending' | 'confirmed' | 'completed' | 'failed'
+  status_display: string
+  confirmation_count: number
+  required_confirmations: number
+  block_height: number | null
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+  admin_notes: string
+  is_manually_approved: boolean
 } 

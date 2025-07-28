@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'loans',
     'location',
     'admin_api',
+    'bitcoin_wallet',
 ]
 
 MIDDLEWARE = [
