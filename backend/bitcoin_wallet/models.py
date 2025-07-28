@@ -106,3 +106,85 @@ class IncomingBitcoinTransaction(models.Model):
             
             return True
         return False
+
+class CurrencySwap(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+
+    SWAP_TYPE_CHOICES = [
+        ('usd_to_btc', 'USD to Bitcoin'),
+        ('btc_to_usd', 'Bitcoin to USD'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='currency_swaps')
+    swap_type = models.CharField(max_length=20, choices=SWAP_TYPE_CHOICES, help_text="Type of currency swap")
+    amount_from = models.DecimalField(max_digits=18, decimal_places=8, help_text="Amount being swapped from")
+    amount_to = models.DecimalField(max_digits=18, decimal_places=8, help_text="Amount being swapped to")
+    exchange_rate = models.DecimalField(max_digits=20, decimal_places=8, help_text="Exchange rate at time of swap")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    transaction_id = models.CharField(max_length=100, unique=True, blank=True, help_text="Unique transaction identifier")
+
+    class Meta:
+        verbose_name = "Currency Swap"
+        verbose_name_plural = "Currency Swaps"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.get_swap_type_display()} - {self.status}"
+
+    def save(self, *args, **kwargs):
+        if not self.transaction_id:
+            self.transaction_id = f"SWAP_{uuid.uuid4().hex[:16].upper()}"
+        super().save(*args, **kwargs)
+
+    def process_swap(self):
+        """Process the swap and update balances"""
+        from django.utils import timezone
+        from accounts.models import BitcoinBalance
+        
+        try:
+            if self.swap_type == 'usd_to_btc':
+                # Deduct USD from user's account
+                self.user.account.balance -= self.amount_from
+                self.user.account.save()
+                
+                # Add Bitcoin to user's balance
+                try:
+                    bitcoin_balance = self.user.bitcoin_balance
+                    bitcoin_balance.balance += self.amount_to
+                    bitcoin_balance.save()
+                except BitcoinBalance.DoesNotExist:
+                    BitcoinBalance.objects.create(
+                        user=self.user,
+                        balance=self.amount_to
+                    )
+                    
+            elif self.swap_type == 'btc_to_usd':
+                # Deduct Bitcoin from user's balance
+                try:
+                    bitcoin_balance = self.user.bitcoin_balance
+                    bitcoin_balance.balance -= self.amount_from
+                    bitcoin_balance.save()
+                except BitcoinBalance.DoesNotExist:
+                    return False
+                
+                # Add USD to user's account
+                self.user.account.balance += self.amount_to
+                self.user.account.save()
+            
+            self.status = 'completed'
+            self.completed_at = timezone.now()
+            self.save()
+            return True
+            
+        except Exception as e:
+            self.status = 'failed'
+            self.save()
+            return False

@@ -6,8 +6,7 @@ import {
   TrendingUp, 
   TrendingDown, 
   CreditCard, 
-  Send, 
-  Download,
+  Send,
   Eye,
   EyeOff,
   Plus,
@@ -26,9 +25,10 @@ import {
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
 import ReceiveBitcoinModal from '@/components/ReceiveBitcoinModal'
+import SwapBitcoinModal from '@/components/SwapBitcoinModal'
 import { ToastContainer } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
-import { bankingAPI, transactionsAPI } from '@/lib/api'
+import { bankingAPI, transactionsAPI, bitcoinAPI } from '@/lib/api'
 import { Account, Transaction, VirtualCard } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,7 +45,10 @@ export default function DashboardPage() {
   const [copiedAccount, setCopiedAccount] = useState(false)
   const [copiedRouting, setCopiedRouting] = useState(false)
   const [isReceiveBitcoinModalOpen, setIsReceiveBitcoinModalOpen] = useState(false)
-  const [toasts, setToasts] = useState<any[]>([])
+  const [isSwapBitcoinModalOpen, setIsSwapBitcoinModalOpen] = useState(false)
+  const [bitcoinBalance, setBitcoinBalance] = useState<number>(0)
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null)
+  const [toasts, setToasts] = useState<{ id: number; title: string; description: string; variant?: 'default' | 'destructive' }[]>([])
 
   const copyToClipboard = async (text: string, type: 'account' | 'routing') => {
     try {
@@ -79,6 +82,18 @@ export default function DashboardPage() {
         // Fetch virtual cards
         const cardsData = await bankingAPI.getCards()
         setCards(cardsData)
+        
+        // Fetch Bitcoin balance and exchange rate
+        try {
+          const [bitcoinBalanceData, exchangeRateData] = await Promise.all([
+            bankingAPI.getBitcoinBalance(),
+            bitcoinAPI.getExchangeRate()
+          ])
+          setBitcoinBalance(parseFloat(bitcoinBalanceData.bitcoin_balance))
+          setExchangeRate(exchangeRateData.exchange_rate)
+        } catch (error) {
+          console.error('Error fetching Bitcoin data:', error)
+        }
         
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
@@ -137,7 +152,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">
-              Welcome back, {user?.full_name?.split(' ')[0]}! 👋
+              Welcome back, {user?.first_name || 'User'}! 👋
             </h1>
             <p className="text-muted-foreground mt-1">
               Here&apos;s your financial overview for today
@@ -159,31 +174,74 @@ export default function DashboardPage() {
         {/* Current Balance Card */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 bg-gradient-to-br from-blue-600 to-blue-700 text-white border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex-1">
                   <p className="text-blue-100 text-sm font-medium">Current Balance</p>
-                  <div className="flex items-center mt-2">
+                  <div className="flex items-center mt-1">
                     {showBalance ? (
-                      <p className="text-4xl font-bold">
-                        {formatCurrency(account?.balance || 0)}
+                      <p className="text-3xl font-bold">
+                        {formatCurrency(parseFloat(account?.balance || '0'))}
                       </p>
                     ) : (
-                      <p className="text-4xl font-bold">••••••</p>
+                      <p className="text-3xl font-bold">••••••</p>
                     )}
                     <button
                       onClick={() => setShowBalance(!showBalance)}
-                      className="ml-3 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                      className="ml-2 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
                     >
-                      {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showBalance ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                     </button>
                   </div>
                 </div>
                 <div className="flex flex-col items-end">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <DollarSign className="w-6 h-6" />
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <DollarSign className="w-5 h-5" />
                   </div>
                 </div>
+              </div>
+              
+              {/* Bitcoin Balance Section */}
+              <div className="border-t border-white/20 pt-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-blue-100 text-sm font-medium">Bitcoin Balance</p>
+                    <div className="flex items-center mt-1">
+                      {showBalance ? (
+                        <div>
+                          <p className="text-xl font-bold">
+                            {bitcoinBalance.toFixed(8)} BTC
+                          </p>
+                          {exchangeRate && (
+                            <p className="text-sm text-blue-200">
+                              ≈ {formatCurrency(bitcoinBalance * exchangeRate)}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xl font-bold">••••••</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                      <Bitcoin className="w-5 h-5" />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Real-time Exchange Rate */}
+                {exchangeRate && (
+                  <div className="mt-2 pt-2 border-t border-white/10">
+                    <div className="flex items-center gap-2">
+                      <Bitcoin className="w-3 h-3 text-yellow-300" />
+                      <span className="text-xs text-blue-200">
+                        1 BTC = ${exchangeRate.toLocaleString()} USD
+                      </span>
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -239,7 +297,7 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Account Type</p>
                   <p className="text-sm font-medium">
-                    {account?.account_type || 'Savings'}
+                    Savings
                   </p>
                 </div>
                 <div>
@@ -293,11 +351,13 @@ export default function DashboardPage() {
                   <span className="text-sm">Receive Bitcoin</span>
                 </Button>
                 
-                <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                  <Link href="/dashboard/swap-bitcoin">
-                    <ArrowUpDown className="w-6 h-6" />
-                    <span className="text-sm">Swap Bitcoin</span>
-                  </Link>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex-col gap-2"
+                  onClick={() => setIsSwapBitcoinModalOpen(true)}
+                >
+                  <ArrowUpDown className="w-6 h-6" />
+                  <span className="text-sm">Swap Bitcoin</span>
                 </Button>
               </div>
             </CardContent>
@@ -354,7 +414,7 @@ export default function DashboardPage() {
                     <div className="text-right">
                       <p className={`font-semibold ${getTransactionColor(transaction.transaction_type)}`}>
                         {transaction.transaction_type === 'withdrawal' ? '-' : '+'}
-                        {formatCurrency(transaction.amount)}
+                        {formatCurrency(parseFloat(transaction.amount))}
                       </p>
                       <Badge variant="secondary" className="text-xs">
                         {transaction.transaction_type}
@@ -377,13 +437,26 @@ export default function DashboardPage() {
       </div>
 
       {/* Receive Bitcoin Modal */}
-      <ReceiveBitcoinModal
-        isOpen={isReceiveBitcoinModalOpen}
-        onClose={() => setIsReceiveBitcoinModalOpen(false)}
-      />
+              <ReceiveBitcoinModal
+          isOpen={isReceiveBitcoinModalOpen}
+          onClose={() => setIsReceiveBitcoinModalOpen(false)}
+        />
 
-      {/* Toast Container */}
-      <ToastContainer toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
+        <SwapBitcoinModal
+          isOpen={isSwapBitcoinModalOpen}
+          onClose={() => setIsSwapBitcoinModalOpen(false)}
+          userBalance={{
+            usd: parseFloat(account?.balance || '0'),
+            bitcoin: bitcoinBalance
+          }}
+          onSwapComplete={() => {
+            // Refresh data after swap
+            window.location.reload()
+          }}
+        />
+
+        {/* Toast Container */}
+        <ToastContainer toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
     </DashboardLayout>
   )
 } 

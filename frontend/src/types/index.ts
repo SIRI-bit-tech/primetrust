@@ -14,53 +14,32 @@ export interface UserProfile {
 
 export interface User {
   id: number
-  email: string
   username: string
+  email: string
   first_name: string
   last_name: string
-  full_name: string
-  phone_number: string
-  address: string
-  city: string
-  state: string
-  zip_code: string
-  country: string
-  account_number: string
-  routing_number: string
-  balance: number
-  bitcoin_balance: string
-  is_verified: boolean
-  email_verified: boolean
-  phone_verified: boolean
-  two_factor_enabled: boolean
-  created_at: string
-  last_activity: string
-  profile: UserProfile
+  is_active: boolean
+  date_joined: string
+  last_login: string
 }
 
 export interface Account {
   id: number
+  user: number
   account_number: string
   routing_number: string
-  balance: number
-  account_type: string
-  status: string
-  currency: string
+  balance: string
   created_at: string
-  last_updated: string
-  is_verified: boolean
-  email_verified: boolean
-  phone_verified: boolean
+  updated_at: string
 }
 
 export interface Transaction {
   id: number
-  sender: User
-  recipient: User
-  amount: number
-  transaction_type: 'transfer' | 'deposit' | 'withdrawal'
-  status: 'pending' | 'approved' | 'declined' | 'completed'
+  user: number
+  transaction_type: string
+  amount: string
   description: string
+  status: string
   created_at: string
   updated_at: string
 }
@@ -225,10 +204,11 @@ export interface UserNotification {
 }
 
 export interface BitcoinBalance {
-  bitcoin_balance: string
-  bitcoin_wallet_address: string
-  bitcoin_price_usd: number
-  bitcoin_balance_usd: number
+  id: number
+  user: number
+  balance: string
+  created_at: string
+  updated_at: string
 }
 
 export interface BitcoinPrice {
@@ -265,4 +245,31 @@ export interface IncomingBitcoinTransaction {
   completed_at: string | null
   admin_notes: string
   is_manually_approved: boolean
+}
+
+export interface CurrencySwap {
+  id: number
+  user: number
+  swap_type: 'usd_to_btc' | 'btc_to_usd'
+  swap_type_display: string
+  amount_from: string
+  amount_to: string
+  exchange_rate: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  status_display: string
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+  transaction_id: string
+}
+
+export interface Notification {
+  id: number
+  user: number
+  title: string
+  message: string
+  notification_type: string
+  is_read: boolean
+  created_at: string
+  data: Record<string, unknown>
 } 

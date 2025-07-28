@@ -1,174 +1,184 @@
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.contrib.auth.models import User
-from .models import BitcoinWallet, IncomingBitcoinTransaction
+from django.utils import timezone
+from django.core.cache import cache
+import requests
+import threading
+import time
+from .models import BitcoinWallet, IncomingBitcoinTransaction, CurrencySwap
 from .serializers import (
     BitcoinWalletSerializer, BitcoinWalletCreateSerializer,
     IncomingBitcoinTransactionSerializer, IncomingBitcoinTransactionCreateSerializer,
-    IncomingBitcoinTransactionUpdateSerializer
+    IncomingBitcoinTransactionUpdateSerializer, CurrencySwapSerializer, CurrencySwapCreateSerializer
 )
 
-
-class BitcoinWalletViewSet(viewsets.ModelViewSet):
-    """ViewSet for Bitcoin wallet operations"""
+class BitcoinWalletViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = BitcoinWallet.objects.all()
     serializer_class = BitcoinWalletSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Return wallet for the current user"""
-        return BitcoinWallet.objects.filter(user=self.request.user)
+        return self.queryset.filter(user=self.request.user)
 
-    def get_serializer_class(self):
-        """Return appropriate serializer based on action"""
-        if self.action == 'create':
-            return BitcoinWalletCreateSerializer
-        return BitcoinWalletSerializer
-
-    def perform_create(self, serializer):
-        """Set the user when creating a wallet"""
-        serializer.save(user=self.request.user)
-
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='my_wallet')
     def my_wallet(self, request):
-        """Get current user's Bitcoin wallet"""
-        try:
-            wallet = BitcoinWallet.objects.get(user=request.user)
-            serializer = self.get_serializer(wallet)
-            return Response(serializer.data)
-        except BitcoinWallet.DoesNotExist:
-            return Response(
-                {'detail': 'Bitcoin wallet not found. Please contact admin to set up your wallet.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        wallet = get_object_or_404(BitcoinWallet, user=request.user)
+        serializer = self.get_serializer(wallet)
+        return Response(serializer.data)
 
-
-class IncomingBitcoinTransactionViewSet(viewsets.ModelViewSet):
-    """ViewSet for incoming Bitcoin transactions"""
+class IncomingBitcoinTransactionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = IncomingBitcoinTransaction.objects.all()
     serializer_class = IncomingBitcoinTransactionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Return transactions for the current user"""
-        return IncomingBitcoinTransaction.objects.filter(user=self.request.user)
+        return self.queryset.filter(user=self.request.user)
 
-    def get_serializer_class(self):
-        """Return appropriate serializer based on action"""
-        if self.action == 'create':
-            return IncomingBitcoinTransactionCreateSerializer
-        elif self.action in ['update', 'partial_update']:
-            return IncomingBitcoinTransactionUpdateSerializer
-        return IncomingBitcoinTransactionSerializer
-
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='my_transactions')
     def my_transactions(self, request):
-        """Get current user's incoming Bitcoin transactions"""
         transactions = self.get_queryset()
         serializer = self.get_serializer(transactions, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'])
-    def mark_completed(self, request, pk=None):
-        """Mark transaction as completed (admin only)"""
-        transaction = self.get_object()
-        
-        if transaction.mark_as_completed():
-            serializer = self.get_serializer(transaction)
-            return Response(serializer.data)
-        else:
-            return Response(
-                {'detail': 'Transaction cannot be marked as completed. Insufficient confirmations.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+class CurrencySwapViewSet(viewsets.ModelViewSet):
+    queryset = CurrencySwap.objects.all()
+    serializer_class = CurrencySwapSerializer
+    permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CurrencySwapCreateSerializer
+        return CurrencySwapSerializer
+
+    @action(detail=False, methods=['get'], url_path='my_swaps')
+    def my_swaps(self, request):
+        swaps = self.get_queryset()
+        serializer = self.get_serializer(swaps, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='create_swap')
+    def create_swap(self, request):
+        """Create a new currency swap with 3-minute processing time"""
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            swap = serializer.save()
+            
+            # Start processing after 3 minutes
+            def process_swap_delayed():
+                time.sleep(180)  # 3 minutes
+                swap.status = 'processing'
+                swap.save()
+                
+                # Process the actual swap
+                if swap.process_swap():
+                    swap.status = 'completed'
+                else:
+                    swap.status = 'failed'
+                swap.save()
+            
+            # Run in background thread
+            thread = threading.Thread(target=process_swap_delayed)
+            thread.daemon = True
+            thread.start()
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'], url_path='exchange_rate')
+    def get_exchange_rate(self, request):
+        """Get real-time Bitcoin to USD exchange rate"""
+        # Check cache first
+        cache_key = 'btc_usd_exchange_rate'
+        cached_rate = cache.get(cache_key)
+        
+        if cached_rate:
+            return Response({'exchange_rate': cached_rate})
+        
+        try:
+            # Fetch from CoinGecko API
+            response = requests.get(
+                'https://api.coingecko.com/api/v3/simple/price',
+                params={
+                    'ids': 'bitcoin',
+                    'vs_currencies': 'usd'
+                },
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            exchange_rate = data['bitcoin']['usd']
+            
+            # Cache for 30 seconds
+            cache.set(cache_key, exchange_rate, 30)
+            
+            return Response({'exchange_rate': exchange_rate})
+        except Exception as e:
+            return Response(
+                {'error': 'Failed to fetch exchange rate'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class AdminBitcoinWalletViewSet(viewsets.ModelViewSet):
     """Admin ViewSet for managing Bitcoin wallets and transactions"""
     serializer_class = BitcoinWalletSerializer
-    permission_classes = [permissions.IsAdminUser]
-
-    def get_queryset(self):
-        """Return all wallets for admin"""
-        return BitcoinWallet.objects.all()
+    queryset = BitcoinWallet.objects.all()
+    permission_classes = [IsAdminUser]
 
     def get_serializer_class(self):
-        """Return appropriate serializer based on action"""
         if self.action == 'create':
             return BitcoinWalletCreateSerializer
         return BitcoinWalletSerializer
 
-    @action(detail=True, methods=['post'])
-    def update_wallet(self, request, pk=None):
-        """Update user's Bitcoin wallet"""
-        wallet = self.get_object()
-        serializer = BitcoinWalletCreateSerializer(wallet, data=request.data, partial=True)
-        
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 class AdminIncomingBitcoinTransactionViewSet(viewsets.ModelViewSet):
-    """Admin ViewSet for managing incoming Bitcoin transactions"""
+    queryset = IncomingBitcoinTransaction.objects.all()
     serializer_class = IncomingBitcoinTransactionSerializer
-    permission_classes = [permissions.IsAdminUser]
-
-    def get_queryset(self):
-        """Return all transactions for admin"""
-        return IncomingBitcoinTransaction.objects.all()
+    permission_classes = [IsAdminUser]
 
     def get_serializer_class(self):
-        """Return appropriate serializer based on action"""
         if self.action == 'create':
             return IncomingBitcoinTransactionCreateSerializer
         elif self.action in ['update', 'partial_update']:
             return IncomingBitcoinTransactionUpdateSerializer
         return IncomingBitcoinTransactionSerializer
 
-    def perform_create(self, serializer):
-        """Create transaction and send notification"""
-        transaction = serializer.save()
-        
-        # Send notification to user about incoming transaction
-        from api.models import UserNotification
-        UserNotification.objects.create(
-            user=transaction.user,
-            title="Incoming Bitcoin Transaction",
-            message=f"You have received {transaction.amount_btc} BTC (${transaction.amount_usd}) from {transaction.sender_address}",
-            notification_type="bitcoin_transaction",
-            data={
-                'transaction_id': transaction.id,
-                'amount_btc': str(transaction.amount_btc),
-                'amount_usd': str(transaction.amount_usd),
-                'sender_address': transaction.sender_address,
-                'status': transaction.status
-            }
+    @action(detail=True, methods=['post'])
+    def mark_as_confirmed(self, request, pk=None):
+        transaction = self.get_object()
+        transaction.status = 'confirmed'
+        transaction.save()
+        # TODO: Trigger notification to user
+        return Response({'status': 'transaction marked as confirmed'})
+
+    @action(detail=True, methods=['post'])
+    def mark_as_completed(self, request, pk=None):
+        transaction = self.get_object()
+        if transaction.mark_as_completed():
+            # TODO: Trigger notification to user
+            return Response({'status': 'transaction marked as completed and balance updated'})
+        return Response(
+            {'detail': 'Transaction cannot be completed. Insufficient confirmations.'},
+            status=status.HTTP_400_BAD_REQUEST
         )
 
-    @action(detail=True, methods=['post'])
-    def approve_transaction(self, request, pk=None):
-        """Manually approve a transaction"""
-        transaction = self.get_object()
-        transaction.is_manually_approved = True
-        transaction.status = 'confirmed'
-        transaction.confirmation_count = transaction.required_confirmations
-        transaction.save()
-        
-        serializer = self.get_serializer(transaction)
-        return Response(serializer.data)
+class AdminCurrencySwapViewSet(viewsets.ModelViewSet):
+    """Admin ViewSet for managing currency swaps"""
+    queryset = CurrencySwap.objects.all()
+    serializer_class = CurrencySwapSerializer
+    permission_classes = [IsAdminUser]
 
     @action(detail=True, methods=['post'])
-    def complete_transaction(self, request, pk=None):
-        """Mark transaction as completed"""
-        transaction = self.get_object()
-        
-        if transaction.mark_as_completed():
-            serializer = self.get_serializer(transaction)
-            return Response(serializer.data)
-        else:
-            return Response(
-                {'detail': 'Transaction cannot be completed. Insufficient confirmations.'},
-                status=status.HTTP_400_BAD_REQUEST
-            ) 
+    def process_swap(self, request, pk=None):
+        """Manually process a swap"""
+        swap = self.get_object()
+        if swap.process_swap():
+            return Response({'status': 'swap processed successfully'})
+        return Response(
+            {'detail': 'Failed to process swap'},
+            status=status.HTTP_400_BAD_REQUEST
+        ) 

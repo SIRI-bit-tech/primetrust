@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import BitcoinWallet, IncomingBitcoinTransaction
+from .models import BitcoinWallet, IncomingBitcoinTransaction, CurrencySwap
 
 
 @admin.register(BitcoinWallet)
@@ -106,3 +106,37 @@ class IncomingBitcoinTransactionAdmin(admin.ModelAdmin):
                 obj.confirmation_count = obj.required_confirmations
         
         super().save_model(request, obj, form, change)
+
+
+@admin.register(CurrencySwap)
+class CurrencySwapAdmin(admin.ModelAdmin):
+    list_display = ['user', 'swap_type', 'amount_from', 'amount_to', 'exchange_rate', 'status', 'created_at']
+    list_filter = ['swap_type', 'status', 'created_at']
+    search_fields = ['user__username', 'transaction_id']
+    readonly_fields = ['transaction_id', 'created_at', 'updated_at', 'completed_at']
+    
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user',)
+        }),
+        ('Swap Details', {
+            'fields': ('swap_type', 'amount_from', 'amount_to', 'exchange_rate')
+        }),
+        ('Status Information', {
+            'fields': ('status', 'transaction_id')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'completed_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['process_swaps']
+    
+    def process_swaps(self, request, queryset):
+        updated = 0
+        for swap in queryset:
+            if swap.process_swap():
+                updated += 1
+        self.message_user(request, f'{updated} swaps processed successfully.')
+    process_swaps.short_description = "Process selected swaps"
