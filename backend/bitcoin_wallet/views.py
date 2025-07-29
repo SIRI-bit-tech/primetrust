@@ -79,9 +79,9 @@ class CurrencySwapViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             swap = serializer.save()
             
-            # Start processing after 3 minutes
+            # Start processing after 30 seconds
             def process_swap_delayed():
-                time.sleep(180)  # 3 minutes
+                time.sleep(30)  # 30 seconds
                 swap.status = 'processing'
                 swap.save()
                 

@@ -158,7 +158,7 @@ export default function SwapBitcoinModal({
       
       toast({
         title: "Swap Initiated",
-        description: "Your swap is being processed. It will complete in 3 minutes.",
+        description: "Your swap is being processed. It will complete in 1-2 minutes.",
       });
 
       setAmount('');
@@ -340,7 +340,7 @@ export default function SwapBitcoinModal({
 
           <div className="text-center">
             <Badge variant="secondary" className="text-xs">
-              Processing time: ~3 minutes
+              Processing time: ~1-2 minutes
             </Badge>
           </div>
         </div>
