@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   DollarSign, 
   TrendingUp, 
@@ -65,51 +65,72 @@ export default function DashboardPage() {
     }
   }
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      
+      // Fetch account information
+      const accountData = await bankingAPI.getAccountInfo()
+      setAccount(accountData)
+      
+      // Fetch recent transactions
+      const transactionsData = await transactionsAPI.getTransactions()
+      const transactionsArray = Array.isArray(transactionsData) ? transactionsData : transactionsData.results || []
+      setTransactions(transactionsArray.slice(0, 5))
+      
+      // Fetch virtual cards
+      const cardsData = await bankingAPI.getCards()
+      setCards(cardsData)
+      
+      // Fetch Bitcoin balance and exchange rate
       try {
-        setIsLoading(true)
+        const [bitcoinBalanceData, exchangeRateData] = await Promise.all([
+          bankingAPI.getBitcoinBalance(),
+          bitcoinAPI.getExchangeRate()
+        ])
         
-        // Fetch account information
-        const accountData = await bankingAPI.getAccountInfo()
-        setAccount(accountData)
-        
-        // Fetch recent transactions
-        const transactionsData = await transactionsAPI.getTransactions()
-        const transactionsArray = Array.isArray(transactionsData) ? transactionsData : transactionsData.results || []
-        setTransactions(transactionsArray.slice(0, 5))
-        
-        // Fetch virtual cards
-        const cardsData = await bankingAPI.getCards()
-        setCards(cardsData)
-        
-        // Fetch Bitcoin balance and exchange rate
-        try {
-          const [bitcoinBalanceData, exchangeRateData] = await Promise.all([
-            bankingAPI.getBitcoinBalance(),
-            bitcoinAPI.getExchangeRate()
-          ])
-          
-          // Safely parse Bitcoin balance with fallback to 0
-          const balance = parseFloat(bitcoinBalanceData.bitcoin_balance || '0')
-          setBitcoinBalance(isNaN(balance) ? 0 : balance)
-          setExchangeRate(exchangeRateData.exchange_rate)
-        } catch (error) {
-          console.error('Error fetching Bitcoin data:', error)
-          // Set default values on error
-          setBitcoinBalance(0)
-          setExchangeRate(null)
-        }
-        
+        // Safely parse Bitcoin balance with fallback to 0
+        const balance = parseFloat(bitcoinBalanceData.bitcoin_balance || '0')
+        setBitcoinBalance(isNaN(balance) ? 0 : balance)
+        setExchangeRate(exchangeRateData.exchange_rate)
       } catch (error) {
-        console.error('Error fetching dashboard data:', error)
-      } finally {
-        setIsLoading(false)
+        console.error('Error fetching Bitcoin data:', error)
+        // Set default values on error
+        setBitcoinBalance(0)
+        setExchangeRate(null)
       }
+      
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+    } finally {
+      setIsLoading(false)
     }
-
-    fetchData()
   }, [])
+
+  const updateBalances = useCallback(async () => {
+    try {
+      // Fetch Bitcoin balance and exchange rate
+      const [bitcoinBalanceData, exchangeRateData] = await Promise.all([
+        bankingAPI.getBitcoinBalance(),
+        bitcoinAPI.getExchangeRate()
+      ])
+      
+      // Safely parse Bitcoin balance with fallback to 0
+      const balance = parseFloat(bitcoinBalanceData.bitcoin_balance || '0')
+      setBitcoinBalance(isNaN(balance) ? 0 : balance)
+      setExchangeRate(exchangeRateData.exchange_rate)
+      
+      // Also update account info to get latest USD balance
+      const accountData = await bankingAPI.getAccountInfo()
+      setAccount(accountData)
+    } catch (error) {
+      console.error('Error updating balances:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -456,8 +477,10 @@ export default function DashboardPage() {
             bitcoin: bitcoinBalance
           }}
           onSwapComplete={() => {
-            // Refresh data after swap
-            window.location.reload()
+            // Wait for swap to complete (30 seconds) plus buffer time
+            setTimeout(() => {
+              updateBalances()
+            }, 35000)
           }}
         />
 

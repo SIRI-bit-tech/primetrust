@@ -122,9 +122,9 @@ class CurrencySwap(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='currency_swaps')
     swap_type = models.CharField(max_length=20, choices=SWAP_TYPE_CHOICES, help_text="Type of currency swap")
-    amount_from = models.DecimalField(max_digits=18, decimal_places=8, help_text="Amount being swapped from")
-    amount_to = models.DecimalField(max_digits=18, decimal_places=8, help_text="Amount being swapped to")
-    exchange_rate = models.DecimalField(max_digits=20, decimal_places=8, help_text="Exchange rate at time of swap")
+    amount_from = models.DecimalField(max_digits=18, decimal_places=2, help_text="Amount being swapped from")
+    amount_to = models.DecimalField(max_digits=18, decimal_places=2, help_text="Amount being swapped to")
+    exchange_rate = models.DecimalField(max_digits=20, decimal_places=2, help_text="Exchange rate at time of swap")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

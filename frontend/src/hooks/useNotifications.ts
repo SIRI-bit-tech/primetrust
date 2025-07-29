@@ -55,16 +55,26 @@ export function useNotifications() {
 
   // Real-time polling for new notifications
   useEffect(() => {
-    // Initial load
-    loadNotifications()
+    const fetchNotifications = async () => {
+      try {
+        const data = await notificationsAPI.getNotifications()
+        
+        // Handle paginated response from Django REST Framework
+        const notificationsArray = 'results' in data ? data.results : (Array.isArray(data) ? data : [])
+        setNotifications(notificationsArray)
+        setUnreadCount(notificationsArray.filter(n => !n.is_read).length)
+      } catch (error) {
+        console.error('Error fetching notifications:', error)
+      }
+    }
 
-    // Set up polling every 60 seconds for new notifications (less aggressive)
-    const interval = setInterval(() => {
-      loadNotifications()
-    }, 60000) // 60 seconds
+    fetchNotifications()
+
+    // Poll for new notifications every 15 seconds
+    const interval = setInterval(fetchNotifications, 15000)
 
     return () => clearInterval(interval)
-  }, [loadNotifications])
+  }, [])
 
   return {
     notifications,
