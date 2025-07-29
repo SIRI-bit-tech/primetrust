@@ -9,7 +9,6 @@ import {
   EyeOff, 
   Copy, 
   Check, 
-  ArrowLeft,
   Shield,
   Lock,
   Clock,
@@ -154,13 +153,6 @@ export default function CardsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Link>
             <h1 className="text-3xl font-bold text-foreground">Virtual Cards</h1>
             <p className="text-muted-foreground mt-2">
               Apply for virtual credit cards and manage your existing cards.
@@ -285,7 +277,7 @@ export default function CardsPage() {
                     <div>
                       <span className="text-muted-foreground">Applied:</span>
                       <span className="text-foreground ml-2">
-                        {new Date(application.created_at).toLocaleDateString()}
+                        {application.created_at ? new Date(application.created_at).toLocaleDateString() : 'N/A'}
                       </span>
                     </div>
                     
