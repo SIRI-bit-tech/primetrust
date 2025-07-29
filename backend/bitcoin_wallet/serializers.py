@@ -91,6 +91,7 @@ class CurrencySwapCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CurrencySwap
         fields = ['swap_type', 'amount_from', 'amount_to', 'exchange_rate']
+        read_only_fields = ['user']
 
     def validate(self, data):
         user = self.context['request'].user
@@ -101,15 +102,13 @@ class CurrencySwapCreateSerializer(serializers.ModelSerializer):
         
         # Validate user has sufficient balance
         if data['swap_type'] == 'usd_to_btc':
-            if user.account.balance < data['amount_from']:
+            if user.balance < data['amount_from']:
                 raise serializers.ValidationError("Insufficient USD balance")
         elif data['swap_type'] == 'btc_to_usd':
-            try:
-                bitcoin_balance = user.bitcoin_balance.balance
-                if bitcoin_balance < data['amount_from']:
-                    raise serializers.ValidationError("Insufficient Bitcoin balance")
-            except:
-                raise serializers.ValidationError("No Bitcoin balance found")
+            # Handle case where bitcoin_balance might be None or not properly initialized
+            bitcoin_balance = user.bitcoin_balance or 0
+            if bitcoin_balance < data['amount_from']:
+                raise serializers.ValidationError("Insufficient Bitcoin balance")
         
         return data
 

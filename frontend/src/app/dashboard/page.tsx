@@ -89,10 +89,16 @@ export default function DashboardPage() {
             bankingAPI.getBitcoinBalance(),
             bitcoinAPI.getExchangeRate()
           ])
-          setBitcoinBalance(parseFloat(bitcoinBalanceData.bitcoin_balance))
+          
+          // Safely parse Bitcoin balance with fallback to 0
+          const balance = parseFloat(bitcoinBalanceData.bitcoin_balance || '0')
+          setBitcoinBalance(isNaN(balance) ? 0 : balance)
           setExchangeRate(exchangeRateData.exchange_rate)
         } catch (error) {
           console.error('Error fetching Bitcoin data:', error)
+          // Set default values on error
+          setBitcoinBalance(0)
+          setExchangeRate(null)
         }
         
       } catch (error) {

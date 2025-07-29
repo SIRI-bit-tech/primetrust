@@ -62,7 +62,7 @@ export default function SwapBitcoinModal({
     } finally {
       setIsLoadingRate(false);
     }
-  }, [isLoadingRate]);
+  }, []);
 
   useEffect(() => {
     if (amount && exchangeRate) {
@@ -87,7 +87,8 @@ export default function SwapBitcoinModal({
   useEffect(() => {
     if (isOpen) {
       fetchExchangeRate();
-      rateIntervalRef.current = setInterval(fetchExchangeRate, 30000);
+      // Only update rate every 5 minutes instead of 30 seconds to reduce API calls
+      rateIntervalRef.current = setInterval(fetchExchangeRate, 300000);
     } else {
       if (rateIntervalRef.current) {
         clearInterval(rateIntervalRef.current);
@@ -146,11 +147,11 @@ export default function SwapBitcoinModal({
     try {
       const swapData = {
         swap_type: swapType,
-        amount_from: numAmount,
-        amount_to: swapType === 'usd_to_btc' 
+        amount_from: numAmount.toFixed(8),
+        amount_to: (swapType === 'usd_to_btc' 
           ? numAmount / exchangeRate 
-          : numAmount * exchangeRate,
-        exchange_rate: exchangeRate,
+          : numAmount * exchangeRate).toFixed(8),
+        exchange_rate: exchangeRate.toFixed(8),
       };
 
       await bitcoinAPI.createSwap(swapData);

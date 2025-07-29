@@ -147,37 +147,30 @@ class CurrencySwap(models.Model):
     def process_swap(self):
         """Process the swap and update balances"""
         from django.utils import timezone
-        from accounts.models import BitcoinBalance
         
         try:
             if self.swap_type == 'usd_to_btc':
                 # Deduct USD from user's account
-                self.user.account.balance -= self.amount_from
-                self.user.account.save()
+                self.user.balance -= self.amount_from
+                self.user.save()
                 
-                # Add Bitcoin to user's balance
-                try:
-                    bitcoin_balance = self.user.bitcoin_balance
-                    bitcoin_balance.balance += self.amount_to
-                    bitcoin_balance.save()
-                except BitcoinBalance.DoesNotExist:
-                    BitcoinBalance.objects.create(
-                        user=self.user,
-                        balance=self.amount_to
-                    )
+                # Add Bitcoin to user's balance (handle None case)
+                current_btc_balance = self.user.bitcoin_balance or 0
+                self.user.bitcoin_balance = current_btc_balance + self.amount_to
+                self.user.save()
                     
             elif self.swap_type == 'btc_to_usd':
-                # Deduct Bitcoin from user's balance
-                try:
-                    bitcoin_balance = self.user.bitcoin_balance
-                    bitcoin_balance.balance -= self.amount_from
-                    bitcoin_balance.save()
-                except BitcoinBalance.DoesNotExist:
+                # Deduct Bitcoin from user's balance (handle None case)
+                current_btc_balance = self.user.bitcoin_balance or 0
+                if current_btc_balance < self.amount_from:
                     return False
                 
+                self.user.bitcoin_balance = current_btc_balance - self.amount_from
+                self.user.save()
+                
                 # Add USD to user's account
-                self.user.account.balance += self.amount_to
-                self.user.account.save()
+                self.user.balance += self.amount_to
+                self.user.save()
             
             self.status = 'completed'
             self.completed_at = timezone.now()

@@ -146,8 +146,8 @@ export const bankingAPI = {
   },
 
   getBitcoinBalance: async (): Promise<{ bitcoin_balance: string }> => {
-    const response = await api.get('/accounts/bitcoin-balance/')
-    return response.data
+    const response = await api.get('/bitcoin-wallet/wallets/bitcoin_balance/')
+    return { bitcoin_balance: response.data.bitcoin_balance }
   },
 }
 
@@ -358,9 +358,9 @@ export const bitcoinAPI = {
 
   createSwap: async (swapData: {
     swap_type: 'usd_to_btc' | 'btc_to_usd'
-    amount_from: number
-    amount_to: number
-    exchange_rate: number
+    amount_from: string
+    amount_to: string
+    exchange_rate: string
   }): Promise<CurrencySwap> => {
     const response = await api.post('/bitcoin-wallet/swaps/create_swap/', swapData)
     return response.data

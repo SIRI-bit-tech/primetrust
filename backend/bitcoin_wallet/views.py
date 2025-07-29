@@ -25,9 +25,19 @@ class BitcoinWalletViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='my_wallet')
     def my_wallet(self, request):
-        wallet = get_object_or_404(BitcoinWallet, user=request.user)
+        wallet, created = BitcoinWallet.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(wallet)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='bitcoin_balance')
+    def get_bitcoin_balance(self, request):
+        """Get the current user's Bitcoin balance"""
+        user = request.user
+        bitcoin_balance = user.bitcoin_balance or 0
+        return Response({
+            'bitcoin_balance': str(bitcoin_balance),
+            'bitcoin_balance_usd': float(bitcoin_balance) * float(request.GET.get('exchange_rate', 0))
+        })
 
 class IncomingBitcoinTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = IncomingBitcoinTransaction.objects.all()
@@ -52,7 +62,7 @@ class CurrencySwapViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(user=self.request.user)
 
     def get_serializer_class(self):
-        if self.action == 'create':
+        if self.action in ['create', 'create_swap']:
             return CurrencySwapCreateSerializer
         return CurrencySwapSerializer
 
@@ -65,7 +75,7 @@ class CurrencySwapViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], url_path='create_swap')
     def create_swap(self, request):
         """Create a new currency swap with 3-minute processing time"""
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             swap = serializer.save()
             
