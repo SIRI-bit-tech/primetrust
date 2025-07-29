@@ -101,13 +101,13 @@ export default function CardsPage() {
           <div>
             <Link
               href="/dashboard"
-              className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+              className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900">Virtual Cards</h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-3xl font-bold text-foreground">Virtual Cards</h1>
+            <p className="text-muted-foreground mt-2">
               Manage your virtual credit cards for secure online transactions.
             </p>
           </div>
@@ -180,7 +180,7 @@ export default function CardsPage() {
                   <div className="space-y-4">
                     {/* Card Number */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-foreground mb-2">
                         Card Number
                       </label>
                       <div className="flex items-center space-x-2">
@@ -188,11 +188,11 @@ export default function CardsPage() {
                           type="text"
                           value={card.card_number}
                           readOnly
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm font-mono"
+                          className="flex-1 px-3 py-2 border border-border rounded-md bg-muted text-sm font-mono text-foreground"
                         />
                         <button
                           onClick={() => copyToClipboard(card.card_number, `card-${card.id}`)}
-                          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                          className="p-2 text-muted-foreground hover:text-foreground transition-colors"
                         >
                           {copiedField === `card-${card.id}` ? (
                             <Check className="w-4 h-4 text-green-500" />
@@ -205,7 +205,7 @@ export default function CardsPage() {
 
                     {/* CVV */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-foreground mb-2">
                         CVV
                       </label>
                       <div className="flex items-center space-x-2">
@@ -213,11 +213,11 @@ export default function CardsPage() {
                           type="text"
                           value={showCVV[card.id] ? card.cvv : '•••'}
                           readOnly
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm font-mono"
+                          className="flex-1 px-3 py-2 border border-border rounded-md bg-muted text-sm font-mono text-foreground"
                         />
                         <button
                           onClick={() => copyToClipboard(card.cvv, `cvv-${card.id}`)}
-                          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                          className="p-2 text-muted-foreground hover:text-foreground transition-colors"
                         >
                           {copiedField === `cvv-${card.id}` ? (
                             <Check className="w-4 h-4 text-green-500" />
@@ -230,11 +230,11 @@ export default function CardsPage() {
 
                     {/* Status */}
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Status</span>
+                      <span className="text-sm text-muted-foreground">Status</span>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         card.is_active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                       }`}>
                         {card.is_active ? 'Active' : 'Inactive'}
                       </span>
@@ -242,8 +242,8 @@ export default function CardsPage() {
 
                     {/* Created Date */}
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Created</span>
-                      <span className="text-sm text-gray-900">
+                      <span className="text-sm text-muted-foreground">Created</span>
+                      <span className="text-sm text-foreground">
                         {new Date(card.created_at).toLocaleDateString()}
                       </span>
                     </div>
@@ -254,11 +254,11 @@ export default function CardsPage() {
           </div>
         ) : (
           <div className="text-center py-12 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CreditCard className="w-12 h-12 text-gray-400" />
+            <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+              <CreditCard className="w-12 h-12 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Virtual Cards Yet</h3>
-            <p className="text-gray-600 mb-6">
+            <h3 className="text-xl font-semibold text-foreground mb-2">No Virtual Cards Yet</h3>
+            <p className="text-muted-foreground mb-6">
               Generate your first virtual card to start making secure online transactions.
             </p>
             <button
@@ -282,12 +282,12 @@ export default function CardsPage() {
         )}
 
         {/* Security Information */}
-        <div className="bg-blue-50 rounded-lg p-6 animate-in slide-in-from-bottom-4 duration-500 delay-300">
-          <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+        <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-6 animate-in slide-in-from-bottom-4 duration-500 delay-300">
+          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4 flex items-center">
             <Shield className="w-5 h-5 mr-2" />
             Virtual Card Security
           </h3>
-          <div className="grid md:grid-cols-2 gap-4 text-sm text-blue-800">
+          <div className="grid md:grid-cols-2 gap-4 text-sm text-blue-800 dark:text-blue-200">
             <div className="space-y-2">
               <div className="flex items-center">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
@@ -320,12 +320,12 @@ export default function CardsPage() {
         </div>
 
         {/* Usage Tips */}
-        <div className="bg-gray-50 rounded-lg p-6 animate-in slide-in-from-bottom-4 duration-500 delay-400">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="bg-gray-50 dark:bg-gray-900/20 rounded-lg p-6 animate-in slide-in-from-bottom-4 duration-500 delay-400">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
             <Lock className="w-5 h-5 mr-2" />
             Usage Tips
           </h3>
-          <div className="space-y-2 text-sm text-gray-600">
+          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
             <p>• Keep your CVV secure and never share it with anyone</p>
             <p>• Use different cards for different types of transactions</p>
             <p>• Monitor your transactions regularly for any suspicious activity</p>
