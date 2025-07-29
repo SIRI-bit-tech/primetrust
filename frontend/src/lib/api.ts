@@ -17,7 +17,8 @@ import {
   UserNotification,
   BitcoinWallet,
   IncomingBitcoinTransaction,
-  CurrencySwap
+  CurrencySwap,
+  CardApplication
 } from '@/types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
@@ -372,6 +373,67 @@ export const bitcoinAPI = {
   },
 }
 
+// Card Applications
+export const cardApplicationAPI = {
+  // Get all applications for current user
+  getMyApplications: async (): Promise<CardApplication[]> => {
+    const response = await api.get('/banking/card-applications/my_applications/');
+    return response.data;
+  },
+
+  // Create a new card application
+  applyForCard: async (data: {
+    card_type: 'debit' | 'credit';
+    reason?: string;
+    preferred_daily_limit?: number;
+    preferred_monthly_limit?: number;
+  }): Promise<CardApplication> => {
+    const response = await api.post('/banking/card-applications/', data);
+    return response.data;
+  },
+
+  // Get a specific application
+  getApplication: async (id: number): Promise<CardApplication> => {
+    const response = await api.get(`/banking/card-applications/${id}/`);
+    return response.data;
+  },
+};
+
+// Updated Virtual Cards API (read-only for users)
+export const virtualCardAPI = {
+  // Get all cards for current user
+  getCards: async (): Promise<VirtualCard[]> => {
+    const response = await api.get('/banking/cards/');
+    return response.data;
+  },
+
+  // Get a specific card
+  getCard: async (id: number): Promise<VirtualCard> => {
+    const response = await api.get(`/banking/cards/${id}/`);
+    return response.data;
+  },
+
+  // Update card settings (limited fields)
+  updateCard: async (id: number, data: Partial<VirtualCard>): Promise<VirtualCard> => {
+    const response = await api.patch(`/banking/cards/${id}/update/`, data);
+    return response.data;
+  },
+
+  // Cancel a card
+  cancelCard: async (id: number): Promise<void> => {
+    await api.post(`/banking/cards/${id}/cancel/`);
+  },
+
+  // Freeze a card
+  freezeCard: async (id: number): Promise<void> => {
+    await api.post(`/banking/cards/${id}/freeze/`);
+  },
+
+  // Unfreeze a card
+  unfreezeCard: async (id: number): Promise<void> => {
+    await api.post(`/banking/cards/${id}/unfreeze/`);
+  },
+};
 
 
 export default api 

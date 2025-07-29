@@ -4,6 +4,88 @@ from django.utils import timezone
 import uuid
 
 
+class CardApplication(models.Model):
+    """Model for card applications that need admin approval."""
+    
+    APPLICATION_STATUS = [
+        ('pending', 'Pending Review'),
+        ('processing', 'Processing'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('completed', 'Completed'),
+    ]
+    
+    CARD_TYPES = [
+        ('debit', 'Debit'),
+        ('credit', 'Credit'),
+    ]
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='card_applications')
+    card_type = models.CharField(max_length=10, choices=CARD_TYPES, default='debit')
+    
+    # Application details
+    reason = models.TextField(blank=True)
+    preferred_daily_limit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    preferred_monthly_limit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # Status and processing
+    status = models.CharField(max_length=20, choices=APPLICATION_STATUS, default='pending')
+    admin_notes = models.TextField(blank=True)
+    estimated_completion_date = models.DateField(null=True, blank=True)
+    
+    # Admin processing
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='processed_applications'
+    )
+    processed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'card_applications'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Card Application {self.id} - {self.user.email} ({self.get_status_display()})"
+    
+    def approve(self, admin_user, notes=""):
+        """Approve the application and move to processing."""
+        self.status = 'processing'
+        self.processed_by = admin_user
+        self.processed_at = timezone.now()
+        self.admin_notes = notes
+        self.save()
+    
+    def reject(self, admin_user, notes=""):
+        """Reject the application."""
+        self.status = 'rejected'
+        self.processed_by = admin_user
+        self.processed_at = timezone.now()
+        self.admin_notes = notes
+        self.save()
+    
+    def complete(self, admin_user, notes=""):
+        """Mark application as completed (card created)."""
+        self.status = 'completed'
+        self.processed_by = admin_user
+        self.processed_at = timezone.now()
+        self.admin_notes = notes
+        self.save()
+    
+    def get_estimated_completion_days(self):
+        """Get estimated completion time in days."""
+        if self.estimated_completion_date:
+            delta = self.estimated_completion_date - timezone.now().date()
+            return max(0, delta.days)
+        return None
+
+
 class VirtualCard(models.Model):
     """Model for virtual debit cards."""
     
@@ -20,6 +102,7 @@ class VirtualCard(models.Model):
     ]
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='virtual_cards')
+    application = models.ForeignKey(CardApplication, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_card')
     card_number = models.CharField(max_length=16, unique=True)
     cvv = models.CharField(max_length=4)
     expiry_month = models.PositiveIntegerField()
@@ -62,17 +145,21 @@ class VirtualCard(models.Model):
     
     def generate_card_number(self):
         """Generate a unique 16-digit card number."""
+        import random
         while True:
             # Generate a card number starting with 4 (Visa) or 5 (Mastercard)
             prefix = '4' if self.card_type == 'debit' else '5'
-            card_number = prefix + str(uuid.uuid4().int)[:15]
+            # Generate 15 random digits
+            digits = ''.join([str(random.randint(0, 9)) for _ in range(15)])
+            card_number = prefix + digits
             
             if not VirtualCard.objects.filter(card_number=card_number).exists():
                 return card_number
     
     def generate_cvv(self):
         """Generate a 3-digit CVV."""
-        return str(uuid.uuid4().int)[:3]
+        import random
+        return str(random.randint(100, 999))
     
     def set_expiry_date(self):
         """Set expiry date to 3 years from now."""
@@ -122,6 +209,16 @@ class VirtualCard(models.Model):
         """Reset monthly spending counter."""
         self.current_monthly_spent = 0
         self.save(update_fields=['current_monthly_spent'])
+    
+    @property
+    def expiry_date(self):
+        """Return formatted expiry date."""
+        return f"{self.expiry_month:02d}/{self.expiry_year}"
+    
+    @property
+    def is_active(self):
+        """Check if card is active and not expired."""
+        return self.status == 'active' and not self.is_expired()
 
 
 class Transfer(models.Model):

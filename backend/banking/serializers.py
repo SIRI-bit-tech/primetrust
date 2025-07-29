@@ -1,38 +1,83 @@
 from rest_framework import serializers
-from .models import VirtualCard, Transfer, BankAccount, DirectDeposit
+from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication
 
 
 class VirtualCardSerializer(serializers.ModelSerializer):
     """Serializer for VirtualCard model."""
     
-    class Meta:
-        model = VirtualCard
-        fields = [
-            'id', 'card_number', 'card_type', 'status', 'balance', 'daily_limit',
-            'monthly_limit', 'expiry_date', 'cvv', 'is_active', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'card_number', 'cvv', 'created_at', 'updated_at']
-
-
-class VirtualCardCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating virtual cards."""
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    card_number_display = serializers.CharField(source='mask_card_number', read_only=True)
+    is_expired = serializers.BooleanField(read_only=True)
+    expiry_date = serializers.CharField(read_only=True)
     
     class Meta:
         model = VirtualCard
-        fields = ['card_type', 'daily_limit', 'monthly_limit']
+        fields = [
+            'id', 'user', 'user_email', 'card_number', 'card_number_display', 'cvv',
+            'expiry_month', 'expiry_year', 'expiry_date', 'card_type', 'status',
+            'daily_limit', 'monthly_limit', 'current_daily_spent', 'current_monthly_spent',
+            'is_default', 'is_expired', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['card_number', 'cvv', 'expiry_month', 'expiry_year', 'created_at', 'updated_at']
+
+
+class VirtualCardCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating VirtualCard (admin only)."""
+    
+    class Meta:
+        model = VirtualCard
+        fields = [
+            'user', 'card_type', 'daily_limit', 'monthly_limit', 'is_default'
+        ]
+
+
+class CardApplicationSerializer(serializers.ModelSerializer):
+    """Serializer for CardApplication model."""
+    
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    processed_by_name = serializers.CharField(source='processed_by.get_full_name', read_only=True)
+    estimated_completion_days = serializers.IntegerField(read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    class Meta:
+        model = CardApplication
+        fields = [
+            'id', 'user', 'user_email', 'user_name', 'card_type', 'reason',
+            'preferred_daily_limit', 'preferred_monthly_limit', 'status', 'status_display',
+            'admin_notes', 'estimated_completion_date', 'estimated_completion_days',
+            'processed_by', 'processed_by_name', 'processed_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['status', 'admin_notes', 'estimated_completion_date', 'processed_by', 'processed_at', 'created_at', 'updated_at']
+
+
+class CardApplicationCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating CardApplication."""
+    
+    class Meta:
+        model = CardApplication
+        fields = ['card_type', 'reason', 'preferred_daily_limit', 'preferred_monthly_limit']
+    
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
 
 
 class TransferSerializer(serializers.ModelSerializer):
     """Serializer for Transfer model."""
     
+    sender_email = serializers.EmailField(source='sender.email', read_only=True)
+    recipient_email = serializers.EmailField(source='recipient.email', read_only=True)
+    
     class Meta:
         model = Transfer
         fields = [
-            'id', 'from_account', 'to_account', 'amount', 'currency', 'status',
-            'transfer_type', 'reference_number', 'description', 'fee', 'created_at',
-            'completed_at', 'updated_at'
+            'id', 'sender', 'sender_email', 'recipient', 'recipient_email',
+            'recipient_email', 'amount', 'currency', 'transfer_type', 'status',
+            'reference_number', 'description', 'fee', 'completed_at',
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'reference_number', 'fee', 'created_at', 'completed_at', 'updated_at']
+        read_only_fields = ['reference_number', 'completed_at', 'created_at', 'updated_at']
 
 
 class TransferCreateSerializer(serializers.ModelSerializer):
@@ -46,13 +91,17 @@ class TransferCreateSerializer(serializers.ModelSerializer):
 class BankAccountSerializer(serializers.ModelSerializer):
     """Serializer for BankAccount model."""
     
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    account_number_display = serializers.CharField(source='mask_account_number', read_only=True)
+    
     class Meta:
         model = BankAccount
         fields = [
-            'id', 'account_number', 'account_type', 'bank_name', 'routing_number',
-            'balance', 'currency', 'status', 'is_primary', 'created_at', 'updated_at'
+            'id', 'user', 'user_email', 'account_name', 'account_type',
+            'account_number', 'account_number_display', 'routing_number',
+            'bank_name', 'is_verified', 'is_default', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'account_number', 'created_at', 'updated_at']
+        read_only_fields = ['is_verified', 'created_at', 'updated_at']
 
 
 class BankAccountCreateSerializer(serializers.ModelSerializer):
@@ -71,13 +120,16 @@ class TransferStatusUpdateSerializer(serializers.Serializer):
 class DirectDepositSerializer(serializers.ModelSerializer):
     """Serializer for DirectDeposit model."""
     
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    
     class Meta:
         model = DirectDeposit
         fields = [
-            'id', 'employer_name', 'account_number', 'routing_number', 'amount',
-            'frequency', 'status', 'next_deposit_date', 'created_at', 'updated_at'
+            'id', 'user', 'user_email', 'employer_name', 'account_number',
+            'routing_number', 'deposit_amount', 'frequency', 'status',
+            'start_date', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class DirectDepositCreateSerializer(serializers.ModelSerializer):

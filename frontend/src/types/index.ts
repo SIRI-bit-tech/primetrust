@@ -45,14 +45,26 @@ export interface Transaction {
 }
 
 export interface VirtualCard {
-  id: number
-  user: User
-  card_number: string
-  cvv: string
-  expiry_date: string
-  card_type: 'visa' | 'mastercard'
-  is_active: boolean
-  created_at: string
+  id: number;
+  user: number;
+  user_email: string;
+  application?: number;
+  card_number: string;
+  card_number_display: string;
+  cvv: string;
+  expiry_month: number;
+  expiry_year: number;
+  expiry_date: string;
+  card_type: 'debit' | 'credit';
+  status: 'active' | 'suspended' | 'cancelled' | 'expired';
+  daily_limit: number;
+  monthly_limit: number;
+  current_daily_spent: number;
+  current_monthly_spent: number;
+  is_default: boolean;
+  is_expired: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface EmailVerification {
@@ -272,4 +284,25 @@ export interface Notification {
   is_read: boolean
   created_at: string
   data: Record<string, unknown>
+}
+
+export interface CardApplication {
+  id: number;
+  user: number;
+  user_email: string;
+  user_name: string;
+  card_type: 'debit' | 'credit';
+  reason?: string;
+  preferred_daily_limit?: number;
+  preferred_monthly_limit?: number;
+  status: 'pending' | 'processing' | 'approved' | 'rejected' | 'completed';
+  status_display: string;
+  admin_notes?: string;
+  estimated_completion_date?: string;
+  estimated_completion_days?: number;
+  processed_by?: number;
+  processed_by_name?: string;
+  processed_at?: string;
+  created_at: string;
+  updated_at: string;
 } 
