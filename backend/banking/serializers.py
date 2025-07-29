@@ -6,6 +6,7 @@ class VirtualCardSerializer(serializers.ModelSerializer):
     """Serializer for VirtualCard model."""
     
     user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
     card_number_display = serializers.CharField(source='mask_card_number', read_only=True)
     is_expired = serializers.BooleanField(read_only=True)
     expiry_date = serializers.CharField(read_only=True)
@@ -13,7 +14,7 @@ class VirtualCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = VirtualCard
         fields = [
-            'id', 'user', 'user_email', 'card_number', 'card_number_display', 'cvv',
+            'id', 'user', 'user_email', 'user_name', 'card_number', 'card_number_display', 'cvv',
             'expiry_month', 'expiry_year', 'expiry_date', 'card_type', 'status',
             'daily_limit', 'monthly_limit', 'current_daily_spent', 'current_monthly_spent',
             'is_default', 'is_expired', 'created_at', 'updated_at'

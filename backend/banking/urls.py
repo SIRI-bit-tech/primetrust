@@ -10,13 +10,12 @@ urlpatterns = [
     # Card Applications
     path('', include(router.urls)),
     
-    # Virtual Cards (read-only for users)
-    path('cards/', views.VirtualCardListView.as_view(), name='virtual-card-list'),
-    path('cards/<int:pk>/', views.VirtualCardDetailView.as_view(), name='virtual-card-detail'),
-    path('cards/<int:pk>/update/', views.VirtualCardUpdateView.as_view(), name='virtual-card-update'),
-    path('cards/<int:card_id>/cancel/', views.VirtualCardCancelView.as_view(), name='virtual-card-cancel'),
-    path('cards/<int:card_id>/freeze/', views.VirtualCardFreezeView.as_view(), name='virtual-card-freeze'),
-    path('cards/<int:card_id>/unfreeze/', views.VirtualCardUnfreezeView.as_view(), name='virtual-card-unfreeze'),
+    # Virtual Card URLs
+    path('virtual-cards/', views.VirtualCardListView.as_view(), name='virtual-card-list'),
+    path('virtual-cards/<int:card_id>/cancel/', views.VirtualCardCancelView.as_view(), name='virtual-card-cancel'),
+    path('virtual-cards/<int:card_id>/freeze/', views.VirtualCardFreezeView.as_view(), name='virtual-card-freeze'),
+    path('virtual-cards/<int:card_id>/unfreeze/', views.VirtualCardUnfreezeView.as_view(), name='virtual-card-unfreeze'),
+    path('virtual-cards/<int:card_id>/delete/', views.VirtualCardDeleteView.as_view(), name='virtual-card-delete'),
     
     # Transfers
     path('transfers/', views.TransferListView.as_view(), name='transfer-list'),

@@ -61,6 +61,10 @@ class CardApplication(models.Model):
         self.processed_at = timezone.now()
         self.admin_notes = notes
         self.save()
+        
+        # Send notification
+        from .services import CardApplicationNotificationService
+        CardApplicationNotificationService.send_application_approved_notification(self)
     
     def reject(self, admin_user, notes=""):
         """Reject the application."""
@@ -69,6 +73,10 @@ class CardApplication(models.Model):
         self.processed_at = timezone.now()
         self.admin_notes = notes
         self.save()
+        
+        # Send notification
+        from .services import CardApplicationNotificationService
+        CardApplicationNotificationService.send_application_rejected_notification(self)
     
     def complete(self, admin_user, notes=""):
         """Mark application as completed (card created)."""
@@ -77,6 +85,15 @@ class CardApplication(models.Model):
         self.processed_at = timezone.now()
         self.admin_notes = notes
         self.save()
+        
+        # Send notification
+        from .services import CardApplicationNotificationService
+        card_number = None
+        # Get the created card properly
+        created_card = self.created_card.first() if hasattr(self, 'created_card') else None
+        if created_card:
+            card_number = created_card.card_number
+        CardApplicationNotificationService.send_application_completed_notification(self, card_number)
     
     def get_estimated_completion_days(self):
         """Get estimated completion time in days."""

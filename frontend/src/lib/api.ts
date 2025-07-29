@@ -126,16 +126,6 @@ export const bankingAPI = {
     return response.data
   },
 
-  getCards: async (): Promise<VirtualCard[]> => {
-    const response = await api.get('/banking/cards/')
-    return response.data
-  },
-
-  generateCard: async (): Promise<VirtualCard> => {
-    const response = await api.post('/banking/cards/')
-    return response.data
-  },
-
   getTransfers: async (): Promise<Transaction[]> => {
     const response = await api.get('/banking/transfers/')
     return response.data
@@ -401,39 +391,37 @@ export const cardApplicationAPI = {
 
 // Updated Virtual Cards API (read-only for users)
 export const virtualCardAPI = {
-  // Get all cards for current user
   getCards: async (): Promise<VirtualCard[]> => {
-    const response = await api.get('/banking/cards/');
-    return response.data;
+    const response = await api.get('/banking/virtual-cards/')
+    return response.data
   },
-
-  // Get a specific card
+  
   getCard: async (id: number): Promise<VirtualCard> => {
-    const response = await api.get(`/banking/cards/${id}/`);
-    return response.data;
+    const response = await api.get(`/banking/virtual-cards/${id}/`)
+    return response.data
   },
-
-  // Update card settings (limited fields)
+  
   updateCard: async (id: number, data: Partial<VirtualCard>): Promise<VirtualCard> => {
-    const response = await api.patch(`/banking/cards/${id}/update/`, data);
-    return response.data;
+    const response = await api.patch(`/banking/virtual-cards/${id}/update/`, data)
+    return response.data
   },
-
-  // Cancel a card
+  
   cancelCard: async (id: number): Promise<void> => {
-    await api.post(`/banking/cards/${id}/cancel/`);
+    await api.post(`/banking/virtual-cards/${id}/cancel/`)
   },
-
-  // Freeze a card
+  
   freezeCard: async (id: number): Promise<void> => {
-    await api.post(`/banking/cards/${id}/freeze/`);
+    await api.post(`/banking/virtual-cards/${id}/freeze/`)
   },
-
-  // Unfreeze a card
+  
   unfreezeCard: async (id: number): Promise<void> => {
-    await api.post(`/banking/cards/${id}/unfreeze/`);
+    await api.post(`/banking/virtual-cards/${id}/unfreeze/`)
   },
-};
+  
+  deleteCard: async (id: number): Promise<void> => {
+    await api.delete(`/banking/virtual-cards/${id}/delete/`)
+  }
+}
 
 
 export default api 

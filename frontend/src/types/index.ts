@@ -45,26 +45,26 @@ export interface Transaction {
 }
 
 export interface VirtualCard {
-  id: number;
-  user: number;
-  user_email: string;
-  application?: number;
-  card_number: string;
-  card_number_display: string;
-  cvv: string;
-  expiry_month: number;
-  expiry_year: number;
-  expiry_date: string;
-  card_type: 'debit' | 'credit';
-  status: 'active' | 'suspended' | 'cancelled' | 'expired';
-  daily_limit: number;
-  monthly_limit: number;
-  current_daily_spent: number;
-  current_monthly_spent: number;
-  is_default: boolean;
-  is_expired: boolean;
-  created_at: string;
-  updated_at: string;
+  id: number
+  user: number
+  user_email: string
+  user_name: string
+  application?: number
+  card_number: string
+  card_number_display: string
+  cvv: string
+  expiry_month: string
+  expiry_year: string
+  card_type: 'debit' | 'credit'
+  status: 'active' | 'suspended' | 'cancelled' | 'expired'
+  daily_limit: number
+  monthly_limit: number
+  current_daily_spent: number
+  current_monthly_spent: number
+  is_default: boolean
+  is_expired: boolean
+  created_at: string
+  updated_at: string
 }
 
 export interface EmailVerification {
@@ -199,7 +199,7 @@ export interface BillPayment {
 
 export interface UserNotification {
   id: number
-  notification_type: 'transaction' | 'security' | 'account' | 'investment' | 'loan' | 'bill' | 'system'
+  notification_type: 'transaction' | 'security' | 'account' | 'investment' | 'loan' | 'bill' | 'card_application' | 'system'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   title: string
   message: string

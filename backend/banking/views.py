@@ -28,7 +28,11 @@ class CardApplicationViewSet(ModelViewSet):
     
     def perform_create(self, serializer):
         """Create application for the current user."""
-        serializer.save(user=self.request.user)
+        application = serializer.save(user=self.request.user)
+        
+        # Send notification for new application
+        from .services import CardApplicationNotificationService
+        CardApplicationNotificationService.send_application_submitted_notification(application)
     
     @action(detail=False, methods=['get'])
     def my_applications(self, request):
@@ -70,7 +74,6 @@ class VirtualCardUpdateView(generics.UpdateAPIView):
 
 class VirtualCardCancelView(APIView):
     """Cancel a virtual card."""
-    
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request, card_id):
@@ -80,7 +83,20 @@ class VirtualCardCancelView(APIView):
             card.save()
             return Response({'message': 'Card cancelled successfully'})
         except VirtualCard.DoesNotExist:
-            return Response({'error': 'Card not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Card not found'}, status=404)
+
+
+class VirtualCardDeleteView(APIView):
+    """Delete a virtual card (admin only)."""
+    permission_classes = [permissions.IsAdminUser]
+    
+    def delete(self, request, card_id):
+        try:
+            card = VirtualCard.objects.get(id=card_id)
+            card.delete()
+            return Response({'message': 'Card deleted successfully'})
+        except VirtualCard.DoesNotExist:
+            return Response({'error': 'Card not found'}, status=404)
 
 
 class VirtualCardFreezeView(APIView):

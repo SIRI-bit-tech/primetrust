@@ -5,24 +5,27 @@ import { useState, useEffect } from 'react'
 import { 
   CreditCard, 
   Plus, 
-  Eye, 
-  EyeOff, 
-  Copy, 
-  Check, 
   Shield,
-  Lock,
   Clock,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Snowflake,
+  Sun,
+  X,
+  Loader2,
+  RefreshCw
 } from 'lucide-react'
-import Link from 'next/link'
+
 import DashboardLayout from '@/components/DashboardLayout'
 import { virtualCardAPI, cardApplicationAPI } from '@/lib/api'
 import { VirtualCard, CardApplication } from '@/types'
-import { maskCardNumber} from '@/lib/utils'
+
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/hooks/use-toast'
 
 export default function CardsPage() {
+  const { toast } = useToast()
   const [cards, setCards] = useState<VirtualCard[]>([])
   const [applications, setApplications] = useState<CardApplication[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -39,6 +42,14 @@ export default function CardsPage() {
 
   useEffect(() => {
     loadData()
+    
+    // Set up polling to refresh data every 30 seconds
+    const interval = setInterval(() => {
+      loadData()
+    }, 30000) // 30 seconds
+    
+    // Cleanup interval on component unmount
+    return () => clearInterval(interval)
   }, [])
 
   const loadData = async () => {
@@ -137,6 +148,228 @@ export default function CardsPage() {
     }
   }
 
+  const VirtualCard = ({ card }: { card: VirtualCard }) => {
+    const [isFlipped, setIsFlipped] = useState(false);
+    const [showCVV, setShowCVV] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const formatCardNumber = (number: string) => {
+      const masked = number.replace(/\d(?=\d{4})/g, '•');
+      return masked.replace(/(.{4})/g, '$1 ').trim();
+    };
+
+    const handleFreezeCard = async () => {
+      setIsLoading(true);
+      try {
+        if (card.status === 'active') {
+          await virtualCardAPI.freezeCard(card.id);
+        } else {
+          await virtualCardAPI.unfreezeCard(card.id);
+        }
+        // Refresh the cards list
+        loadData();
+        toast({
+          title: "Success",
+          description: `Card ${card.status === 'active' ? 'frozen' : 'unfrozen'} successfully.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update card status.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const handleCancelCard = async () => {
+      if (!confirm('Are you sure you want to cancel this card? This action cannot be undone.')) {
+        return;
+      }
+      
+      setIsLoading(true);
+      try {
+        await virtualCardAPI.cancelCard(card.id);
+        // Refresh the cards list
+        loadData();
+        toast({
+          title: "Success",
+          description: "Card cancelled successfully.",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to cancel card.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Card Display */}
+        <div className="relative group">
+          {/* Front of card */}
+          <div 
+            className={`relative w-full h-56 rounded-xl p-6 cursor-pointer transition-all duration-500 transform ${
+              isFlipped ? 'rotate-y-180 opacity-0' : 'rotate-y-0 opacity-100'
+            }`}
+            style={{
+              background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%)',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
+            }}
+            onClick={() => setIsFlipped(true)}
+          >
+            {/* EMV Chip */}
+            <div className="absolute top-6 left-6 w-12 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-md flex items-center justify-center">
+              <div className="w-8 h-6 bg-gradient-to-br from-yellow-300 to-yellow-500 rounded-sm relative">
+                <div className="absolute top-1 left-1 w-1 h-1 bg-yellow-700 rounded-full"></div>
+                <div className="absolute top-1 left-3 w-1 h-1 bg-yellow-700 rounded-full"></div>
+                <div className="absolute top-1 left-5 w-1 h-1 bg-yellow-700 rounded-full"></div>
+                <div className="absolute top-3 left-1 w-1 h-1 bg-yellow-700 rounded-full"></div>
+                <div className="absolute top-3 left-3 w-1 h-1 bg-yellow-700 rounded-full"></div>
+                <div className="absolute top-3 left-5 w-1 h-1 bg-yellow-700 rounded-full"></div>
+              </div>
+            </div>
+
+            {/* PrimeTrust Logo */}
+            <div className="absolute top-6 right-6 text-white font-semibold text-lg">
+              PrimeTrust
+            </div>
+
+            {/* Card Number */}
+            <div className="absolute top-24 left-6 right-6">
+              <div className="text-white text-2xl font-mono tracking-wider">
+                {formatCardNumber(card.card_number)}
+              </div>
+            </div>
+
+            {/* Expiry Date */}
+            <div className="absolute bottom-16 left-6">
+              <div className="text-white text-sm opacity-80">Valid Thru</div>
+              <div className="text-white font-mono">{card.expiry_month}/{card.expiry_year}</div>
+            </div>
+
+            {/* Cardholder Name */}
+            <div className="absolute bottom-6 left-6">
+              <div className="text-white text-sm opacity-80">Cardholder</div>
+              <div className="text-white font-semibold">{card.user_name || 'Card Holder'}</div>
+            </div>
+
+            {/* Card Type Logo */}
+            <div className="absolute bottom-6 right-6">
+              <div className="text-white text-xs opacity-80 mb-1">{card.card_type}</div>
+              <div className="flex items-center space-x-1">
+                <div className="w-6 h-6 bg-red-500 rounded-full"></div>
+                <div className="w-6 h-6 bg-orange-500 rounded-full -ml-2"></div>
+                <span className="text-white text-xs ml-1">Mastercard</span>
+              </div>
+            </div>
+
+            {/* Hover effect */}
+            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-xl"></div>
+          </div>
+
+          {/* Back of card */}
+          <div 
+            className={`absolute inset-0 w-full h-56 rounded-xl p-6 cursor-pointer transition-all duration-500 transform ${
+              isFlipped ? 'rotate-y-0 opacity-100' : 'rotate-y-180 opacity-0'
+            }`}
+            style={{
+              background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%)',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
+            }}
+            onClick={() => setIsFlipped(false)}
+          >
+            {/* Magnetic stripe */}
+            <div className="absolute top-6 left-0 right-0 h-8 bg-black"></div>
+            
+            {/* Signature panel */}
+            <div className="absolute top-20 left-6 right-6 h-12 bg-white rounded flex items-center justify-end pr-4">
+              <div className="text-gray-600 font-mono text-sm">CVV</div>
+              <div className="ml-2 w-12 h-6 bg-gray-200 rounded flex items-center justify-center">
+                <span className="text-gray-600 font-mono text-sm">
+                  {showCVV ? card.cvv : '•••'}
+                </span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCVV(!showCVV);
+                }}
+                className="ml-2 text-blue-600 text-xs underline"
+              >
+                {showCVV ? 'Hide' : 'Show'}
+              </button>
+            </div>
+
+            {/* Card info */}
+            <div className="absolute bottom-6 left-6 right-6">
+              <div className="text-white text-xs opacity-80 mb-2">Card Information</div>
+              <div className="text-white text-sm">
+                <div>Daily Limit: ${card.daily_limit?.toLocaleString()}</div>
+                <div>Monthly Limit: ${card.monthly_limit?.toLocaleString()}</div>
+                <div>Status: <span className={`${card.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>
+                  {card.status.charAt(0).toUpperCase() + card.status.slice(1)}
+                </span></div>
+              </div>
+            </div>
+
+            {/* Flip back hint */}
+            <div className="absolute top-6 right-6 text-white text-xs opacity-60">
+              Click to flip back
+            </div>
+          </div>
+        </div>
+
+        {/* Card Actions */}
+        <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFreezeCard}
+            disabled={isLoading}
+            className="flex-1"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : card.status === 'active' ? (
+              <>
+                <Snowflake className="w-4 h-4 mr-2" />
+                Freeze Card
+              </>
+            ) : (
+              <>
+                <Sun className="w-4 h-4 mr-2" />
+                Unfreeze Card
+              </>
+            )}
+          </Button>
+          
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleCancelCard}
+            disabled={isLoading}
+            className="flex-1"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <X className="w-4 h-4 mr-2" />
+                Cancel Card
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -158,23 +391,41 @@ export default function CardsPage() {
               Apply for virtual credit cards and manage your existing cards.
             </p>
           </div>
-          <button
-            onClick={() => setShowApplicationForm(true)}
-            disabled={isApplying}
-            className="bg-gradient-to-r from-primary-dark to-primary-navy text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center"
-          >
-            {isApplying ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Applying...
-              </>
-            ) : (
-              <>
-                <Plus className="w-5 h-5 mr-2" />
-                Apply for Card
-              </>
-            )}
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setShowApplicationForm(true)}
+              disabled={isApplying}
+              className="bg-gradient-to-r from-primary-dark to-primary-navy text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center"
+            >
+              {isApplying ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Applying...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-5 h-5 mr-2" />
+                  Apply for Card
+                </>
+              )}
+            </button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadData}
+              disabled={isLoading}
+              className="flex-1"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh Data
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Application Form Modal */}
@@ -309,122 +560,7 @@ export default function CardsPage() {
             <h2 className="text-xl font-semibold text-foreground">My Virtual Cards</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {cards.map((card, index) => (
-                <div
-                  key={card.id}
-                  className="bg-white rounded-xl shadow-lg overflow-hidden animate-in slide-in-from-bottom-4 duration-500"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  {/* Card Display */}
-                  <div className={`bg-gradient-to-r ${getCardGradient(card.card_type)} p-6 text-white relative`}>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm opacity-80">Virtual Card</span>
-                      <span className="text-sm opacity-80">{card.card_type.toUpperCase()}</span>
-                    </div>
-                    
-                    <div className="mb-4">
-                      <p className="text-lg font-mono tracking-wider">
-                        {card.card_number_display}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-sm opacity-80">
-                      <div>
-                        <p className="text-xs opacity-60">CVV</p>
-                        <p className="font-mono">
-                          {showCVV[card.id] ? card.cvv : '•••'}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs opacity-60">EXPIRES</p>
-                        <p className="font-mono">{card.expiry_date}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="absolute top-4 right-4">
-                      <button
-                        onClick={() => toggleCVV(card.id)}
-                        className="p-1 text-white/80 hover:text-white transition-colors"
-                      >
-                        {showCVV[card.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Card Details */}
-                  <div className="p-6">
-                    <div className="space-y-4">
-                      {/* Card Number */}
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Card Number
-                        </label>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="text"
-                            value={card.card_number}
-                            readOnly
-                            className="flex-1 px-3 py-2 border border-border rounded-md bg-muted text-sm font-mono text-foreground"
-                          />
-                          <button
-                            onClick={() => copyToClipboard(card.card_number, `card-${card.id}`)}
-                            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            {copiedField === `card-${card.id}` ? (
-                              <Check className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* CVV */}
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          CVV
-                        </label>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="text"
-                            value={showCVV[card.id] ? card.cvv : '•••'}
-                            readOnly
-                            className="flex-1 px-3 py-2 border border-border rounded-md bg-muted text-sm font-mono text-foreground"
-                          />
-                          <button
-                            onClick={() => copyToClipboard(card.cvv, `cvv-${card.id}`)}
-                            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            {copiedField === `cvv-${card.id}` ? (
-                              <Check className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Status */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Status</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          card.status === 'active' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
-                          {card.status.charAt(0).toUpperCase() + card.status.slice(1)}
-                        </span>
-                      </div>
-
-                      {/* Created Date */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Created</span>
-                        <span className="text-sm text-foreground">
-                          {new Date(card.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <VirtualCard key={card.id} card={card} />
               ))}
             </div>
           </div>

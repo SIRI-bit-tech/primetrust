@@ -29,32 +29,28 @@ class CardApplicationAdmin(admin.ModelAdmin):
     
     def approve_applications(self, request, queryset):
         """Approve selected applications and move to processing."""
-        updated = queryset.update(
-            status='processing',
-            processed_by=request.user,
-            processed_at=timezone.now(),
-            estimated_completion_date=date.today() + timedelta(days=3)
-        )
+        updated = 0
+        for application in queryset:
+            application.approve(request.user, "Bulk approved by admin")
+            updated += 1
         self.message_user(request, f'{updated} applications approved and moved to processing.')
     approve_applications.short_description = "Approve applications and move to processing"
     
     def reject_applications(self, request, queryset):
         """Reject selected applications."""
-        updated = queryset.update(
-            status='rejected',
-            processed_by=request.user,
-            processed_at=timezone.now()
-        )
+        updated = 0
+        for application in queryset:
+            application.reject(request.user, "Bulk rejected by admin")
+            updated += 1
         self.message_user(request, f'{updated} applications rejected.')
     reject_applications.short_description = "Reject applications"
     
     def mark_processing(self, request, queryset):
         """Mark applications as processing."""
-        updated = queryset.update(
-            status='processing',
-            processed_by=request.user,
-            processed_at=timezone.now()
-        )
+        updated = 0
+        for application in queryset:
+            application.approve(request.user, "Marked as processing by admin")
+            updated += 1
         self.message_user(request, f'{updated} applications marked as processing.')
     mark_processing.short_description = "Mark as processing"
     
@@ -73,7 +69,8 @@ class CardApplicationAdmin(admin.ModelAdmin):
                 )
                 
                 # Mark application as completed
-                application.complete(request.user, f"Card {card.card_number} generated successfully")
+                notes = f"Card {card.card_number} generated successfully"
+                application.complete(request.user, notes)
                 completed_count += 1
                 
             except Exception as e:
@@ -82,9 +79,7 @@ class CardApplicationAdmin(admin.ModelAdmin):
         self.message_user(request, f'{completed_count} applications completed and cards generated.')
     complete_applications.short_description = "Complete applications and generate cards"
     
-    def get_queryset(self, request):
-        """Show only applications that haven't been completed."""
-        return super().get_queryset(request).exclude(status='completed')
+    # Remove the get_queryset method that hides completed applications
 
 
 @admin.register(VirtualCard)
@@ -93,7 +88,7 @@ class VirtualCardAdmin(admin.ModelAdmin):
     list_filter = ['status', 'card_type', 'created_at']
     search_fields = ['user__email', 'card_number']
     readonly_fields = ['card_number', 'cvv', 'expiry_month', 'expiry_year', 'created_at', 'updated_at']
-    actions = ['activate_cards', 'suspend_cards', 'cancel_cards']
+    actions = ['activate_cards', 'suspend_cards', 'cancel_cards', 'delete_cards']
     
     fieldsets = (
         ('Card Information', {
@@ -138,13 +133,20 @@ class VirtualCardAdmin(admin.ModelAdmin):
         self.message_user(request, f'{updated} cards cancelled.')
     cancel_cards.short_description = "Cancel cards"
     
+    def delete_cards(self, request, queryset):
+        """Delete selected cards permanently."""
+        count = queryset.count()
+        queryset.delete()
+        self.message_user(request, f'{count} cards deleted permanently.')
+    delete_cards.short_description = "Delete cards permanently"
+    
     def has_add_permission(self, request):
         """Only allow adding cards through application completion."""
         return False
     
     def has_delete_permission(self, request, obj=None):
-        """Prevent deletion of cards."""
-        return False
+        """Allow admins to delete cards."""
+        return True
 
 
 @admin.register(Transfer)

@@ -14,6 +14,7 @@ class Notification(models.Model):
         ('investment', 'Investment'),
         ('loan', 'Loan'),
         ('bill', 'Bill'),
+        ('card_application', 'Card Application'),
         ('system', 'System'),
     ]
     
