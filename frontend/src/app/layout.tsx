@@ -8,11 +8,11 @@ import { ThemeProvider } from "@/components/theme-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: "PrimeTrust - Modern Online Banking Platform",
   description: "Secure, real-time online banking platform with modern features and seamless user experience.",
   keywords: "online banking, digital banking, secure banking, fintech, PrimeTrust",
   authors: [{ name: "PrimeTrust Team" }],
-  viewport: "width=device-width, initial-scale=1",
   robots: "index, follow",
   openGraph: {
     title: "PrimeTrust - Modern Online Banking Platform",
@@ -25,6 +25,11 @@ export const metadata: Metadata = {
     title: "PrimeTrust - Modern Online Banking Platform",
     description: "Secure, real-time online banking platform with modern features and seamless user experience.",
   },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({

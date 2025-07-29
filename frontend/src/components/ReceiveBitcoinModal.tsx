@@ -118,13 +118,20 @@ export default function ReceiveBitcoinModal({ isOpen, onClose }: ReceiveBitcoinM
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-sm max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="sm:max-w-sm max-h-[90vh] overflow-y-auto"
+        aria-describedby="receive-bitcoin-description"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-center">
             <QrCode className="h-5 w-5" />
             Receive Bitcoin
           </DialogTitle>
         </DialogHeader>
+        
+        <div id="receive-bitcoin-description" className="sr-only">
+          Modal for receiving Bitcoin. Displays QR code and wallet address for Bitcoin transactions.
+        </div>
 
         <div className="space-y-4">
           {isLoading ? (
@@ -149,6 +156,7 @@ export default function ReceiveBitcoinModal({ isOpen, onClose }: ReceiveBitcoinM
                         width={160}
                         height={160}
                         className="object-contain"
+                        style={{ width: '160px', height: '160px' }}
                       />
                     </div>
                     

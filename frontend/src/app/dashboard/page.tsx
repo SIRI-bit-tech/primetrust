@@ -107,6 +107,13 @@ export default function DashboardPage() {
     }
   }, [])
 
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good Morning'
+    if (hour < 17) return 'Good Afternoon'
+    return 'Good Evening'
+  }
+
   const updateBalances = useCallback(async () => {
     try {
       // Fetch Bitcoin balance and exchange rate
@@ -179,7 +186,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">
-              Welcome back, {user?.first_name || 'User'}! 👋
+              {getGreeting()}, {user?.first_name || 'User'}! 👋
             </h1>
             <p className="text-muted-foreground mt-1">
               Here&apos;s your financial overview for today
@@ -355,14 +362,20 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                <Button 
+                  className="h-20 flex-col gap-2 bg-blue-500 hover:bg-blue-600 text-white border-blue-500" 
+                  asChild
+                >
                   <Link href="/dashboard/transfer">
                     <Send className="w-6 h-6" />
                     <span className="text-sm">Send Money</span>
                   </Link>
                 </Button>
                 
-                <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                <Button 
+                  className="h-20 flex-col gap-2 bg-orange-500 hover:bg-orange-600 text-white border-orange-500" 
+                  asChild
+                >
                   <Link href="/dashboard/send-bitcoin">
                     <Bitcoin className="w-6 h-6" />
                     <span className="text-sm">Send Bitcoin</span>
@@ -370,8 +383,7 @@ export default function DashboardPage() {
                 </Button>
                 
                 <Button 
-                  variant="outline" 
-                  className="h-20 flex-col gap-2"
+                  className="h-20 flex-col gap-2 bg-green-500 hover:bg-green-600 text-white border-green-500"
                   onClick={() => setIsReceiveBitcoinModalOpen(true)}
                 >
                   <ArrowDownUp className="w-6 h-6" />
@@ -379,8 +391,7 @@ export default function DashboardPage() {
                 </Button>
                 
                 <Button 
-                  variant="outline" 
-                  className="h-20 flex-col gap-2"
+                  className="h-20 flex-col gap-2 bg-purple-500 hover:bg-purple-600 text-white border-purple-500"
                   onClick={() => setIsSwapBitcoinModalOpen(true)}
                 >
                   <ArrowUpDown className="w-6 h-6" />

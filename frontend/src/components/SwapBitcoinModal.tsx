@@ -206,13 +206,20 @@ export default function SwapBitcoinModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="sm:max-w-md max-h-[90vh] overflow-y-auto"
+        aria-describedby="swap-bitcoin-description"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-center">
             <ArrowLeftRight className="h-5 w-5" />
             Currency Swap
           </DialogTitle>
         </DialogHeader>
+        
+        <div id="swap-bitcoin-description" className="sr-only">
+          Modal for swapping between USD and Bitcoin currencies. Allows users to convert their balance between fiat and cryptocurrency.
+        </div>
 
         <div className="space-y-4">
           <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">

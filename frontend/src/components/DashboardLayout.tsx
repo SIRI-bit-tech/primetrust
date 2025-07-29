@@ -127,28 +127,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="flex items-center gap-2 px-4">
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-2 h-4" />
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search transactions, cards..."
-                    className="pl-8 w-80"
-                  />
-                </div>
-              </div>
             </div>
             <div className="flex items-center gap-2 px-4 ml-auto">
               <NotificationDropdown />
               <Separator orientation="vertical" className="h-4" />
               <div className="flex items-center gap-2">
                 <div className="hidden sm:block text-right">
-                  <p className="text-sm font-medium">{user?.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  <p className="text-sm font-medium">{user?.first_name} {user?.last_name}</p>
                 </div>
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="" alt={user?.full_name} />
+                  <AvatarImage src="" alt={`${user?.first_name} ${user?.last_name}`} />
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user?.full_name?.charAt(0).toUpperCase()}
+                    {user?.first_name?.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               </div>
