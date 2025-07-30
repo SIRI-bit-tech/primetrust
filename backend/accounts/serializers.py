@@ -117,7 +117,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'username', 'first_name', 'last_name', 'full_name',
             'phone_number', 'address', 'city', 'state', 'zip_code', 'country',
-            'account_number', 'routing_number', 'balance', 'is_verified',
+            'account_number', 'routing_number', 'balance', 'bitcoin_balance', 'is_verified',
             'email_verified', 'phone_verified', 'two_factor_enabled',
             'is_staff', 'is_superuser', 'is_active', 'date_joined', 'last_login',
             'created_at', 'last_activity', 'profile'
