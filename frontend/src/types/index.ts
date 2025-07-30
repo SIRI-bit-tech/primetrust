@@ -21,6 +21,10 @@ export interface User {
   is_active: boolean
   date_joined: string
   last_login: string
+  is_staff: boolean
+  is_superuser: boolean
+  balance?: number
+  bitcoin_balance?: number
 }
 
 export interface Account {
@@ -36,8 +40,9 @@ export interface Account {
 export interface Transaction {
   id: number
   user: number
+  user_name?: string
   transaction_type: string
-  amount: string
+  amount: number
   description: string
   status: string
   created_at: string
@@ -203,6 +208,7 @@ export interface UserNotification {
   priority: 'low' | 'medium' | 'high' | 'urgent'
   title: string
   message: string
+  user_name?: string
   is_read: boolean
   is_sent: boolean
   data: Record<string, unknown>

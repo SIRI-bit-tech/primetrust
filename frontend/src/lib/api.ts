@@ -157,23 +157,65 @@ export const transactionsAPI = {
 
 // Admin API
 export const adminAPI = {
-  getAllUsers: async (): Promise<User[]> => {
-    const response = await api.get('/admin/users/')
+  checkAdminAuth: async (): Promise<{ is_admin: boolean; user_id: number; email: string; is_staff: boolean; is_superuser: boolean }> => {
+    const response = await api.get('/admin/auth/')
     return response.data
   },
 
+  getAllUsers: async (): Promise<User[]> => {
+    const response = await api.get('/admin/users/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
   updateUserBalance: async (userId: number, balance: number): Promise<Account> => {
-    const response = await api.put(`/admin/users/${userId}/`, { balance })
+    const response = await api.put(`/admin/users/${userId}/balance/`, { balance })
+    return response.data
+  },
+
+  updateUserBitcoinBalance: async (userId: number, bitcoinBalance: number, action: 'set' | 'add' | 'subtract' = 'set'): Promise<{ message: string; bitcoin_balance: string; action: string }> => {
+    const response = await api.put(`/admin/users/${userId}/bitcoin-balance/`, { 
+      bitcoin_balance: bitcoinBalance,
+      action: action
+    })
     return response.data
   },
 
   getAllTransactions: async (): Promise<Transaction[]> => {
     const response = await api.get('/admin/transactions/')
-    return response.data
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
   updateTransactionStatus: async (transactionId: number, status: string): Promise<Transaction> => {
-    const response = await api.put(`/admin/transactions/${transactionId}/`, { status })
+    const response = await api.put(`/admin/transactions/${transactionId}/status/`, { status })
+    return response.data
+  },
+
+  getAllCards: async (): Promise<VirtualCard[]> => {
+    const response = await api.get('/admin/cards/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  getAllCardApplications: async (): Promise<CardApplication[]> => {
+    const response = await api.get('/admin/card-applications/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  updateCardApplicationStatus: async (applicationId: number, status: string): Promise<CardApplication> => {
+    const response = await api.put(`/admin/card-applications/${applicationId}/status/`, { status })
+    return response.data
+  },
+
+  getAllNotifications: async (): Promise<UserNotification[]> => {
+    const response = await api.get('/admin/notifications/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  deleteCard: async (cardId: number): Promise<void> => {
+    await api.delete(`/admin/cards/${cardId}/`)
+  },
+
+  getAdminDashboard: async (): Promise<Record<string, unknown>> => {
+    const response = await api.get('/admin/dashboard/')
     return response.data
   },
 }
