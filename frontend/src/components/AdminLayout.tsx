@@ -16,41 +16,41 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true)
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
+    const checkAdminAccess = () => {
+      // Check if user is authenticated from localStorage first
+      const storedUser = localStorage.getItem('user')
+      const accessToken = localStorage.getItem('access_token')
+      
+      if (!storedUser || !accessToken) {
         router.push('/admin/login')
         return
       }
       
-      // Check if user has admin privileges - use the same logic as login page
-      const checkAdminStatus = async () => {
-        try {
-          // Check if user is staff or superuser from the stored user data
-          const storedUser = localStorage.getItem('user')
-          if (storedUser) {
-            const userData = JSON.parse(storedUser)
-            const hasAdminAccess = userData.is_staff || userData.is_superuser
-            setIsAdmin(hasAdminAccess)
-            
-            if (!hasAdminAccess) {
-              router.push('/dashboard')
-            }
-          } else {
-            router.push('/admin/login')
-          }
-        } catch (error) {
-          console.error('Error checking admin status:', error)
-          router.push('/admin/login')
-        } finally {
-          setIsCheckingAdmin(false)
+      try {
+        const userData = JSON.parse(storedUser)
+        const hasAdminAccess = userData.is_staff || userData.is_superuser
+        
+        if (!hasAdminAccess) {
+          // User is not admin, redirect to regular dashboard
+          router.push('/dashboard')
+          return
         }
+        
+        setIsAdmin(true)
+      } catch (error) {
+        console.error('Error parsing user data:', error)
+        router.push('/admin/login')
+        return
+      } finally {
+        setIsCheckingAdmin(false)
       }
-      
-      checkAdminStatus()
     }
-  }, [user, loading, router])
 
-  if (loading || isCheckingAdmin) {
+    // Check admin access immediately, don't wait for useAuth loading
+    checkAdminAccess()
+  }, [router])
+
+  if (isCheckingAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

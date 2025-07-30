@@ -26,9 +26,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkAuth = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      if (token) {
-        const userData = await authAPI.getProfile()
-        setUser(userData)
+      const storedUser = localStorage.getItem('user')
+      
+      if (token && storedUser) {
+        try {
+          const userData = await authAPI.getProfile()
+          setUser(userData)
+        } catch (error) {
+          // If API call fails, try to use stored user data
+          const parsedUser = JSON.parse(storedUser)
+          setUser(parsedUser)
+        }
       }
     } catch (error) {
       localStorage.removeItem('access_token')

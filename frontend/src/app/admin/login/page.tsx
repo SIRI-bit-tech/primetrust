@@ -51,8 +51,10 @@ export default function AdminLoginPage() {
       
       // Check if user has admin privileges - simplified check
       if (response.user.is_staff || response.user.is_superuser) {
-        // Redirect to admin dashboard
-        router.push('/admin')
+        // Add a small delay to ensure localStorage is set
+        setTimeout(() => {
+          router.push('/admin')
+        }, 100)
         return
       } else {
         // User is not admin, clear tokens and show error
