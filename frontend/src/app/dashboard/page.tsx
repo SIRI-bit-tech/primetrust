@@ -28,7 +28,7 @@ import ReceiveBitcoinModal from '@/components/ReceiveBitcoinModal'
 import SwapBitcoinModal from '@/components/SwapBitcoinModal'
 import { ToastContainer } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
-import { bankingAPI, transactionsAPI, bitcoinAPI } from '@/lib/api'
+import { bankingAPI, transactionsAPI, bitcoinAPI, virtualCardAPI } from '@/lib/api'
 import { Account, Transaction, VirtualCard } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -79,7 +79,7 @@ export default function DashboardPage() {
       setTransactions(transactionsArray.slice(0, 5))
       
       // Fetch virtual cards
-      const cardsData = await bankingAPI.getCards()
+      const cardsData = await virtualCardAPI.getCards()
       setCards(cardsData)
       
       // Fetch Bitcoin balance and exchange rate

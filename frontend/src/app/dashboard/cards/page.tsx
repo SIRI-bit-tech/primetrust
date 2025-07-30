@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 
 import { 
   CreditCard, 
@@ -54,10 +55,15 @@ export default function CardsPage() {
 
   const loadData = async () => {
     try {
+      console.log('Loading cards and applications...')
       const [cardsData, applicationsData] = await Promise.all([
         virtualCardAPI.getCards(),
         cardApplicationAPI.getMyApplications()
       ])
+      console.log('Cards data:', cardsData)
+      console.log('Applications data:', applicationsData)
+      console.log('Cards length:', cardsData.length)
+      console.log('Applications length:', applicationsData.length)
       setCards(cardsData)
       setApplications(applicationsData)
     } catch (error) {
@@ -154,8 +160,15 @@ export default function CardsPage() {
     const [isLoading, setIsLoading] = useState(false);
 
     const formatCardNumber = (number: string) => {
-      const masked = number.replace(/\d(?=\d{4})/g, '•');
-      return masked.replace(/(.{4})/g, '$1 ').trim();
+      return number.replace(/(\d{4})(?=\d)/g, '$1 ');
+    };
+
+    const handleCardClick = () => {
+      setIsFlipped(true);
+      // Auto-return to front after 45 seconds
+      setTimeout(() => {
+        setIsFlipped(false);
+      }, 45000);
     };
 
     const handleFreezeCard = async () => {
@@ -166,11 +179,10 @@ export default function CardsPage() {
         } else {
           await virtualCardAPI.unfreezeCard(card.id);
         }
-        // Refresh the cards list
         loadData();
         toast({
           title: "Success",
-          description: `Card ${card.status === 'active' ? 'frozen' : 'unfrozen'} successfully.`,
+          description: card.status === 'active' ? "Card frozen successfully." : "Card unfrozen successfully.",
         });
       } catch (error) {
         toast({
@@ -184,14 +196,9 @@ export default function CardsPage() {
     };
 
     const handleCancelCard = async () => {
-      if (!confirm('Are you sure you want to cancel this card? This action cannot be undone.')) {
-        return;
-      }
-      
       setIsLoading(true);
       try {
         await virtualCardAPI.cancelCard(card.id);
-        // Refresh the cards list
         loadData();
         toast({
           title: "Success",
@@ -210,123 +217,101 @@ export default function CardsPage() {
 
     return (
       <div className="space-y-4">
-        {/* Card Display */}
-        <div className="relative group">
-          {/* Front of card */}
+        {/* 3D Card Container */}
+        <div className="relative w-full max-w-2xl mx-auto perspective-1000">
           <div 
-            className={`relative w-full h-56 rounded-xl p-6 cursor-pointer transition-all duration-500 transform ${
-              isFlipped ? 'rotate-y-180 opacity-0' : 'rotate-y-0 opacity-100'
+            className={`relative w-full h-48 rounded-xl cursor-pointer transition-transform duration-700 transform-style-preserve-3d ${
+              isFlipped ? 'rotate-y-180' : ''
             }`}
             style={{
-              background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%)',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
+              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.3)',
+              transformStyle: 'preserve-3d'
             }}
-            onClick={() => setIsFlipped(true)}
+            onClick={handleCardClick}
           >
-            {/* EMV Chip */}
-            <div className="absolute top-6 left-6 w-12 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-md flex items-center justify-center">
-              <div className="w-8 h-6 bg-gradient-to-br from-yellow-300 to-yellow-500 rounded-sm relative">
-                <div className="absolute top-1 left-1 w-1 h-1 bg-yellow-700 rounded-full"></div>
-                <div className="absolute top-1 left-3 w-1 h-1 bg-yellow-700 rounded-full"></div>
-                <div className="absolute top-1 left-5 w-1 h-1 bg-yellow-700 rounded-full"></div>
-                <div className="absolute top-3 left-1 w-1 h-1 bg-yellow-700 rounded-full"></div>
-                <div className="absolute top-3 left-3 w-1 h-1 bg-yellow-700 rounded-full"></div>
-                <div className="absolute top-3 left-5 w-1 h-1 bg-yellow-700 rounded-full"></div>
+            {/* Front of Card - Using Mockup */}
+            <div className="absolute inset-0 w-full h-full rounded-xl backface-hidden">
+              <Image 
+                src="/images/card-front-mockup.png" 
+                alt="Card Front" 
+                layout="fill"
+                objectFit="cover"
+                className="rounded-xl"
+              />
+              
+              {/* Dynamic Text Overlays */}
+              <div className="absolute inset-0 p-6">
+                {/* Card Number - Centered */}
+                <div className="absolute top-16 left-6 right-6">
+                  <div className="text-white text-xl font-mono tracking-wider font-bold">
+                    {formatCardNumber(card.card_number)}
+                  </div>
+                </div>
+
+                {/* Expiry Date - Bottom Left */}
+                <div className="absolute bottom-14 left-6">
+                  <div className="text-white text-sm opacity-80 mb-0.5 font-medium">Valid Thru</div>
+                  <div className="text-white font-mono text-sm font-bold">{String(card.expiry_month).padStart(2, '0')}/{String(card.expiry_year).slice(-2)}</div>
+                </div>
+
+                {/* Cardholder Name - Bottom Left */}
+                <div className="absolute bottom-2 left-6">
+                  <div className="text-white text-sm opacity-80 mb-0.5 font-medium">Cardholder</div>
+                  <div className="text-white font-mono text-sm font-bold tracking-wide">{card.user_name || 'Card Holder'}</div>
+                </div>
+
+                {/* Click hint */}
+                <div className="absolute top-6 left-1/2 transform -translate-x-1/2 text-white text-xs opacity-60 bg-black bg-opacity-50 px-2 py-1 rounded">
+                  Click to flip
+                </div>
               </div>
             </div>
 
-            {/* PrimeTrust Logo */}
-            <div className="absolute top-6 right-6 text-white font-semibold text-lg">
-              PrimeTrust
-            </div>
-
-            {/* Card Number */}
-            <div className="absolute top-24 left-6 right-6">
-              <div className="text-white text-2xl font-mono tracking-wider">
-                {formatCardNumber(card.card_number)}
+            {/* Back of Card - Using Mockup */}
+            <div className="absolute inset-0 w-full h-full rounded-xl backface-hidden rotate-y-180">
+              <Image 
+                src="/images/card-back-mockup.png" 
+                alt="Card Back" 
+                layout="fill"
+                objectFit="cover"
+                className="rounded-xl"
+              />
+              
+              {/* CVV Overlay */}
+              <div className="absolute bottom-8 right-6">
+                <div className="flex items-center justify-end">
+                  <div className="text-black font-mono text-xs font-bold mr-1">CVV</div>
+                  <div className="w-12 h-6 flex items-center justify-center">
+                    <span className="text-black font-mono text-xs font-bold">
+                      {showCVV ? card.cvv : '•••'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowCVV(!showCVV);
+                    }}
+                    className="ml-1 text-black hover:text-blue-600 transition-colors"
+                  >
+                    {showCVV ? (
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-
-            {/* Expiry Date */}
-            <div className="absolute bottom-16 left-6">
-              <div className="text-white text-sm opacity-80">Valid Thru</div>
-              <div className="text-white font-mono">{card.expiry_month}/{card.expiry_year}</div>
-            </div>
-
-            {/* Cardholder Name */}
-            <div className="absolute bottom-6 left-6">
-              <div className="text-white text-sm opacity-80">Cardholder</div>
-              <div className="text-white font-semibold">{card.user_name || 'Card Holder'}</div>
-            </div>
-
-            {/* Card Type Logo */}
-            <div className="absolute bottom-6 right-6">
-              <div className="text-white text-xs opacity-80 mb-1">{card.card_type}</div>
-              <div className="flex items-center space-x-1">
-                <div className="w-6 h-6 bg-red-500 rounded-full"></div>
-                <div className="w-6 h-6 bg-orange-500 rounded-full -ml-2"></div>
-                <span className="text-white text-xs ml-1">Mastercard</span>
-              </div>
-            </div>
-
-            {/* Hover effect */}
-            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-xl"></div>
-          </div>
-
-          {/* Back of card */}
-          <div 
-            className={`absolute inset-0 w-full h-56 rounded-xl p-6 cursor-pointer transition-all duration-500 transform ${
-              isFlipped ? 'rotate-y-0 opacity-100' : 'rotate-y-180 opacity-0'
-            }`}
-            style={{
-              background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%)',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
-            }}
-            onClick={() => setIsFlipped(false)}
-          >
-            {/* Magnetic stripe */}
-            <div className="absolute top-6 left-0 right-0 h-8 bg-black"></div>
-            
-            {/* Signature panel */}
-            <div className="absolute top-20 left-6 right-6 h-12 bg-white rounded flex items-center justify-end pr-4">
-              <div className="text-gray-600 font-mono text-sm">CVV</div>
-              <div className="ml-2 w-12 h-6 bg-gray-200 rounded flex items-center justify-center">
-                <span className="text-gray-600 font-mono text-sm">
-                  {showCVV ? card.cvv : '•••'}
-                </span>
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowCVV(!showCVV);
-                }}
-                className="ml-2 text-blue-600 text-xs underline"
-              >
-                {showCVV ? 'Hide' : 'Show'}
-              </button>
-            </div>
-
-            {/* Card info */}
-            <div className="absolute bottom-6 left-6 right-6">
-              <div className="text-white text-xs opacity-80 mb-2">Card Information</div>
-              <div className="text-white text-sm">
-                <div>Daily Limit: ${card.daily_limit?.toLocaleString()}</div>
-                <div>Monthly Limit: ${card.monthly_limit?.toLocaleString()}</div>
-                <div>Status: <span className={`${card.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>
-                  {card.status.charAt(0).toUpperCase() + card.status.slice(1)}
-                </span></div>
-              </div>
-            </div>
-
-            {/* Flip back hint */}
-            <div className="absolute top-6 right-6 text-white text-xs opacity-60">
-              Click to flip back
             </div>
           </div>
         </div>
 
         {/* Card Actions */}
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 max-w-md mx-auto">
           <Button
             variant="outline"
             size="sm"
@@ -555,7 +540,7 @@ export default function CardsPage() {
         )}
 
         {/* Cards Grid */}
-        {cards.length > 0 ? (
+        {cards.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-foreground">My Virtual Cards</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -564,7 +549,10 @@ export default function CardsPage() {
               ))}
             </div>
           </div>
-        ) : applications.length === 0 ? (
+        )}
+
+        {/* Show "No Cards" message only when there are no cards AND no applications */}
+        {cards.length === 0 && applications.length === 0 && (
           <div className="text-center py-12 animate-in slide-in-from-bottom-4 duration-500">
             <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
               <CreditCard className="w-12 h-12 text-muted-foreground" />
@@ -591,7 +579,7 @@ export default function CardsPage() {
               )}
             </button>
           </div>
-        ) : null}
+        )}
 
         {/* Security Information */}
         <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-6 animate-in slide-in-from-bottom-4 duration-500 delay-300">
@@ -601,29 +589,29 @@ export default function CardsPage() {
           </h3>
           <div className="grid md:grid-cols-2 gap-4 text-sm text-blue-800 dark:text-blue-200">
             <div className="space-y-2">
-              <div className="flex items-center">
+              <div key="unique-number" className="flex items-center">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
                 <span>Each card has a unique number and CVV</span>
               </div>
-              <div className="flex items-center">
+              <div key="online-transactions" className="flex items-center">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
                 <span>Cards can be used for online transactions</span>
               </div>
-              <div className="flex items-center">
+              <div key="no-physical" className="flex items-center">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
                 <span>No physical card needed</span>
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center">
+              <div key="secure-encryption" className="flex items-center">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
                 <span>Secure encryption protects your data</span>
               </div>
-              <div className="flex items-center">
+              <div key="real-time-monitor" className="flex items-center">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
                 <span>Monitor transactions in real-time</span>
               </div>
-              <div className="flex items-center">
+              <div key="apply-anytime" className="flex items-center">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
                 <span>Apply for new cards anytime</span>
               </div>

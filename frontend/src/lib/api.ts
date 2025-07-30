@@ -392,8 +392,11 @@ export const cardApplicationAPI = {
 // Updated Virtual Cards API (read-only for users)
 export const virtualCardAPI = {
   getCards: async (): Promise<VirtualCard[]> => {
+    console.log('Making API call to /banking/virtual-cards/')
     const response = await api.get('/banking/virtual-cards/')
-    return response.data
+    console.log('API response:', response.data)
+    console.log('Response length:', response.data.results?.length || 0)
+    return response.data.results || []
   },
   
   getCard: async (id: number): Promise<VirtualCard> => {
