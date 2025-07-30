@@ -70,7 +70,14 @@ api.interceptors.response.use(
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
         localStorage.removeItem('user')
-        window.location.href = '/login'
+        
+        // Check if we're on admin pages and redirect accordingly
+        const currentPath = window.location.pathname
+        if (currentPath.includes('/admin')) {
+          window.location.href = '/admin/login'
+        } else {
+          window.location.href = '/login'
+        }
       }
     }
 

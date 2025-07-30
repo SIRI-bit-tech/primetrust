@@ -11,6 +11,7 @@ from django.conf import settings
 from datetime import timedelta
 import uuid
 import random
+from rest_framework_simplejwt.views import TokenRefreshView as BaseTokenRefreshView
 
 from .models import User, UserProfile, EmailVerification, PasswordReset, BitcoinTransaction
 from .serializers import (
@@ -679,3 +680,22 @@ class BitcoinTransactionDetailView(APIView):
                 {'error': 'Transaction not found'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class TokenRefreshView(BaseTokenRefreshView):
+    """Custom token refresh view."""
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request, *args, **kwargs):
+        """Refresh access token using refresh token."""
+        try:
+            response = super().post(request, *args, **kwargs)
+            return Response({
+                'access_token': response.data.get('access'),
+                'refresh_token': response.data.get('refresh', '')
+            }, status=response.status_code)
+        except Exception as e:
+            return Response({
+                'error': 'Token refresh failed',
+                'detail': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
