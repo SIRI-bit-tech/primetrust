@@ -237,18 +237,18 @@ export default function AdminPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 bg-gray-900 min-h-screen p-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
           <div className="flex items-center gap-3">
-            <Button onClick={loadAllData} variant="outline" className="flex items-center gap-2">
+            <Button onClick={loadAllData} variant="outline" className="flex items-center gap-2 bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
               <RefreshCw className="w-4 h-4" />
               Refresh Data
             </Button>
-            <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2">
+            {/* <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2 bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
               <LogOut className="w-4 h-4" />
               Logout
-            </Button>
+            </Button> */}
           </div>
         </div>
 
@@ -500,7 +500,7 @@ export default function AdminPage() {
               <h2 className="text-2xl font-bold">Transaction Management</h2>
               <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-32 bg-gray-800 text-white border-gray-600 hover:border-gray-500">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -589,7 +589,7 @@ export default function AdminPage() {
               <h2 className="text-2xl font-bold">Virtual Card Management</h2>
               <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-32 bg-gray-800 text-white border-gray-600 hover:border-gray-500">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -597,6 +597,7 @@ export default function AdminPage() {
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="frozen">Frozen</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="relative">
@@ -678,7 +679,7 @@ export default function AdminPage() {
               <h2 className="text-2xl font-bold">Card Application Management</h2>
               <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-32 bg-gray-800 text-white border-gray-600 hover:border-gray-500">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

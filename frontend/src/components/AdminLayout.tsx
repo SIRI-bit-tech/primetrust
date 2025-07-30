@@ -80,21 +80,26 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
+      <nav className="bg-gray-800 shadow-sm border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">PrimeTrust Admin</h1>
+              <h1 className="text-xl font-semibold text-white">PrimeTrust Admin</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-gray-300">
                 Welcome, {user?.first_name} {user?.last_name}
               </span>
               <button
-                onClick={() => router.push('/dashboard')}
-                className="text-sm text-blue-600 hover:text-blue-800"
+                onClick={() => {
+                  localStorage.removeItem('access_token')
+                  localStorage.removeItem('refresh_token')
+                  localStorage.removeItem('user')
+                  window.location.href = '/admin/login'
+                }}
+                className="text-sm text-red-400 hover:text-red-300 font-medium"
               >
-                Back to Dashboard
+                Logout
               </button>
             </div>
           </div>
