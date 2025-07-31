@@ -18,11 +18,14 @@ from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer, UserSerializer,
     UserUpdateSerializer, PasswordChangeSerializer, EmailVerificationSerializer,
     PasswordResetRequestSerializer, PasswordResetSerializer, BalanceSerializer,
-    TwoFactorSetupSerializer, AccountStatusSerializer, BitcoinBalanceSerializer,
-    BitcoinTransactionSerializer, BitcoinSendSerializer, BitcoinPriceSerializer
+    TwoFactorSetupSerializer, TwoFactorInitiateSerializer, TwoFactorVerifySerializer,
+    TwoFactorLoginSerializer, TransferPinSetupSerializer, TransferPinVerifySerializer,
+    AccountStatusSerializer, BitcoinBalanceSerializer, BitcoinTransactionSerializer,
+    BitcoinSendSerializer, BitcoinPriceSerializer
 )
 from api.services import trigger_account_created_notification
-from .services import BitcoinService
+from .services import BitcoinService, send_2fa_enabled_notification, send_transfer_pin_setup_notification, send_registration_complete_notification, send_backup_code_used_notification
+from .utils import generate_qr_code, log_security_event, get_client_ip
 
 
 class UserRegistrationView(APIView):
@@ -103,20 +106,46 @@ class UserLoginView(APIView):
         if serializer.is_valid():
             user = serializer.validated_data['user']
             
-            # Update last login IP
-            user.last_login_ip = self.get_client_ip(request)
-            user.save()
+            # Check if 2FA is enabled
+            if user.two_factor_enabled:
+                # Return temporary token for 2FA verification
+                temp_token = RefreshToken.for_user(user)
+                
+                return Response({
+                    'requires_2fa': True,
+                    'temp_token': str(temp_token.access_token),
+                    'message': 'Please enter your 2FA code to complete login'
+                }, status=status.HTTP_200_OK)
             
-            # Generate tokens
-            refresh = RefreshToken.for_user(user)
-            
-            return Response({
-                'access_token': str(refresh.access_token),
-                'refresh_token': str(refresh),
-                'user': UserSerializer(user).data
-            }, status=status.HTTP_200_OK)
+            # No 2FA required, proceed with normal login
+            return self.complete_login(user, request)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def complete_login(self, user, request):
+        """Complete the login process."""
+        # Update last login IP
+        user.last_login_ip = self.get_client_ip(request)
+        user.save()
+        
+        # Log successful login
+        log_security_event(
+            user=user,
+            event_type='login_success',
+            description='Login completed successfully',
+            request=request,
+            metadata={'auth_method': 'password_only'}
+        )
+        
+        # Generate tokens
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
+            'user': UserSerializer(user).data,
+            'requires_2fa': False
+        }, status=status.HTTP_200_OK)
     
     def get_client_ip(self, request):
         """Get client IP address."""
@@ -190,7 +219,18 @@ class EmailVerificationView(APIView):
             verification.is_used = True
             verification.save()
             
-            return Response({'message': 'Email verified successfully'}, status=status.HTTP_200_OK)
+            # Log email verification
+            log_security_event(
+                user=user,
+                event_type='email_verified',
+                description='Email verification completed',
+                request=request
+            )
+            
+            return Response({
+                'message': 'Email verified successfully',
+                'next_step': 'two_factor_setup'
+            }, status=status.HTTP_200_OK)
             
         except EmailVerification.DoesNotExist:
             return Response({'error': 'Invalid verification code'}, status=status.HTTP_400_BAD_REQUEST)
@@ -411,6 +451,297 @@ class TwoFactorSetupView(APIView):
             }, status=status.HTTP_200_OK)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TwoFactorInitiateView(APIView):
+    """View for initiating 2FA setup during registration."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        """Initiate 2FA setup by generating secret and QR code."""
+        serializer = TwoFactorInitiateSerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            user = request.user
+            
+            # Generate TOTP secret
+            secret = user.generate_totp_secret()
+            user.two_factor_secret = secret
+            user.save()
+            
+            # Generate QR code URI
+            qr_uri = user.get_totp_uri()
+            
+            # Generate QR code image
+            qr_code_image = generate_qr_code(qr_uri)
+            
+            # Generate backup codes
+            backup_codes = user.generate_backup_codes(10)
+            user.two_factor_backup_codes = backup_codes
+            user.save()
+            
+            return Response({
+                'message': '2FA setup initiated successfully',
+                'qr_uri': qr_uri,
+                'qr_code_image': qr_code_image,
+                'secret': secret,  # For manual entry if QR code fails
+                'backup_codes': backup_codes
+            }, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TwoFactorVerifyView(APIView):
+    """View for verifying 2FA setup during registration."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        """Verify 2FA setup with TOTP code."""
+        serializer = TwoFactorVerifySerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            user = request.user
+            code = serializer.validated_data['code']
+            
+            if not user.two_factor_secret:
+                return Response({
+                    'error': '2FA setup not initiated. Please initiate 2FA setup first.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            if user.verify_totp_code(code):
+                # Enable 2FA and mark setup as complete
+                user.two_factor_enabled = True
+                user.two_factor_setup_completed = True
+                user.save()
+                
+                # Log security event
+                log_security_event(
+                    user=user,
+                    event_type='2fa_setup',
+                    description='Two-factor authentication setup completed',
+                    request=request,
+                    metadata={'setup_method': 'registration'}
+                )
+                
+                # Send notification
+                send_2fa_enabled_notification(user)
+                
+                return Response({
+                    'message': '2FA setup completed successfully',
+                    'next_step': 'transfer_pin_setup'
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Invalid verification code. Please try again.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TransferPinSetupView(APIView):
+    """View for transfer PIN setup during registration."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        """Set up transfer PIN."""
+        serializer = TransferPinSetupSerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            user = request.user
+            pin = serializer.validated_data['pin']
+            
+            # Check if 2FA is completed
+            if not user.two_factor_setup_completed:
+                return Response({
+                    'error': '2FA setup must be completed before setting up transfer PIN.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Set transfer PIN
+            user.transaction_pin = pin
+            user.transfer_pin_setup_completed = True
+            user.save()
+            
+            # Log security event
+            log_security_event(
+                user=user,
+                event_type='pin_setup',
+                description='Transfer PIN setup completed',
+                request=request,
+                metadata={'setup_method': 'registration'}
+            )
+            
+            # Send notifications
+            send_transfer_pin_setup_notification(user)
+            
+            # If registration is complete, send welcome notification
+            if user.is_registration_complete():
+                send_registration_complete_notification(user)
+            
+            return Response({
+                'message': 'Transfer PIN set up successfully',
+                'next_step': 'dashboard',
+                'registration_complete': user.is_registration_complete()
+            }, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TransferPinVerifyView(APIView):
+    """View for transfer PIN verification during transactions."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        """Verify transfer PIN."""
+        serializer = TransferPinVerifySerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            user = request.user
+            pin = serializer.validated_data['pin']
+            
+            # Check if PIN is locked
+            if user.is_pin_locked():
+                return Response({
+                    'error': 'PIN is temporarily locked due to multiple failed attempts. Please try again later.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Verify PIN
+            if user.transaction_pin == pin:
+                user.reset_failed_pin()
+                
+                # Log successful PIN verification
+                log_security_event(
+                    user=user,
+                    event_type='pin_verify_success',
+                    description='Transfer PIN verified successfully',
+                    request=request
+                )
+                
+                return Response({
+                    'message': 'PIN verified successfully'
+                }, status=status.HTTP_200_OK)
+            else:
+                user.increment_failed_pin()
+                
+                # Log failed PIN verification
+                log_security_event(
+                    user=user,
+                    event_type='pin_verify_failed',
+                    description=f'Failed PIN verification attempt {user.failed_pin_attempts}',
+                    request=request,
+                    metadata={'failed_attempts': user.failed_pin_attempts}
+                )
+                
+                return Response({
+                    'error': 'Invalid PIN. Please try again.',
+                    'failed_attempts': user.failed_pin_attempts,
+                    'remaining_attempts': max(0, 3 - user.failed_pin_attempts)
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RegistrationStatusView(APIView):
+    """View for checking registration completion status."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get registration completion status."""
+        user = request.user
+        
+        return Response({
+            'email_verified': user.email_verified,
+            'two_factor_setup_completed': user.two_factor_setup_completed,
+            'transfer_pin_setup_completed': user.transfer_pin_setup_completed,
+            'registration_complete': user.is_registration_complete(),
+            'next_step': self.get_next_step(user)
+        }, status=status.HTTP_200_OK)
+    
+    def get_next_step(self, user):
+        """Determine the next step in registration process."""
+        if not user.email_verified:
+            return 'email_verification'
+        elif not user.two_factor_setup_completed:
+            return 'two_factor_setup'
+        elif not user.transfer_pin_setup_completed:
+            return 'transfer_pin_setup'
+        else:
+            return 'dashboard'
+
+
+class TwoFactorLoginVerifyView(APIView):
+    """View for 2FA login verification."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        """Verify 2FA code during login."""
+        serializer = TwoFactorLoginSerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            user = request.user
+            code = serializer.validated_data.get('code')
+            backup_code = serializer.validated_data.get('backup_code')
+            
+            # Verify TOTP code or backup code
+            if code and user.verify_totp_code(code):
+                # Log successful 2FA login
+                log_security_event(
+                    user=user,
+                    event_type='login_success',
+                    description='Login completed with 2FA',
+                    request=request,
+                    metadata={'auth_method': 'totp'}
+                )
+                return self.complete_login(user, request)
+            elif backup_code and user.verify_backup_code(backup_code):
+                # Log backup code usage
+                log_security_event(
+                    user=user,
+                    event_type='backup_code_used',
+                    description='Login completed with backup code',
+                    request=request,
+                    metadata={'remaining_codes': len(user.two_factor_backup_codes)}
+                )
+                
+                # Send notification for backup code usage
+                send_backup_code_used_notification(user, len(user.two_factor_backup_codes))
+                return self.complete_login(user, request)
+            else:
+                return Response({
+                    'error': 'Invalid 2FA code or backup code. Please try again.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def complete_login(self, user, request):
+        """Complete the login process after 2FA verification."""
+        # Update last login IP
+        user.last_login_ip = self.get_client_ip(request)
+        user.save()
+        
+        # Generate tokens
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
+            'user': UserSerializer(user).data,
+            'requires_2fa': False
+        }, status=status.HTTP_200_OK)
+    
+    def get_client_ip(self, request):
+        """Get client IP address."""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
 
 
 class AccountStatusView(APIView):

@@ -44,9 +44,15 @@ class User(AbstractUser):
     
     # Security
     two_factor_enabled = models.BooleanField(default=False)
+    two_factor_secret = models.CharField(max_length=32, blank=True)  # TOTP secret key
+    two_factor_backup_codes = models.JSONField(default=list, blank=True)  # Backup codes
+    two_factor_setup_completed = models.BooleanField(default=False)  # Track 2FA setup completion
+    transfer_pin_setup_completed = models.BooleanField(default=False)  # Track PIN setup completion
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
     failed_login_attempts = models.PositiveIntegerField(default=0)
     account_locked_until = models.DateTimeField(null=True, blank=True)
+    failed_pin_attempts = models.PositiveIntegerField(default=0)  # Track failed PIN attempts
+    pin_locked_until = models.DateTimeField(null=True, blank=True)  # PIN lockout
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -152,6 +158,74 @@ class User(AbstractUser):
         """Update the last activity timestamp."""
         self.last_activity = timezone.now()
         self.save(update_fields=['last_activity'])
+    
+    def is_pin_locked(self):
+        """Check if PIN is locked due to failed attempts."""
+        if self.pin_locked_until and self.pin_locked_until > timezone.now():
+            return True
+        return False
+    
+    def increment_failed_pin(self):
+        """Increment failed PIN attempts and lock PIN if necessary."""
+        self.failed_pin_attempts += 1
+        
+        # Lock PIN after 3 failed attempts for 15 minutes
+        if self.failed_pin_attempts >= 3:
+            self.pin_locked_until = timezone.now() + timezone.timedelta(minutes=15)
+        
+        self.save()
+    
+    def reset_failed_pin(self):
+        """Reset failed PIN attempts."""
+        self.failed_pin_attempts = 0
+        self.pin_locked_until = None
+        self.save()
+    
+    def generate_totp_secret(self):
+        """Generate a new TOTP secret key."""
+        import pyotp
+        return pyotp.random_base32()
+    
+    def get_totp_uri(self):
+        """Get TOTP URI for QR code generation."""
+        import pyotp
+        if not self.two_factor_secret:
+            return None
+        
+        totp = pyotp.TOTP(self.two_factor_secret)
+        return totp.provisioning_uri(
+            name=self.email,
+            issuer_name="PrimeTrust"
+        )
+    
+    def verify_totp_code(self, code):
+        """Verify TOTP code."""
+        from .utils import verify_totp_code
+        if not self.two_factor_secret:
+            return False
+        
+        return verify_totp_code(self.two_factor_secret, code)
+    
+    def generate_backup_codes(self, count=10):
+        """Generate backup codes for 2FA recovery."""
+        from .utils import generate_backup_codes
+        return generate_backup_codes(count)
+    
+    def verify_backup_code(self, code):
+        """Verify and consume a backup code."""
+        if code in self.two_factor_backup_codes:
+            self.two_factor_backup_codes.remove(code)
+            self.save()
+            return True
+        return False
+    
+    def is_registration_complete(self):
+        """Check if user has completed all registration steps."""
+        return (
+            self.email_verified and 
+            self.two_factor_setup_completed and 
+            self.transfer_pin_setup_completed
+        )
 
 
 class EmailVerification(models.Model):
@@ -319,3 +393,40 @@ class BitcoinTransaction(models.Model):
             self.user.save()
         
         super().save(*args, **kwargs)
+
+
+class SecurityAuditLog(models.Model):
+    """Model for logging security-related events."""
+    
+    EVENT_TYPES = [
+        ('2fa_enabled', '2FA Enabled'),
+        ('2fa_disabled', '2FA Disabled'),
+        ('2fa_setup', '2FA Setup'),
+        ('pin_setup', 'Transfer PIN Setup'),
+        ('pin_verify_success', 'PIN Verification Success'),
+        ('pin_verify_failed', 'PIN Verification Failed'),
+        ('pin_locked', 'PIN Locked'),
+        ('backup_code_used', 'Backup Code Used'),
+        ('login_success', 'Login Success'),
+        ('login_failed', 'Login Failed'),
+        ('account_locked', 'Account Locked'),
+        ('password_changed', 'Password Changed'),
+        ('email_verified', 'Email Verified'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='security_audit_logs')
+    event_type = models.CharField(max_length=50, choices=EVENT_TYPES)
+    description = models.TextField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)  # Additional event data
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'security_audit_logs'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.event_type} - {self.created_at}"

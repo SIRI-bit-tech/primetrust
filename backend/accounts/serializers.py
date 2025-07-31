@@ -281,6 +281,91 @@ class TwoFactorSetupSerializer(serializers.Serializer):
         return attrs
 
 
+class TwoFactorInitiateSerializer(serializers.Serializer):
+    """Serializer for initiating 2FA setup."""
+    
+    def validate(self, attrs):
+        """Validate 2FA initiation."""
+        user = self.context['request'].user
+        
+        if user.two_factor_enabled:
+            raise serializers.ValidationError('Two-factor authentication is already enabled')
+        
+        if not user.email_verified:
+            raise serializers.ValidationError('Email must be verified before setting up 2FA')
+        
+        return attrs
+
+
+class TwoFactorVerifySerializer(serializers.Serializer):
+    """Serializer for verifying 2FA setup."""
+    
+    code = serializers.CharField(min_length=6, max_length=6)
+    
+    def validate_code(self, value):
+        """Validate TOTP code format."""
+        if not value.isdigit():
+            raise serializers.ValidationError('Code must contain only digits')
+        return value
+
+
+class TwoFactorLoginSerializer(serializers.Serializer):
+    """Serializer for 2FA login verification."""
+    
+    code = serializers.CharField(min_length=6, max_length=6)
+    backup_code = serializers.CharField(required=False, allow_blank=True)
+    
+    def validate(self, attrs):
+        """Validate 2FA login."""
+        code = attrs.get('code')
+        backup_code = attrs.get('backup_code')
+        
+        if not code and not backup_code:
+            raise serializers.ValidationError('Either TOTP code or backup code is required')
+        
+        if code and not code.isdigit():
+            raise serializers.ValidationError('TOTP code must contain only digits')
+        
+        return attrs
+
+
+class TransferPinSetupSerializer(serializers.Serializer):
+    """Serializer for transfer PIN setup."""
+    
+    pin = serializers.CharField(min_length=4, max_length=4)
+    confirm_pin = serializers.CharField(min_length=4, max_length=4)
+    
+    def validate_pin(self, value):
+        """Validate PIN format and rules."""
+        from .utils import validate_pin
+        is_valid, error_message = validate_pin(value)
+        if not is_valid:
+            raise serializers.ValidationError(error_message)
+        return value
+    
+    def validate(self, attrs):
+        """Validate PIN confirmation."""
+        pin = attrs.get('pin')
+        confirm_pin = attrs.get('confirm_pin')
+        
+        if pin != confirm_pin:
+            raise serializers.ValidationError('PINs do not match')
+        
+        return attrs
+
+
+class TransferPinVerifySerializer(serializers.Serializer):
+    """Serializer for transfer PIN verification."""
+    
+    pin = serializers.CharField(min_length=4, max_length=4)
+    
+    def validate_pin(self, value):
+        """Validate PIN format."""
+        if not value.isdigit():
+            raise serializers.ValidationError('PIN must contain only digits')
+        return value
+
+
 class AccountStatusSerializer(serializers.Serializer):
     """Serializer for account status information."""
     

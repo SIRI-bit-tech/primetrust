@@ -27,6 +27,12 @@ urlpatterns = [
     
     # Security
     path('two-factor-setup/', views.TwoFactorSetupView.as_view(), name='two-factor-setup'),
+    path('two-factor-initiate/', views.TwoFactorInitiateView.as_view(), name='two-factor-initiate'),
+    path('two-factor-verify/', views.TwoFactorVerifyView.as_view(), name='two-factor-verify'),
+    path('two-factor-login-verify/', views.TwoFactorLoginVerifyView.as_view(), name='two-factor-login-verify'),
+    path('transfer-pin-setup/', views.TransferPinSetupView.as_view(), name='transfer-pin-setup'),
+    path('transfer-pin-verify/', views.TransferPinVerifyView.as_view(), name='transfer-pin-verify'),
+    path('registration-status/', views.RegistrationStatusView.as_view(), name='registration-status'),
     path('account-status/', views.AccountStatusView.as_view(), name='account-status'),
     
     # Bitcoin

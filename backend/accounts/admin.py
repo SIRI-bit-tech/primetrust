@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
-from .models import User, UserProfile, EmailVerification, PasswordReset
+from .models import User, UserProfile, EmailVerification, PasswordReset, SecurityAuditLog
 
 
 @admin.register(UserProfile)
@@ -72,7 +72,10 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('is_verified', 'email_verified', 'phone_verified')
         }),
         ('Security', {
-            'fields': ('two_factor_enabled', 'last_login_ip', 'failed_login_attempts', 'account_locked_until')
+            'fields': ('two_factor_enabled', 'two_factor_secret', 'two_factor_backup_codes', 
+                      'two_factor_setup_completed', 'transfer_pin_setup_completed',
+                      'transaction_pin', 'failed_pin_attempts', 'pin_locked_until',
+                      'last_login_ip', 'failed_login_attempts', 'account_locked_until')
         }),
         ('Permissions', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')
@@ -96,6 +99,42 @@ class UserAdmin(BaseUserAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('profile')
+
+
+@admin.register(SecurityAuditLog)
+class SecurityAuditLogAdmin(admin.ModelAdmin):
+    """Admin configuration for SecurityAuditLog model."""
+    
+    list_display = ['user', 'event_type', 'ip_address', 'created_at']
+    list_filter = ['event_type', 'created_at']
+    search_fields = ['user__email', 'description', 'ip_address']
+    readonly_fields = ['created_at', 'ip_address', 'user_agent']
+    ordering = ['-created_at']
+    
+    fieldsets = (
+        ('Event Information', {
+            'fields': ('user', 'event_type', 'description')
+        }),
+        ('Request Details', {
+            'fields': ('ip_address', 'user_agent')
+        }),
+        ('Additional Data', {
+            'fields': ('metadata',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        return False  # Audit logs should only be created by the system
+    
+    def has_change_permission(self, request, obj=None):
+        return False  # Audit logs should not be modified
+    
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser  # Only superusers can delete audit logs
 
 
 @admin.register(EmailVerification)
