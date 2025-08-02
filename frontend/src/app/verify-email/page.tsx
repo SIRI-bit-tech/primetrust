@@ -57,9 +57,9 @@ export default function VerifyEmailPage() {
       setSuccess(true)
       localStorage.removeItem('pending_verification_email')
       
-      // Redirect to login after 2 seconds
+      // Redirect to 2FA setup after 2 seconds
       setTimeout(() => {
-        router.push('/login')
+        router.push('/two-factor-setup')
       }, 2000)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
@@ -90,7 +90,7 @@ export default function VerifyEmailPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Email Verified!</h1>
           <p className="text-gray-600 mb-6">
-            Your email has been successfully verified. Redirecting to dashboard...
+            Your email has been successfully verified. Redirecting to security setup...
           </p>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-dark mx-auto"></div>
         </div>

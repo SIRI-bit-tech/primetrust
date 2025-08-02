@@ -25,6 +25,8 @@ export interface User {
   is_superuser: boolean
   balance?: number
   bitcoin_balance?: number
+  two_factor_setup_completed?: boolean
+  transfer_pin_setup_completed?: boolean
 }
 
 export interface Account {
@@ -85,6 +87,8 @@ export interface AuthResponse {
   access_token: string
   refresh_token: string
   user: User
+  requires_2fa?: boolean
+  temp_token?: string
 }
 
 export interface LoginCredentials {
@@ -93,12 +97,17 @@ export interface LoginCredentials {
 }
 
 export interface RegisterData {
-  full_name: string
+  first_name: string
+  last_name: string
+  username: string
   phone_number: string
   date_of_birth: string
-  gender: 'male' | 'female' | 'other'
+  gender: 'male' | 'female' | 'other' | 'prefer_not_to_say'
+  address: string
   state: string
   city: string
+  zip_code: string
+  country: string
   email: string
   password: string
   confirm_password: string

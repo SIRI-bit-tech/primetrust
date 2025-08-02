@@ -119,6 +119,45 @@ export const authAPI = {
     const response = await api.put('/auth/update/', data)
     return response.data
   },
+
+  // 2FA and Transfer PIN methods
+  initiateTwoFactor: async (): Promise<{ qr_uri: string; qr_code_image: string; secret: string; backup_codes: string[] }> => {
+    const response = await api.post('/auth/two-factor-initiate/')
+    return response.data
+  },
+
+  verifyTwoFactor: async (code: string): Promise<{ message: string }> => {
+    const response = await api.post('/auth/two-factor-verify/', { code })
+    return response.data
+  },
+
+  verifyTwoFactorLogin: async (code: string, tempToken: string, isBackupCode = false): Promise<AuthResponse> => {
+    const response = await api.post('/auth/two-factor-login-verify/', { 
+      code, 
+      temp_token: tempToken,
+      is_backup_code: isBackupCode 
+    })
+    return response.data
+  },
+
+  setupTransferPin: async (pin: string): Promise<{ message: string }> => {
+    const response = await api.post('/auth/transfer-pin-setup/', { pin })
+    return response.data
+  },
+
+  verifyTransferPin: async (pin: string): Promise<{ message: string }> => {
+    const response = await api.post('/auth/transfer-pin-verify/', { pin })
+    return response.data
+  },
+
+  getRegistrationStatus: async (): Promise<{ 
+    two_factor_setup_completed: boolean; 
+    transfer_pin_setup_completed: boolean;
+    is_registration_complete: boolean;
+  }> => {
+    const response = await api.get('/auth/registration-status/')
+    return response.data
+  },
 }
 
 // Banking API

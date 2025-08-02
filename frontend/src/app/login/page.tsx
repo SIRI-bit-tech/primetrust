@@ -4,16 +4,11 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, Lock, Mail, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, Plane } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -42,8 +37,14 @@ export default function LoginPage() {
     setError('')
 
     try {
-      await login(data.email, data.password)
-      router.push('/dashboard')
+      const response = await login(data.email, data.password)
+
+      // Check if 2FA is required
+      if (response.requires_2fa) {
+        router.push(`/two-factor-login?token=${response.temp_token}`)
+      } else {
+        router.push('/dashboard')
+      }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
       setError(error.response?.data?.message || 'Login failed. Please try again.')
@@ -53,120 +54,158 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-navy via-primary-dark to-blue-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Back to Home */}
-        <div className="mb-8 animate-in slide-in-from-top-4 duration-500">
-          <Link
-            href="/"
-            className="inline-flex items-center text-white hover:text-gray-200 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </Link>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2073&q=80')`
+        }}
+      >
+        {/* Overlay for better text readability */}
+        <div className="absolute inset-0 bg-black/20"></div>
+      </div>
+
+      {/* Content Container */}
+      <div className="relative z-10 flex min-h-screen">
+        {/* Left Section - Branding */}
+        <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12">
+          <div className="text-white text-center max-w-md">
+            {/* Brand Logo */}
+            {/* <div className="flex items-center justify-center mb-8">
+              <div className="relative">
+                <Plane className="w-8 h-8 text-white mb-2" />
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full"></div>
+                <div className="absolute -top-0.5 -right-0.5 w-1 h-1 bg-white rounded-full"></div>
+              </div>
+            </div> */}
+            
+            {/* Brand Name */}
+            <h1 className="text-5xl font-bold mb-4 tracking-wider">PRIMETRUST</h1>
+            
+            {/* Main Heading */}
+            <h2 className="text-3xl font-bold mb-4">SECURE BANKING</h2>
+            
+            {/* Tagline */}
+            <p className="text-xl mb-6 text-white/90">
+              Where Your Financial Dreams Become Reality
+            </p>
+            
+            {/* Description */}
+            <p className="text-lg text-white/80 leading-relaxed">
+              Experience modern banking with cutting-edge security and seamless transactions.
+            </p>
+          </div>
         </div>
 
-        {/* Login Card */}
-        <Card className="animate-in slide-in-from-bottom-4 duration-500 delay-100">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold">Welcome Back</CardTitle>
-            <CardDescription className="text-lg">
-              Sign in to your PrimeTrust account
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {error && (
-              <Alert variant="destructive" className="animate-in slide-in-from-top-2 duration-300">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Email Field */}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    {...register('email')}
-                    type="email"
-                    id="email"
-                    placeholder="Enter your email"
-                    className={cn(
-                      "pl-10",
-                      errors.email && "border-destructive focus-visible:ring-destructive"
-                    )}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email.message}</p>
-                )}
+        {/* Right Section - Login Form */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+          <div className="w-full max-w-md">
+            {/* Glassmorphism Login Card */}
+            <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 shadow-2xl">
+              {/* Form Header */}
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
+                <p className="text-white/80">Sign in to your PrimeTrust account</p>
               </div>
 
-              {/* Password Field */}
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    {...register('password')}
-                    type={showPassword ? 'text' : 'password'}
-                    id="password"
-                    placeholder="Enter your password"
-                    className={cn(
-                      "pl-10 pr-10",
-                      errors.password && "border-destructive focus-visible:ring-destructive"
-                    )}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+              {/* Error Display */}
+              {error && (
+                <div className="mb-6 p-4 bg-red-500/20 border border-red-400/30 rounded-xl">
+                  <p className="text-red-200 text-sm">{error}</p>
+                </div>
+              )}
+
+              {/* Login Form */}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                {/* Email Field */}
+                <div className="space-y-2">
+                  <label htmlFor="email" className="block text-sm font-medium text-white/90">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-5 w-5 text-white/60" />
+                    <input
+                      {...register('email')}
+                      type="email"
+                      id="email"
+                      placeholder="Enter your email"
+                      className={cn(
+                        "w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all duration-200",
+                        errors.email && "border-red-400 focus:ring-red-400"
+                      )}
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="text-red-300 text-sm">{errors.email.message}</p>
+                  )}
+                </div>
+
+                {/* Password Field */}
+                <div className="space-y-2">
+                  <label htmlFor="password" className="block text-sm font-medium text-white/90">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-5 w-5 text-white/60" />
+                    <input
+                      {...register('password')}
+                      type={showPassword ? 'text' : 'password'}
+                      id="password"
+                      placeholder="Enter your password"
+                      className={cn(
+                        "w-full pl-10 pr-12 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all duration-200",
+                        errors.password && "border-red-400 focus:ring-red-400"
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 text-white/60 hover:text-white/80 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-red-300 text-sm">{errors.password.message}</p>
+                  )}
+                </div>
+
+                {/* Forgot Password */}
+                <div className="text-right">
+                  <Link 
+                    href="/forgot-password" 
+                    className="text-sm text-white/80 hover:text-white transition-colors"
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
+                    Forgot password?
+                  </Link>
                 </div>
-                {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password.message}</p>
-                )}
-              </div>
 
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Signing in...' : 'Sign In'}
-              </Button>
-            </form>
+                {/* Sign In Button */}
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-500 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Signing In...' : 'SIGN IN'}
+                </button>
+              </form>
 
-            {/* Links */}
-            <div className="text-center space-y-4">
-              <div className="text-sm text-muted-foreground">
-                Don&apos;t have an account?{' '}
-                <Link
-                  href="/register"
-                  className="text-primary hover:text-primary/80 font-medium transition-colors"
-                >
-                  Create one
-                </Link>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                <Link
-                  href="/forgot-password"
-                  className="text-primary hover:text-primary/80 font-medium transition-colors"
-                >
-                  Forgot your password?
-                </Link>
+              {/* Sign Up Link */}
+              <div className="mt-8 text-center">
+                <p className="text-white/80 text-sm">
+                  Are you new?{' '}
+                  <Link 
+                    href="/register" 
+                    className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                  >
+                    Create an Account
+                  </Link>
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   )

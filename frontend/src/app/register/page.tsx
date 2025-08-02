@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -9,7 +9,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
-import { locationAPI } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,14 +17,19 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const registerSchema = z.object({
-  full_name: z.string().min(2, 'Full name must be at least 2 characters'),
+  first_name: z.string().min(2, 'First name must be at least 2 characters'),
+  last_name: z.string().min(2, 'Last name must be at least 2 characters'),
+  username: z.string().min(3, 'Username must be at least 3 characters'),
   phone_number: z.string().min(10, 'Please enter a valid phone number'),
   date_of_birth: z.string().min(1, 'Date of birth is required'),
-  gender: z.enum(['male', 'female', 'other'], {
+  gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say'], {
     required_error: 'Please select your gender',
   }),
+  address: z.string().min(1, 'Address is required'),
   state: z.string().min(1, 'Please select your state'),
   city: z.string().min(1, 'Please enter your city'),
+  zip_code: z.string().min(5, 'Please enter a valid ZIP code'),
+  country: z.string().default('US'),
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirm_password: z.string(),
@@ -130,7 +134,11 @@ export default function RegisterPage() {
     try {
       // Clean phone number for backend
       const cleanPhone = data.phone_number.replace(/\D/g, '')
-      const submitData = { ...data, phone_number: cleanPhone }
+      const submitData = { 
+        ...data, 
+        phone_number: cleanPhone,
+        country: 'US' // Default to US
+      }
       
       await registerUser(submitData)
       router.push('/verify-email')
@@ -143,7 +151,20 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-navy via-primary-dark to-blue-900 flex items-center justify-center p-4">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2073&q=80')`
+        }}
+      >
+        {/* Overlay for better text readability */}
+        <div className="absolute inset-0 bg-black/20"></div>
+      </div>
+
+      {/* Content Container */}
+      <div className="relative z-10 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         {/* Back to Home */}
         <div className="mb-8 animate-in slide-in-from-top-4 duration-500">
@@ -176,23 +197,64 @@ export default function RegisterPage() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-foreground">Personal Information</h3>
                 
-                {/* Full Name */}
+                {/* First Name and Last Name */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="first_name">First Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        {...register('first_name')}
+                        id="first_name"
+                        placeholder="Enter your first name"
+                        className={cn(
+                          "pl-10",
+                          errors.first_name && "border-destructive focus-visible:ring-destructive"
+                        )}
+                      />
+                    </div>
+                    {errors.first_name && (
+                      <p className="text-sm text-destructive">{errors.first_name.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="last_name">Last Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        {...register('last_name')}
+                        id="last_name"
+                        placeholder="Enter your last name"
+                        className={cn(
+                          "pl-10",
+                          errors.last_name && "border-destructive focus-visible:ring-destructive"
+                        )}
+                      />
+                    </div>
+                    {errors.last_name && (
+                      <p className="text-sm text-destructive">{errors.last_name.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Username */}
                 <div className="space-y-2">
-                  <Label htmlFor="full_name">Full Name</Label>
+                  <Label htmlFor="username">Username</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      {...register('full_name')}
-                      id="full_name"
-                      placeholder="Enter your full name"
+                      {...register('username')}
+                      id="username"
+                      placeholder="Choose a username"
                       className={cn(
                         "pl-10",
-                        errors.full_name && "border-destructive focus-visible:ring-destructive"
+                        errors.username && "border-destructive focus-visible:ring-destructive"
                       )}
                     />
                   </div>
-                  {errors.full_name && (
-                    <p className="text-sm text-destructive">{errors.full_name.message}</p>
+                  {errors.username && (
+                    <p className="text-sm text-destructive">{errors.username.message}</p>
                   )}
                 </div>
 
@@ -240,7 +302,7 @@ export default function RegisterPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="gender">Gender</Label>
-                    <Select onValueChange={(value) => setValue('gender', value as 'male' | 'female' | 'other')}>
+                    <Select onValueChange={(value) => setValue('gender', value as 'male' | 'female' | 'other' | 'prefer_not_to_say')}>
                       <SelectTrigger className={cn(
                         errors.gender && "border-destructive focus-visible:ring-destructive"
                       )}>
@@ -250,6 +312,7 @@ export default function RegisterPage() {
                         <SelectItem value="male">Male</SelectItem>
                         <SelectItem value="female">Female</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.gender && (
@@ -258,8 +321,47 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                {/* Location */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Address */}
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      {...register('address')}
+                      id="address"
+                      placeholder="Enter your street address"
+                      className={cn(
+                        "pl-10",
+                        errors.address && "border-destructive focus-visible:ring-destructive"
+                      )}
+                    />
+                  </div>
+                  {errors.address && (
+                    <p className="text-sm text-destructive">{errors.address.message}</p>
+                  )}
+                </div>
+
+                {/* City, State, and ZIP Code */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        {...register('city')}
+                        id="city"
+                        placeholder="Enter your city"
+                        className={cn(
+                          "pl-10",
+                          errors.city && "border-destructive focus-visible:ring-destructive"
+                        )}
+                      />
+                    </div>
+                    {errors.city && (
+                      <p className="text-sm text-destructive">{errors.city.message}</p>
+                    )}
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="state">State</Label>
                     <Select onValueChange={(value) => setValue('state', value)}>
@@ -282,24 +384,26 @@ export default function RegisterPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
+                    <Label htmlFor="zip_code">ZIP Code</Label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
-                        {...register('city')}
-                        id="city"
-                        placeholder="Enter your city"
+                        {...register('zip_code')}
+                        id="zip_code"
+                        placeholder="Enter ZIP code"
                         className={cn(
                           "pl-10",
-                          errors.city && "border-destructive focus-visible:ring-destructive"
+                          errors.zip_code && "border-destructive focus-visible:ring-destructive"
                         )}
                       />
                     </div>
-                    {errors.city && (
-                      <p className="text-sm text-destructive">{errors.city.message}</p>
+                    {errors.zip_code && (
+                      <p className="text-sm text-destructive">{errors.zip_code.message}</p>
                     )}
                   </div>
                 </div>
+
+
               </div>
 
               {/* Account Information Section */}
@@ -414,6 +518,7 @@ export default function RegisterPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   )

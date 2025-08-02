@@ -13,13 +13,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)
+    date_of_birth = serializers.DateField(required=True)
+    gender = serializers.ChoiceField(choices=[
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('other', 'Other'),
+        ('prefer_not_to_say', 'Prefer not to say'),
+    ], required=True)
     
     class Meta:
         model = User
         fields = [
             'email', 'username', 'first_name', 'last_name', 'password', 
             'confirm_password', 'phone_number', 'address', 'city', 'state', 
-            'zip_code', 'country'
+            'zip_code', 'country', 'date_of_birth', 'gender'
         ]
         extra_kwargs = {
             'password': {'write_only': True},
@@ -49,15 +56,23 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create a new user."""
+        # Extract profile data
+        date_of_birth = validated_data.pop('date_of_birth')
+        gender = validated_data.pop('gender')
         validated_data.pop('confirm_password')
+        
         user = User.objects.create_user(**validated_data)
         
         # Ensure account number is generated
         if not user.account_number:
             user.save()  # This will trigger account number generation
         
-        # Create user profile
-        UserProfile.objects.create(user=user)
+        # Create user profile with DOB and gender
+        UserProfile.objects.create(
+            user=user,
+            date_of_birth=date_of_birth,
+            gender=gender
+        )
         
         return user
 

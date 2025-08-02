@@ -7,6 +7,7 @@ import { bitcoinAPI } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
 import { BitcoinBalance, BitcoinPrice } from '@/types'
 import DashboardLayout from '@/components/DashboardLayout'
+import TransferPinModal from '@/components/TransferPinModal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,8 +34,8 @@ export default function SendBitcoinPage() {
   const [amountUsd, setAmountUsd] = useState('')
   const [amountBtc, setAmountBtc] = useState('')
   const [recipientAddress, setRecipientAddress] = useState('')
-  const [transactionPin, setTransactionPin] = useState('')
-  const [showPin, setShowPin] = useState(false)
+  const [showPinModal, setShowPinModal] = useState(false)
+  const [pendingBitcoinTransfer, setPendingBitcoinTransfer] = useState<any>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,33 +75,37 @@ export default function SendBitcoinPage() {
       alert('Please enter recipient wallet address')
       return
     }
-    if (!transactionPin) {
-      alert('Please enter your transaction PIN')
-      return
+
+    // Store pending transfer and show PIN modal
+    const data: {
+      balance_source: 'fiat' | 'bitcoin'
+      recipient_wallet_address: string
+      amount_usd?: number
+      amount_btc?: number
+    } = {
+      balance_source: balanceSource,
+      recipient_wallet_address: recipientAddress
     }
+
+    if (balanceSource === 'fiat') {
+      data.amount_usd = parseFloat(amountUsd)
+    } else {
+      data.amount_btc = parseFloat(amountBtc)
+    }
+
+    setPendingBitcoinTransfer(data)
+    setShowPinModal(true)
+  }
+
+  const handlePinVerification = async () => {
+    if (!pendingBitcoinTransfer) return
 
     setIsLoading(true)
     try {
-      const data: {
-        balance_source: 'fiat' | 'bitcoin'
-        recipient_wallet_address: string
-        transaction_pin: string
-        amount_usd?: number
-        amount_btc?: number
-      } = {
-        balance_source: balanceSource,
-        recipient_wallet_address: recipientAddress,
-        transaction_pin: transactionPin
-      }
-
-      if (balanceSource === 'fiat') {
-        data.amount_usd = parseFloat(amountUsd)
-      } else {
-        data.amount_btc = parseFloat(amountBtc)
-      }
-
-      const response = await bitcoinAPI.sendBitcoin(data)
+      const response = await bitcoinAPI.sendBitcoin(pendingBitcoinTransfer)
       alert('Bitcoin transaction initiated successfully!')
+      setShowPinModal(false)
+      setPendingBitcoinTransfer(null)
       router.push('/dashboard')
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send Bitcoin'
@@ -315,46 +320,35 @@ export default function SendBitcoinPage() {
           </CardContent>
         </Card>
 
-        {/* Transaction PIN */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Transaction PIN</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <Label htmlFor="transaction-pin">Enter your 4-digit PIN</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="transaction-pin"
-                  type={showPin ? 'text' : 'password'}
-                  placeholder="Enter your 4-digit PIN"
-                  value={transactionPin}
-                  onChange={(e) => setTransactionPin(e.target.value)}
-                  maxLength={4}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPin(!showPin)}
-                >
-                  {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Send Button */}
         <div className="flex justify-center">
           <Button
             onClick={handleSendBitcoin}
-            disabled={isLoading || !amountUsd && !amountBtc || !recipientAddress || !transactionPin}
+            disabled={isLoading || !amountUsd && !amountBtc || !recipientAddress}
             className="w-full max-w-md"
             size="lg"
           >
             {isLoading ? 'Processing...' : 'Send Bitcoin'}
           </Button>
         </div>
+      </div>
+
+      {/* Transfer PIN Modal */}
+      {pendingBitcoinTransfer && (
+        <TransferPinModal
+          isOpen={showPinModal}
+          onClose={() => {
+            setShowPinModal(false)
+            setPendingBitcoinTransfer(null)
+          }}
+          onVerify={handlePinVerification}
+          amount={pendingBitcoinTransfer.amount_usd || (pendingBitcoinTransfer.amount_btc || 0) * (priceData?.price_usd || 0)}
+          recipient={pendingBitcoinTransfer.recipient_wallet_address}
+        />
+      )}
+    </DashboardLayout>
+  )
+}
       </div>
     </DashboardLayout>
   )

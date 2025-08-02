@@ -7,7 +7,7 @@ import { authAPI } from '@/lib/api'
 interface AuthContextType {
   user: User | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<{ requires_2fa?: boolean; temp_token?: string }>
   register: (data: RegisterData) => Promise<void>
   logout: () => Promise<void>
   updateProfile: (data: Partial<User>) => Promise<void>
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(parsedUser)
         }
       }
-    } catch (error) {
+    } catch {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user')
@@ -50,10 +50,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       const response = await authAPI.login({ email, password })
+      
+      // Check if 2FA is required
+      if (response.requires_2fa) {
+        return { requires_2fa: true, temp_token: response.temp_token }
+      }
+      
+      // Normal login flow
       localStorage.setItem('access_token', response.access_token)
       localStorage.setItem('refresh_token', response.refresh_token)
       localStorage.setItem('user', JSON.stringify(response.user))
       setUser(response.user)
+      
+      return { requires_2fa: false }
     } catch (error) {
       throw error
     }
