@@ -227,9 +227,25 @@ class EmailVerificationView(APIView):
                 request=request
             )
             
+            # Generate authentication tokens
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
+            
+            # Log successful login
+            log_security_event(
+                user=user,
+                event_type='login',
+                description='User logged in after email verification',
+                request=request
+            )
+            
             return Response({
                 'message': 'Email verified successfully',
-                'next_step': 'two_factor_setup'
+                'next_step': 'two_factor_setup',
+                'access_token': access_token,
+                'refresh_token': refresh_token,
+                'user': UserSerializer(user).data
             }, status=status.HTTP_200_OK)
             
         except EmailVerification.DoesNotExist:

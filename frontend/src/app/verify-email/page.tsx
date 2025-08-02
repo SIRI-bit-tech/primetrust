@@ -53,9 +53,16 @@ export default function VerifyEmailPage() {
     setError('')
 
     try {
-      await authAPI.verifyEmail(email, data.code)
+      const response = await authAPI.verifyEmail(email, data.code)
       setSuccess(true)
       localStorage.removeItem('pending_verification_email')
+      
+      // Store authentication tokens
+      if (response.access_token && response.refresh_token) {
+        localStorage.setItem('access_token', response.access_token)
+        localStorage.setItem('refresh_token', response.refresh_token)
+        localStorage.setItem('user', JSON.stringify(response.user))
+      }
       
       // Redirect to 2FA setup after 2 seconds
       setTimeout(() => {
