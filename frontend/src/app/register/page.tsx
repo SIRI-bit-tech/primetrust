@@ -164,353 +164,366 @@ export default function RegisterPage() {
       </div>
 
       {/* Content Container */}
-      <div className="relative z-10 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        {/* Back to Home */}
-        <div className="mb-8 animate-in slide-in-from-top-4 duration-500">
-          <Link
-            href="/"
-            className="inline-flex items-center text-white hover:text-gray-200 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </Link>
+      <div className="relative z-10 flex min-h-screen">
+        {/* Left Section - Branding */}
+        <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-8 lg:px-16">
+          <div className="animate-in slide-in-from-left-4 duration-500">
+            <h1 className="text-5xl lg:text-6xl font-bold text-white mb-4">
+              PRIMETRUST
+            </h1>
+            <h2 className="text-2xl lg:text-3xl font-semibold text-white mb-6">
+              SECURE BANKING
+            </h2>
+            <p className="text-xl text-white/90 mb-4">
+              Where Your Financial Dreams Become Reality
+            </p>
+            <p className="text-lg text-white/80">
+              Experience modern banking with cutting-edge security and seamless transactions.
+            </p>
+          </div>
         </div>
 
-        {/* Registration Card */}
-        <Card className="animate-in slide-in-from-bottom-4 duration-500 delay-100">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold">Create Your Account</CardTitle>
-            <CardDescription className="text-lg">
-              Join PrimeTrust and start your financial journey today
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {error && (
-              <Alert variant="destructive" className="animate-in slide-in-from-top-2 duration-300">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+        {/* Right Section - Registration Form */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-4 lg:p-8">
+          <div className="w-full max-w-md">
+            {/* Back to Home */}
+            <div className="mb-8 animate-in slide-in-from-top-4 duration-500">
+              <Link
+                href="/"
+                className="inline-flex items-center text-white hover:text-gray-200 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Home
+              </Link>
+            </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Personal Information Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-foreground">Personal Information</h3>
-                
-                {/* First Name and Last Name */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="first_name">First Name</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        {...register('first_name')}
-                        id="first_name"
-                        placeholder="Enter your first name"
-                        className={cn(
-                          "pl-10",
-                          errors.first_name && "border-destructive focus-visible:ring-destructive"
-                        )}
-                      />
-                    </div>
-                    {errors.first_name && (
-                      <p className="text-sm text-destructive">{errors.first_name.message}</p>
-                    )}
-                  </div>
+            {/* Registration Card */}
+            <Card className="animate-in slide-in-from-bottom-4 duration-500 delay-100 backdrop-blur-xl bg-white/10 border-white/20 shadow-2xl">
+              <CardHeader className="text-center">
+                <CardTitle className="text-3xl font-bold text-white">Create Your Account</CardTitle>
+                <CardDescription className="text-lg text-white/80">
+                  Join PrimeTrust and start your financial journey today
+                </CardDescription>
+              </CardHeader>
+                             <CardContent className="space-y-4">
+             {error && (
+               <Alert variant="destructive" className="animate-in slide-in-from-top-2 duration-300">
+                 <AlertDescription>{error}</AlertDescription>
+               </Alert>
+             )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="last_name">Last Name</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        {...register('last_name')}
-                        id="last_name"
-                        placeholder="Enter your last name"
-                        className={cn(
-                          "pl-10",
-                          errors.last_name && "border-destructive focus-visible:ring-destructive"
-                        )}
-                      />
-                    </div>
-                    {errors.last_name && (
-                      <p className="text-sm text-destructive">{errors.last_name.message}</p>
-                    )}
-                  </div>
-                </div>
+             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+               {/* Name and Username */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                 <div className="space-y-1">
+                   <Label htmlFor="first_name" className="text-white text-sm">First Name</Label>
+                   <div className="relative">
+                     <User className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                     <Input
+                       {...register('first_name')}
+                       id="first_name"
+                       placeholder="First name"
+                       className={cn(
+                         "pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-9",
+                         errors.first_name && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                   </div>
+                   {errors.first_name && (
+                     <p className="text-xs text-red-300">{errors.first_name.message}</p>
+                   )}
+                 </div>
 
-                {/* Username */}
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      {...register('username')}
-                      id="username"
-                      placeholder="Choose a username"
-                      className={cn(
-                        "pl-10",
-                        errors.username && "border-destructive focus-visible:ring-destructive"
-                      )}
-                    />
-                  </div>
-                  {errors.username && (
-                    <p className="text-sm text-destructive">{errors.username.message}</p>
-                  )}
-                </div>
+                 <div className="space-y-1">
+                   <Label htmlFor="last_name" className="text-white text-sm">Last Name</Label>
+                   <div className="relative">
+                     <User className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                     <Input
+                       {...register('last_name')}
+                       id="last_name"
+                       placeholder="Last name"
+                       className={cn(
+                         "pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-9",
+                         errors.last_name && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                   </div>
+                   {errors.last_name && (
+                     <p className="text-xs text-red-300">{errors.last_name.message}</p>
+                   )}
+                 </div>
+               </div>
 
-                {/* Phone Number */}
-                <div className="space-y-2">
-                  <Label htmlFor="phone_number">Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      {...register('phone_number')}
-                      id="phone_number"
-                      placeholder="(555) 123-4567"
-                      onChange={handlePhoneChange}
-                      className={cn(
-                        "pl-10",
-                        errors.phone_number && "border-destructive focus-visible:ring-destructive"
-                      )}
-                    />
-                  </div>
-                  {errors.phone_number && (
-                    <p className="text-sm text-destructive">{errors.phone_number.message}</p>
-                  )}
-                </div>
+               {/* Username and Phone */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                 <div className="space-y-1">
+                   <Label htmlFor="username" className="text-white text-sm">Username</Label>
+                   <div className="relative">
+                     <User className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                     <Input
+                       {...register('username')}
+                       id="username"
+                       placeholder="Username"
+                       className={cn(
+                         "pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-9",
+                         errors.username && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                   </div>
+                   {errors.username && (
+                     <p className="text-xs text-red-300">{errors.username.message}</p>
+                   )}
+                 </div>
 
-                {/* Date of Birth and Gender */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="date_of_birth">Date of Birth</Label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        {...register('date_of_birth')}
-                        type="date"
-                        id="date_of_birth"
-                        className={cn(
-                          "pl-10",
-                          errors.date_of_birth && "border-destructive focus-visible:ring-destructive"
-                        )}
-                      />
-                    </div>
-                    {errors.date_of_birth && (
-                      <p className="text-sm text-destructive">{errors.date_of_birth.message}</p>
-                    )}
-                  </div>
+                 <div className="space-y-1">
+                   <Label htmlFor="phone_number" className="text-white text-sm">Phone</Label>
+                   <div className="relative">
+                     <Phone className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                     <Input
+                       {...register('phone_number')}
+                       id="phone_number"
+                       placeholder="(555) 123-4567"
+                       onChange={handlePhoneChange}
+                       className={cn(
+                         "pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-9",
+                         errors.phone_number && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                   </div>
+                   {errors.phone_number && (
+                     <p className="text-xs text-red-300">{errors.phone_number.message}</p>
+                   )}
+                 </div>
+               </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
-                    <Select onValueChange={(value) => setValue('gender', value as 'male' | 'female' | 'other' | 'prefer_not_to_say')}>
-                      <SelectTrigger className={cn(
-                        errors.gender && "border-destructive focus-visible:ring-destructive"
-                      )}>
-                        <SelectValue placeholder="Select your gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                        <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+               {/* Email and Date of Birth */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                 <div className="space-y-1">
+                   <Label htmlFor="email" className="text-white text-sm">Email</Label>
+                   <div className="relative">
+                     <Mail className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                     <Input
+                       {...register('email')}
+                       type="email"
+                       id="email"
+                       placeholder="Email address"
+                       className={cn(
+                         "pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-9",
+                         errors.email && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                   </div>
+                   {errors.email && (
+                     <p className="text-xs text-red-300">{errors.email.message}</p>
+                   )}
+                 </div>
+
+                 <div className="space-y-1">
+                   <Label htmlFor="date_of_birth" className="text-white text-sm">Date of Birth</Label>
+                   <div className="relative">
+                     <Calendar className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                     <Input
+                       {...register('date_of_birth')}
+                       type="date"
+                       id="date_of_birth"
+                       className={cn(
+                         "pl-10 bg-white/10 border-white/20 text-white backdrop-blur-sm h-9",
+                         errors.date_of_birth && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                   </div>
+                   {errors.date_of_birth && (
+                     <p className="text-xs text-red-300">{errors.date_of_birth.message}</p>
+                   )}
+                 </div>
+               </div>
+
+               {/* Address and Gender */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                 <div className="space-y-1">
+                   <Label htmlFor="address" className="text-white text-sm">Address</Label>
+                   <div className="relative">
+                     <MapPin className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                     <Input
+                       {...register('address')}
+                       id="address"
+                       placeholder="Street address"
+                       className={cn(
+                         "pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-9",
+                         errors.address && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                   </div>
+                   {errors.address && (
+                     <p className="text-xs text-red-300">{errors.address.message}</p>
+                   )}
+                 </div>
+
+                 <div className="space-y-1">
+                   <Label htmlFor="gender" className="text-white text-sm">Gender</Label>
+                   <Select onValueChange={(value) => setValue('gender', value as 'male' | 'female' | 'other' | 'prefer_not_to_say')}>
+                     <SelectTrigger className={cn(
+                       "bg-white/10 border-white/20 text-white backdrop-blur-sm h-9",
+                       errors.gender && "border-red-400 focus-visible:ring-red-400"
+                     )}>
+                       <SelectValue placeholder="Select gender" className="text-white/60" />
+                     </SelectTrigger>
+                                           <SelectContent className="bg-white/95 backdrop-blur-sm border-white/20 z-50">
+                        <SelectItem value="male" className="hover:bg-gray-100 text-gray-900">Male</SelectItem>
+                        <SelectItem value="female" className="hover:bg-gray-100 text-gray-900">Female</SelectItem>
+                        <SelectItem value="other" className="hover:bg-gray-100 text-gray-900">Other</SelectItem>
+                        <SelectItem value="prefer_not_to_say" className="hover:bg-gray-100 text-gray-900">Prefer not to say</SelectItem>
                       </SelectContent>
-                    </Select>
-                    {errors.gender && (
-                      <p className="text-sm text-destructive">{errors.gender.message}</p>
-                    )}
-                  </div>
-                </div>
+                   </Select>
+                   {errors.gender && (
+                     <p className="text-xs text-red-300">{errors.gender.message}</p>
+                   )}
+                 </div>
+               </div>
 
-                {/* Address */}
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      {...register('address')}
-                      id="address"
-                      placeholder="Enter your street address"
-                      className={cn(
-                        "pl-10",
-                        errors.address && "border-destructive focus-visible:ring-destructive"
-                      )}
-                    />
-                  </div>
-                  {errors.address && (
-                    <p className="text-sm text-destructive">{errors.address.message}</p>
-                  )}
-                </div>
+               {/* City, State, ZIP */}
+               <div className="grid grid-cols-3 gap-3">
+                 <div className="space-y-1">
+                   <Label htmlFor="city" className="text-white text-sm">City</Label>
+                   <div className="relative">
+                     <MapPin className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                     <Input
+                       {...register('city')}
+                       id="city"
+                       placeholder="City"
+                       className={cn(
+                         "pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-9",
+                         errors.city && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                   </div>
+                   {errors.city && (
+                     <p className="text-xs text-red-300">{errors.city.message}</p>
+                   )}
+                 </div>
 
-                {/* City, State, and ZIP Code */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        {...register('city')}
-                        id="city"
-                        placeholder="Enter your city"
-                        className={cn(
-                          "pl-10",
-                          errors.city && "border-destructive focus-visible:ring-destructive"
-                        )}
-                      />
-                    </div>
-                    {errors.city && (
-                      <p className="text-sm text-destructive">{errors.city.message}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="state">State</Label>
+                                   <div className="space-y-1">
+                    <Label htmlFor="state" className="text-white text-sm">State</Label>
                     <Select onValueChange={(value) => setValue('state', value)}>
                       <SelectTrigger className={cn(
-                        errors.state && "border-destructive focus-visible:ring-destructive"
+                        "bg-white/10 border-white/20 text-white backdrop-blur-sm h-9",
+                        errors.state && "border-red-400 focus-visible:ring-red-400"
                       )}>
-                        <SelectValue placeholder="Select your state" />
+                                                 <SelectValue placeholder="State" className="text-white/60" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white/95 backdrop-blur-sm border-white/20 max-h-60 overflow-y-auto z-50">
                         {US_STATES.map((state) => (
-                          <SelectItem key={state.abbreviation} value={state.abbreviation}>
+                          <SelectItem key={state.abbreviation} value={state.abbreviation} className="hover:bg-gray-100 text-gray-900">
                             {state.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     {errors.state && (
-                      <p className="text-sm text-destructive">{errors.state.message}</p>
+                      <p className="text-xs text-red-300">{errors.state.message}</p>
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="zip_code">ZIP Code</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        {...register('zip_code')}
-                        id="zip_code"
-                        placeholder="Enter ZIP code"
-                        className={cn(
-                          "pl-10",
-                          errors.zip_code && "border-destructive focus-visible:ring-destructive"
-                        )}
-                      />
-                    </div>
-                    {errors.zip_code && (
-                      <p className="text-sm text-destructive">{errors.zip_code.message}</p>
-                    )}
-                  </div>
-                </div>
+                 <div className="space-y-1">
+                   <Label htmlFor="zip_code" className="text-white text-sm">ZIP</Label>
+                   <div className="relative">
+                     <MapPin className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                     <Input
+                       {...register('zip_code')}
+                       id="zip_code"
+                       placeholder="ZIP code"
+                       className={cn(
+                         "pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-9",
+                         errors.zip_code && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                   </div>
+                   {errors.zip_code && (
+                     <p className="text-xs text-red-300">{errors.zip_code.message}</p>
+                   )}
+                 </div>
+               </div>
 
+               {/* Passwords */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                 <div className="space-y-1">
+                   <Label htmlFor="password" className="text-white text-sm">Password</Label>
+                   <div className="relative">
+                     <Input
+                       {...register('password')}
+                       type={showPassword ? 'text' : 'password'}
+                       id="password"
+                       placeholder="Password"
+                       className={cn(
+                         "pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-9",
+                         errors.password && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                     <button
+                       type="button"
+                       onClick={() => setShowPassword(!showPassword)}
+                       className="absolute right-3 top-3 text-white/60 hover:text-white"
+                     >
+                       {showPassword ? (
+                         <EyeOff className="h-4 w-4" />
+                       ) : (
+                         <Eye className="h-4 w-4" />
+                       )}
+                     </button>
+                   </div>
+                   {errors.password && (
+                     <p className="text-xs text-red-300">{errors.password.message}</p>
+                   )}
+                 </div>
 
-              </div>
+                 <div className="space-y-1">
+                   <Label htmlFor="confirm_password" className="text-white text-sm">Confirm</Label>
+                   <div className="relative">
+                     <Input
+                       {...register('confirm_password')}
+                       type={showConfirmPassword ? 'text' : 'password'}
+                       id="confirm_password"
+                       placeholder="Confirm password"
+                       className={cn(
+                         "pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/60 backdrop-blur-sm h-9",
+                         errors.confirm_password && "border-red-400 focus-visible:ring-red-400"
+                       )}
+                     />
+                     <button
+                       type="button"
+                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                       className="absolute right-3 top-3 text-white/60 hover:text-white"
+                     >
+                       {showConfirmPassword ? (
+                         <EyeOff className="h-4 w-4" />
+                       ) : (
+                         <Eye className="h-4 w-4" />
+                       )}
+                     </button>
+                   </div>
+                   {errors.confirm_password && (
+                     <p className="text-xs text-red-300">{errors.confirm_password.message}</p>
+                   )}
+                 </div>
+               </div>
 
-              {/* Account Information Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-foreground">Account Information</h3>
-                
-                {/* Email */}
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      {...register('email')}
-                      type="email"
-                      id="email"
-                      placeholder="Enter your email"
-                      className={cn(
-                        "pl-10",
-                        errors.email && "border-destructive focus-visible:ring-destructive"
-                      )}
-                    />
-                  </div>
-                  {errors.email && (
-                    <p className="text-sm text-destructive">{errors.email.message}</p>
-                  )}
-                </div>
-
-                {/* Password */}
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      {...register('password')}
-                      type={showPassword ? 'text' : 'password'}
-                      id="password"
-                      placeholder="Create a strong password"
-                      className={cn(
-                        "pr-10",
-                        errors.password && "border-destructive focus-visible:ring-destructive"
-                      )}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                  {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password.message}</p>
-                  )}
-                </div>
-
-                {/* Confirm Password */}
-                <div className="space-y-2">
-                  <Label htmlFor="confirm_password">Confirm Password</Label>
-                  <div className="relative">
-                    <Input
-                      {...register('confirm_password')}
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      id="confirm_password"
-                      placeholder="Confirm your password"
-                      className={cn(
-                        "pr-10",
-                        errors.confirm_password && "border-destructive focus-visible:ring-destructive"
-                      )}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                  {errors.confirm_password && (
-                    <p className="text-sm text-destructive">{errors.confirm_password.message}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Creating Account...' : 'Create Account'}
-              </Button>
-            </form>
+               {/* Submit Button */}
+               <Button
+                 type="submit"
+                 className="w-full bg-white/20 hover:bg-white/30 text-white border-white/20 backdrop-blur-sm h-10"
+                 disabled={isLoading}
+               >
+                 {isLoading ? 'Creating Account...' : 'Create Account'}
+               </Button>
+             </form>
 
             {/* Login Link */}
             <div className="text-center">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-white/80">
                 Already have an account?{' '}
                 <Link
                   href="/login"
-                  className="text-primary hover:text-primary/80 font-medium transition-colors"
+                  className="text-white hover:text-white/80 font-medium transition-colors"
                 >
                   Sign in here
                 </Link>
@@ -519,6 +532,7 @@ export default function RegisterPage() {
           </CardContent>
         </Card>
       </div>
+        </div>
       </div>
     </div>
   )
