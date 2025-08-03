@@ -62,12 +62,17 @@ export default function VerifyEmailPage() {
         localStorage.setItem('access_token', response.access_token)
         localStorage.setItem('refresh_token', response.refresh_token)
         localStorage.setItem('user', JSON.stringify(response.user))
+        
+        // Force a page reload to ensure AuthProvider picks up the new user state
+        setTimeout(() => {
+          window.location.href = '/two-factor-setup'
+        }, 2000)
+      } else {
+        // Fallback to router.push if no tokens
+        setTimeout(() => {
+          router.push('/two-factor-setup')
+        }, 2000)
       }
-      
-      // Redirect to 2FA setup after 2 seconds
-      setTimeout(() => {
-        router.push('/two-factor-setup')
-      }, 2000)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
       setError(error.response?.data?.message || 'Verification failed. Please try again.')

@@ -11,6 +11,8 @@ interface AuthContextType {
   register: (data: RegisterData) => Promise<void>
   logout: () => Promise<void>
   updateProfile: (data: Partial<User>) => Promise<void>
+  refreshUser: () => Promise<void>
+  setUserFromTokens: (accessToken: string, refreshToken: string, userData: User) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -32,19 +34,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const userData = await authAPI.getProfile()
           setUser(userData)
-        } catch (error) {
+        } catch {
           // If API call fails, try to use stored user data
           const parsedUser = JSON.parse(storedUser)
           setUser(parsedUser)
         }
+      } else {
+        setUser(null)
       }
     } catch {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user')
+      setUser(null)
     } finally {
       setLoading(false)
     }
+  }
+
+  const refreshUser = async () => {
+    await checkAuth()
+  }
+
+  const setUserFromTokens = (accessToken: string, refreshToken: string, userData: User) => {
+    localStorage.setItem('access_token', accessToken)
+    localStorage.setItem('refresh_token', refreshToken)
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
   }
 
   const login = async (email: string, password: string) => {
@@ -70,14 +86,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (data: RegisterData) => {
     try {
-      const response = await authAPI.register(data)
+      await authAPI.register(data)
       // Store email for verification page
       localStorage.setItem('pending_verification_email', data.email)
       // Don't set user as logged in until email is verified
-      // localStorage.setItem('access_token', response.access)
-      // localStorage.setItem('refresh_token', response.refresh)
-      // localStorage.setItem('user', JSON.stringify(response.user))
-      // setUser(response.user)
     } catch (error) {
       throw error
     }
@@ -111,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateProfile, refreshUser, setUserFromTokens }}>
       {children}
     </AuthContext.Provider>
   )

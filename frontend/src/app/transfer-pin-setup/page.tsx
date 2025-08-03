@@ -8,7 +8,6 @@ import { z } from 'zod'
 import { 
   Lock, 
   Shield, 
-  CheckCircle, 
   AlertCircle,
   ArrowRight,
   RefreshCw,
@@ -55,7 +54,7 @@ export default function TransferPinSetupPage() {
   const [showPin, setShowPin] = useState(false)
   const [showConfirmPin, setShowConfirmPin] = useState(false)
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
 
   const {
     register,
@@ -69,10 +68,17 @@ export default function TransferPinSetupPage() {
   const watchedPin = watch('pin')
 
   useEffect(() => {
-    if (!user?.two_factor_setup_completed) {
-      router.push('/two-factor-setup')
+    // Refresh user state to ensure we have the latest authentication
+    const token = localStorage.getItem('access_token')
+    if (token && !user) {
+      refreshUser()
     }
-    if (user?.transfer_pin_setup_completed) {
+  }, [user, refreshUser])
+
+  useEffect(() => {
+    
+    // Only redirect to dashboard if user is loaded and PIN is already completed
+    if (user && user.transfer_pin_setup_completed) {
       router.push('/dashboard')
     }
   }, [user, router])
@@ -82,10 +88,12 @@ export default function TransferPinSetupPage() {
       setLoading(true)
       setError('')
       
-      await authAPI.setupTransferPin(data.pin)
-      router.push('/dashboard')
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to set up transfer PIN')
+      const response = await authAPI.setupTransferPin(data.pin, data.confirmPin)
+      
+      window.location.href = '/dashboard'
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } }
+      setError(error.response?.data?.error || 'Failed to set up transfer PIN')
     } finally {
       setLoading(false)
     }

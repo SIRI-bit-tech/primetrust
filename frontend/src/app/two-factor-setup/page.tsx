@@ -27,7 +27,6 @@ const twoFactorVerifySchema = z.object({
   code: z.string().min(6, 'Code must be 6 digits').max(6, 'Code must be 6 digits')
 })
 
-type TwoFactorInitiateForm = z.infer<typeof twoFactorInitiateSchema>
 type TwoFactorVerifyForm = z.infer<typeof twoFactorVerifySchema>
 
 export default function TwoFactorSetupPage() {
@@ -43,16 +42,23 @@ export default function TwoFactorSetupPage() {
   const [copied, setCopied] = useState(false)
   const [downloaded, setDownloaded] = useState(false)
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset
   } = useForm<TwoFactorVerifyForm>({
     resolver: zodResolver(twoFactorVerifySchema)
   })
+
+  useEffect(() => {
+    // Refresh user state to ensure we have the latest authentication
+    const token = localStorage.getItem('access_token')
+    if (token && !user) {
+      refreshUser()
+    }
+  }, [user, refreshUser])
 
   useEffect(() => {
     if (user?.two_factor_setup_completed) {
@@ -69,11 +75,8 @@ export default function TwoFactorSetupPage() {
       setQrData(response)
       setStep('verify')
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data) {
-        setError((err.response as { data: { error?: string } }).data.error || 'Failed to initiate 2FA setup')
-      } else {
-        setError('Failed to initiate 2FA setup')
-      }
+      const error = err as { response?: { data?: { error?: string } } }
+      setError(error.response?.data?.error || 'Failed to initiate 2FA setup')
     } finally {
       setLoading(false)
     }
@@ -84,8 +87,16 @@ export default function TwoFactorSetupPage() {
       setLoading(true)
       setError('')
       
+      // Check if we have a token but no user state
+      const token = localStorage.getItem('access_token')
+      if (token && !user) {
+        await refreshUser()
+      }
+      
       await authAPI.verifyTwoFactor(data.code)
-      router.push('/transfer-pin-setup')
+      
+      // Force navigation to transfer PIN setup
+      window.location.href = '/transfer-pin-setup'
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } }
       setError(error.response?.data?.error || 'Invalid verification code')

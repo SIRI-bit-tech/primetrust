@@ -140,8 +140,8 @@ export const authAPI = {
     return response.data
   },
 
-  setupTransferPin: async (pin: string): Promise<{ message: string }> => {
-    const response = await api.post('/auth/transfer-pin-setup/', { pin })
+  setupTransferPin: async (pin: string, confirmPin: string): Promise<{ message: string }> => {
+    const response = await api.post('/auth/transfer-pin-setup/', { pin, confirm_pin: confirmPin })
     return response.data
   },
 
@@ -480,10 +480,7 @@ export const cardApplicationAPI = {
 // Updated Virtual Cards API (read-only for users)
 export const virtualCardAPI = {
   getCards: async (): Promise<VirtualCard[]> => {
-    console.log('Making API call to /banking/virtual-cards/')
     const response = await api.get('/banking/virtual-cards/')
-    console.log('API response:', response.data)
-    console.log('Response length:', response.data.results?.length || 0)
     return response.data.results || []
   },
   

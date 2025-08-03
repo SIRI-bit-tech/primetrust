@@ -569,12 +569,6 @@ class TransferPinSetupView(APIView):
             user = request.user
             pin = serializer.validated_data['pin']
             
-            # Check if 2FA is completed
-            if not user.two_factor_setup_completed:
-                return Response({
-                    'error': '2FA setup must be completed before setting up transfer PIN.'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
             # Set transfer PIN
             user.transaction_pin = pin
             user.transfer_pin_setup_completed = True
