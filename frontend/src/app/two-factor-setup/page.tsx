@@ -246,14 +246,14 @@ export default function TwoFactorSetupPage() {
               If QR code doesn&apos;t work, manually enter this code in your app:
             </p>
             <div className="flex items-center space-x-2">
-              <code className="flex-1 bg-white px-3 py-2 rounded border text-sm font-mono">
+              <code className="flex-1 bg-white px-4 py-3 rounded border-2 border-gray-200 text-base font-mono text-gray-900 font-semibold tracking-wider">
                 {qrData?.secret}
               </code>
               <button
                 onClick={copySecret}
-                className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                className="p-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
               >
-                {copied ? <CheckCircle className="w-5 h-5 text-green-600" /> : <Copy className="w-5 h-5" />}
+                {copied ? <CheckCircle className="w-6 h-6 text-green-600" /> : <Copy className="w-6 h-6" />}
               </button>
             </div>
           </div>
@@ -264,25 +264,25 @@ export default function TwoFactorSetupPage() {
             <p className="text-sm text-yellow-800 mb-3">
               Save these backup codes in a secure location. You can use them to access your account if you lose your authenticator app.
             </p>
-            <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="grid grid-cols-2 gap-3 mb-4">
               {qrData?.backup_codes.map((code, index) => (
-                <code key={index} className="bg-white px-2 py-1 rounded text-sm font-mono text-center">
+                <code key={index} className="bg-white px-3 py-2 rounded border border-yellow-200 text-base font-mono text-center font-semibold text-gray-900 tracking-wider">
                   {code}
                 </code>
               ))}
             </div>
             <button
               onClick={downloadBackupCodes}
-              className="flex items-center space-x-2 text-sm text-yellow-800 hover:text-yellow-900 transition-colors"
+              className="flex items-center space-x-2 text-sm text-yellow-800 hover:text-yellow-900 transition-colors font-medium"
             >
               {downloaded ? (
                 <>
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle className="w-5 h-5" />
                   <span>Downloaded!</span>
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4" />
+                  <Download className="w-5 h-5" />
                   <span>Download backup codes</span>
                 </>
               )}

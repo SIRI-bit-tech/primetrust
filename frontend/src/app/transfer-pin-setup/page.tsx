@@ -134,32 +134,6 @@ export default function TransferPinSetupPage() {
             </p>
           </div>
 
-          {/* Security Info */}
-          <div className="bg-blue-50 rounded-lg p-4 mb-6">
-            <div className="flex items-start space-x-3">
-              <Shield className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold text-blue-900 mb-1">
-                  Enhanced Security
-                </h3>
-                <p className="text-sm text-blue-800">
-                  This PIN will be required for all money transfers and Bitcoin transactions to protect your funds.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* PIN Requirements */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-2">PIN Requirements</h3>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• Must be exactly 4 digits</li>
-              <li>• Cannot contain consecutive numbers (e.g., 1234)</li>
-              <li>• Cannot contain all identical digits (e.g., 1111)</li>
-              <li>• Cannot be common patterns (e.g., 0000, 1111)</li>
-            </ul>
-          </div>
-
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* PIN Input */}
