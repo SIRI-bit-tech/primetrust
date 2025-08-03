@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, Lock, Mail, Plane } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
@@ -56,12 +57,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background Image */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2073&q=80')`
-        }}
-      >
+      <div className="absolute inset-0">
+        <Image
+          src="/images/background.jpg"
+          alt="Background"
+          fill
+          className="object-cover"
+          priority
+        />
         {/* Overlay for better text readability */}
         <div className="absolute inset-0 bg-black/20"></div>
       </div>
@@ -71,14 +74,6 @@ export default function LoginPage() {
         {/* Left Section - Branding */}
         <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12">
           <div className="text-white text-center max-w-md">
-            {/* Brand Logo */}
-            {/* <div className="flex items-center justify-center mb-8">
-              <div className="relative">
-                <Plane className="w-8 h-8 text-white mb-2" />
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full"></div>
-                <div className="absolute -top-0.5 -right-0.5 w-1 h-1 bg-white rounded-full"></div>
-              </div>
-            </div> */}
             
             {/* Brand Name */}
             <h1 className="text-5xl font-bold mb-4 tracking-wider">PRIMETRUST</h1>
