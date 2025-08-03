@@ -209,8 +209,13 @@ export const adminAPI = {
   },
 
   getAllUsers: async (): Promise<User[]> => {
-    const response = await api.get('/admin/users/')
+    const response = await api.get('/admin-api/users/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  deleteUser: async (userId: number) => {
+    const response = await api.delete(`/admin-api/users/${userId}/delete/`)
+    return response.data
   },
 
   updateUserBalance: async (userId: number, balance: number): Promise<Account> => {
@@ -263,6 +268,58 @@ export const adminAPI = {
   getAdminDashboard: async (): Promise<Record<string, unknown>> => {
     const response = await api.get('/admin/dashboard/')
     return response.data
+  },
+
+  // System status
+  getSystemStatus: async () => {
+    const response = await api.get('/admin-api/system-status/')
+    return response.data
+  },
+
+  // Currency swaps
+  getAllCurrencySwaps: async () => {
+    const response = await api.get('/admin-api/currency-swaps/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  // Bitcoin transactions
+  getAllBitcoinTransactions: async () => {
+    const response = await api.get('/admin-api/bitcoin-transactions/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  // Loans
+  getAllLoans: async () => {
+    const response = await api.get('/admin-api/loans/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  getAllLoanApplications: async () => {
+    const response = await api.get('/admin-api/loan-applications/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  updateLoanStatus: async (loanId: number, status: string) => {
+    const response = await api.patch(`/admin-api/loans/${loanId}/status/`, { status })
+    return response.data
+  },
+
+  // Bills
+  getAllBills: async () => {
+    const response = await api.get('/admin-api/bills/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  // Investments
+  getAllInvestments: async () => {
+    const response = await api.get('/admin-api/investments/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  // Security audit logs
+  getAllSecurityLogs: async () => {
+    const response = await api.get('/admin-api/security-logs/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 }
 

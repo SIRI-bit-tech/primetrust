@@ -346,7 +346,7 @@ class BitcoinTransaction(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bitcoin_transactions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='account_bitcoin_transactions')
     
     # Transaction details
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
@@ -373,7 +373,7 @@ class BitcoinTransaction(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:
-        db_table = 'bitcoin_transactions'
+        db_table = 'account_bitcoin_transactions'
         ordering = ['-created_at']
     
     def __str__(self):

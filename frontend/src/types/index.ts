@@ -145,15 +145,18 @@ export interface PaginatedResponse<T> {
 export interface Loan {
   id: number
   user: User
+  user_name?: string
   loan_type: 'personal' | 'business' | 'mortgage' | 'auto'
   amount: number
   interest_rate: number
   term_months: number
   monthly_payment: number
   total_amount: number
-  status: 'pending' | 'approved' | 'active' | 'paid' | 'defaulted'
+  status: 'pending' | 'approved' | 'rejected' | 'active' | 'completed' | 'paid' | 'defaulted'
+  purpose?: string
   created_at: string
   approved_at?: string
+  disbursed_at?: string
   due_date?: string
   remaining_balance: number
 }
@@ -161,14 +164,17 @@ export interface Loan {
 export interface Investment {
   id: number
   user: User
-  investment_type: 'stocks' | 'bonds' | 'mutual_funds' | 'etfs' | 'crypto'
+  user_name?: string
+  investment_type: 'stocks' | 'bonds' | 'mutual_funds' | 'etfs' | 'crypto' | string
   name: string
   symbol?: string
   amount_invested: number
+  amount?: number
   current_value: number
   profit_loss: number
   profit_loss_percentage: number
-  status: 'active' | 'sold' | 'pending'
+  return_rate?: number
+  status: 'active' | 'sold' | 'pending' | 'completed' | 'cancelled'
   created_at: string
   last_updated: string
 }
@@ -176,12 +182,15 @@ export interface Investment {
 export interface Bill {
   id: number
   user: User
+  user_name?: string
   biller_name: string
   biller_category: 'utilities' | 'insurance' | 'subscription' | 'credit_card' | 'other'
+  bill_type?: string
   account_number: string
   amount: number
   due_date: string
   status: 'pending' | 'paid' | 'overdue'
+  description?: string
   is_recurring: boolean
   recurring_frequency?: 'monthly' | 'quarterly' | 'yearly'
   created_at: string
@@ -277,11 +286,14 @@ export interface IncomingBitcoinTransaction {
 export interface CurrencySwap {
   id: number
   user: number
+  user_name?: string
   swap_type: 'usd_to_btc' | 'btc_to_usd'
   swap_type_display: string
-  amount_from: string
-  amount_to: string
-  exchange_rate: string
+  currency_from?: string
+  currency_to?: string
+  amount_from: string | number
+  amount_to: string | number
+  exchange_rate: string | number
   status: 'pending' | 'processing' | 'completed' | 'failed'
   status_display: string
   created_at: string
@@ -320,4 +332,79 @@ export interface CardApplication {
   processed_at?: string;
   created_at: string;
   updated_at: string;
-} 
+}
+
+export interface SystemStatus {
+  id: number
+  component: string
+  status: 'operational' | 'degraded' | 'partial_outage' | 'major_outage' | 'maintenance'
+  message: string
+  response_time: number
+  uptime_percentage: number
+  error_count: number
+  request_count: number
+  last_check: string
+  created_at: string
+}
+
+export interface BitcoinTransaction {
+  id: number
+  user: number
+  user_name?: string
+  transaction_type: 'incoming' | 'outgoing'
+  amount: number
+  bitcoin_address: string
+  status: 'pending' | 'confirmed' | 'failed'
+  confirmations: number
+  created_at: string
+}
+
+export interface SecurityAuditLog {
+  id: number
+  user: number
+  user_name?: string
+  event_type: string
+  description: string
+  ip_address: string
+  user_agent: string
+  timestamp: string
+}
+
+export interface SystemStatusResponse {
+  overall_status: string
+  components: SystemStatus[]
+  last_updated: string
+}
+
+export interface AdminDashboardData {
+  users?: {
+    total: number
+    active: number
+  }
+  transactions?: {
+    total: number
+    pending: number
+  }
+  cards?: {
+    total: number
+    active: number
+  }
+  applications?: {
+    total: number
+    pending: number
+  }
+}
+
+export type TableItem = 
+  | User 
+  | Transaction 
+  | VirtualCard 
+  | CardApplication 
+  | UserNotification 
+  | SystemStatus 
+  | CurrencySwap 
+  | BitcoinTransaction 
+  | Loan 
+  | Bill 
+  | Investment 
+  | SecurityAuditLog 

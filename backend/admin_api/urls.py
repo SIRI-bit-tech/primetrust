@@ -4,31 +4,29 @@ from . import views
 app_name = 'admin_api'
 
 urlpatterns = [
-    # Admin authentication
-    path('auth/', views.AdminAuthView.as_view(), name='admin-auth'),
+    # Existing endpoints
+    path('admin-auth/', views.AdminAuthView.as_view(), name='admin-auth'),
+    path('dashboard/', views.AdminDashboardView.as_view(), name='admin-dashboard'),
+    path('users/', views.AdminUserListView.as_view(), name='admin-users'),
+    path('users/<int:user_id>/delete/', views.AdminUserDeleteView.as_view(), name='admin-user-delete'),
+    path('users/<int:user_id>/balance/', views.AdminUserBalanceView.as_view(), name='admin-user-balance'),
+    path('users/<int:user_id>/bitcoin-balance/', views.AdminUserBitcoinBalanceView.as_view(), name='admin-user-bitcoin-balance'),
+    path('transactions/', views.AdminTransactionListView.as_view(), name='admin-transactions'),
+    path('transactions/<int:transaction_id>/status/', views.AdminTransactionStatusView.as_view(), name='admin-transaction-status'),
+    path('cards/', views.AdminVirtualCardListView.as_view(), name='admin-cards'),
+    path('cards/<int:card_id>/delete/', views.AdminVirtualCardDeleteView.as_view(), name='admin-card-delete'),
+    path('applications/', views.AdminCardApplicationListView.as_view(), name='admin-applications'),
+    path('applications/<int:application_id>/status/', views.AdminCardApplicationStatusView.as_view(), name='admin-application-status'),
+    path('notifications/', views.AdminNotificationListView.as_view(), name='admin-notifications'),
     
-    # User management
-    path('users/', views.AdminUserListView.as_view(), name='user-list'),
-    path('users/<int:pk>/', views.AdminUserDetailView.as_view(), name='user-detail'),
-    path('users/<int:pk>/balance/', views.AdminUserBalanceView.as_view(), name='user-balance'),
-    path('users/<int:pk>/bitcoin-balance/', views.AdminUserBitcoinBalanceView.as_view(), name='user-bitcoin-balance'),
-    
-    # Transaction management
-    path('transactions/', views.AdminTransactionListView.as_view(), name='transaction-list'),
-    path('transactions/<int:pk>/', views.AdminTransactionDetailView.as_view(), name='transaction-detail'),
-    path('transactions/<int:pk>/status/', views.AdminTransactionStatusView.as_view(), name='transaction-status'),
-    
-    # Virtual card management
-    path('cards/', views.AdminVirtualCardListView.as_view(), name='card-list'),
-    path('cards/<int:pk>/', views.AdminVirtualCardDeleteView.as_view(), name='card-delete'),
-    
-    # Card application management
-    path('card-applications/', views.AdminCardApplicationListView.as_view(), name='card-application-list'),
-    path('card-applications/<int:pk>/status/', views.AdminCardApplicationStatusView.as_view(), name='card-application-status'),
-    
-    # Notification management
-    path('notifications/', views.AdminNotificationListView.as_view(), name='notification-list'),
-    
-    # Dashboard
-    path('dashboard/', views.AdminDashboardView.as_view(), name='dashboard'),
+    # New endpoints
+    path('system-status/', views.AdminSystemStatusView.as_view(), name='admin-system-status'),
+    path('currency-swaps/', views.AdminCurrencySwapListView.as_view(), name='admin-currency-swaps'),
+    path('bitcoin-transactions/', views.AdminBitcoinTransactionListView.as_view(), name='admin-bitcoin-transactions'),
+    path('loans/', views.AdminLoanListView.as_view(), name='admin-loans'),
+    path('loan-applications/', views.AdminLoanApplicationListView.as_view(), name='admin-loan-applications'),
+    path('loans/<int:loan_id>/status/', views.AdminLoanStatusView.as_view(), name='admin-loan-status'),
+    path('bills/', views.AdminBillListView.as_view(), name='admin-bills'),
+    path('investments/', views.AdminInvestmentListView.as_view(), name='admin-investments'),
+    path('security-logs/', views.AdminSecurityAuditLogListView.as_view(), name='admin-security-logs'),
 ] 

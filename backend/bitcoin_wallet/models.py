@@ -120,7 +120,7 @@ class CurrencySwap(models.Model):
         ('btc_to_usd', 'Bitcoin to USD'),
     ]
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='currency_swaps')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wallet_currency_swaps')
     swap_type = models.CharField(max_length=20, choices=SWAP_TYPE_CHOICES, help_text="Type of currency swap")
     amount_from = models.DecimalField(max_digits=18, decimal_places=8, help_text="Amount being swapped from")
     amount_to = models.DecimalField(max_digits=18, decimal_places=8, help_text="Amount being swapped to")
@@ -134,6 +134,7 @@ class CurrencySwap(models.Model):
     class Meta:
         verbose_name = "Currency Swap"
         verbose_name_plural = "Currency Swaps"
+        db_table = 'wallet_currency_swaps'
         ordering = ['-created_at']
 
     def __str__(self):

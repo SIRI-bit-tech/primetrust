@@ -169,10 +169,49 @@ class Transaction(models.Model):
         return status_colors.get(self.status, 'gray')
 
 
+class Loan(models.Model):
+    """Model for loan applications and loans."""
+    
+    LOAN_TYPES = [
+        ('personal', 'Personal Loan'),
+        ('business', 'Business Loan'),
+        ('mortgage', 'Mortgage'),
+        ('auto', 'Auto Loan'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+    ]
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='loans')
+    loan_type = models.CharField(max_length=20, choices=LOAN_TYPES)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    interest_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    term_months = models.PositiveIntegerField()
+    purpose = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    disbursed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'transaction_loans'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.loan_type} - {self.amount}"
+
+
 class Bill(models.Model):
     """Model for bill payments."""
     
-    BILL_CATEGORIES = [
+    BILL_TYPES = [
         ('utilities', 'Utilities'),
         ('insurance', 'Insurance'),
         ('subscription', 'Subscription'),
@@ -180,249 +219,119 @@ class Bill(models.Model):
         ('other', 'Other'),
     ]
     
-    BILL_STATUS = [
+    STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('paid', 'Paid'),
         ('overdue', 'Overdue'),
-        ('cancelled', 'Cancelled'),
-    ]
-    
-    RECURRING_FREQUENCIES = [
-        ('monthly', 'Monthly'),
-        ('quarterly', 'Quarterly'),
-        ('annually', 'Annually'),
     ]
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bills')
-    biller_name = models.CharField(max_length=200)
-    biller_category = models.CharField(max_length=20, choices=BILL_CATEGORIES)
-    account_number = models.CharField(max_length=50)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    bill_type = models.CharField(max_length=20, choices=BILL_TYPES)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
     due_date = models.DateField()
-    status = models.CharField(max_length=20, choices=BILL_STATUS, default='pending')
-    
-    # Recurring payment settings
-    is_recurring = models.BooleanField(default=False)
-    recurring_frequency = models.CharField(max_length=20, choices=RECURRING_FREQUENCIES, null=True, blank=True)
-    next_due_date = models.DateField(null=True, blank=True)
-    
-    # Payment tracking
-    paid_at = models.DateTimeField(null=True, blank=True)
-    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='bills')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    description = models.TextField()
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'bills'
-        ordering = ['due_date']
-        indexes = [
-            models.Index(fields=['user', 'status', 'due_date']),
-            models.Index(fields=['biller_category']),
-        ]
+        ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.biller_name} - {self.amount} due {self.due_date}"
-    
-    def save(self, *args, **kwargs):
-        # Set next due date for recurring bills
-        if self.is_recurring and self.recurring_frequency and not self.next_due_date:
-            self.set_next_due_date()
-        
-        super().save(*args, **kwargs)
-    
-    def set_next_due_date(self):
-        """Set the next due date based on recurring frequency."""
-        from datetime import timedelta
-        
-        if self.recurring_frequency == 'monthly':
-            self.next_due_date = self.due_date + timedelta(days=30)
-        elif self.recurring_frequency == 'quarterly':
-            self.next_due_date = self.due_date + timedelta(days=90)
-        elif self.recurring_frequency == 'annually':
-            self.next_due_date = self.due_date + timedelta(days=365)
-    
-    def is_overdue(self):
-        """Check if the bill is overdue."""
-        return self.status == 'pending' and self.due_date < timezone.now().date()
-    
-    def pay_bill(self, payment_amount=None):
-        """Pay the bill."""
-        if self.status != 'pending':
-            return False, "Bill is not in pending status"
-        
-        if payment_amount is None:
-            payment_amount = self.amount
-        
-        # Check if user has sufficient funds
-        if self.user.balance < payment_amount:
-            return False, "Insufficient funds"
-        
-        try:
-            # Create transaction
-            transaction = Transaction.objects.create(
-                user=self.user,
-                transaction_type='payment',
-                amount=payment_amount,
-                currency='USD',
-                status='pending',
-                description=f"Payment to {self.biller_name}",
-                merchant_name=self.biller_name,
-                merchant_category=self.biller_category,
-                balance_before=self.user.balance,
-                balance_after=self.user.balance - payment_amount
-            )
-            
-            # Process transaction
-            success, message = transaction.process_transaction()
-            
-            if success:
-                # Update bill status
-                self.status = 'paid'
-                self.paid_at = timezone.now()
-                self.paid_amount = payment_amount
-                self.transaction = transaction
-                self.save()
-                
-                # Create next recurring bill if applicable
-                if self.is_recurring and self.recurring_frequency:
-                    self.create_next_bill()
-                
-                return True, "Bill paid successfully"
-            else:
-                transaction.delete()
-                return False, f"Payment failed: {message}"
-                
-        except Exception as e:
-            return False, f"Payment failed: {str(e)}"
-    
-    def create_next_bill(self):
-        """Create the next recurring bill."""
-        if not self.is_recurring or not self.next_due_date:
-            return
-        
-        Bill.objects.create(
-            user=self.user,
-            biller_name=self.biller_name,
-            biller_category=self.biller_category,
-            account_number=self.account_number,
-            amount=self.amount,
-            due_date=self.next_due_date,
-            is_recurring=self.is_recurring,
-            recurring_frequency=self.recurring_frequency
-        )
-    
-    def get_formatted_amount(self):
-        """Get formatted amount."""
-        return f"${self.amount:,.2f}"
-    
-    def get_days_until_due(self):
-        """Get days until due date."""
-        from datetime import date
-        today = date.today()
-        return (self.due_date - today).days
+        return f"{self.user.username} - {self.bill_type} - {self.amount}"
 
 
 class Investment(models.Model):
-    """Model for investment transactions."""
+    """Model for investments."""
     
     INVESTMENT_TYPES = [
-        ('stock', 'Stock'),
-        ('etf', 'ETF'),
+        ('stocks', 'Stocks'),
+        ('bonds', 'Bonds'),
+        ('mutual_funds', 'Mutual Funds'),
+        ('etfs', 'ETFs'),
         ('crypto', 'Cryptocurrency'),
-        ('bond', 'Bond'),
-        ('mutual_fund', 'Mutual Fund'),
     ]
     
-    INVESTMENT_ACTIONS = [
-        ('buy', 'Buy'),
-        ('sell', 'Sell'),
-        ('dividend', 'Dividend'),
-    ]
-    
-    INVESTMENT_STATUS = [
-        ('pending', 'Pending'),
+    STATUS_CHOICES = [
+        ('active', 'Active'),
         ('completed', 'Completed'),
-        ('failed', 'Failed'),
         ('cancelled', 'Cancelled'),
     ]
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='investments')
     investment_type = models.CharField(max_length=20, choices=INVESTMENT_TYPES)
-    action = models.CharField(max_length=20, choices=INVESTMENT_ACTIONS)
-    symbol = models.CharField(max_length=20)
-    company_name = models.CharField(max_length=200)
-    quantity = models.DecimalField(max_digits=15, decimal_places=6)
-    price_per_share = models.DecimalField(max_digits=15, decimal_places=2)
-    total_amount = models.DecimalField(max_digits=15, decimal_places=2)
-    currency = models.CharField(max_length=3, default='USD')
-    status = models.CharField(max_length=20, choices=INVESTMENT_STATUS, default='pending')
-    
-    # Transaction reference
-    transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='investments')
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    return_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'investments'
         ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['user', 'investment_type', 'symbol']),
-            models.Index(fields=['status', 'created_at']),
-        ]
     
     def __str__(self):
-        return f"{self.action.title()} {self.quantity} {self.symbol} for {self.user.email}"
+        return f"{self.user.username} - {self.investment_type} - {self.amount}"
+
+
+class CurrencySwap(models.Model):
+    """Model for currency swaps."""
     
-    def process_investment(self):
-        """Process the investment transaction."""
-        if self.status != 'pending':
-            return False, "Investment is not in pending status"
-        
-        try:
-            # Create transaction
-            transaction = Transaction.objects.create(
-                user=self.user,
-                transaction_type='investment',
-                amount=self.total_amount,
-                currency=self.currency,
-                status='pending',
-                description=f"{self.action.title()} {self.quantity} {self.symbol}",
-                merchant_name=self.company_name,
-                merchant_category=self.investment_type,
-                balance_before=self.user.balance,
-                balance_after=self.user.balance - self.total_amount
-            )
-            
-            # Process transaction
-            success, message = transaction.process_transaction()
-            
-            if success:
-                # Update investment status
-                self.status = 'completed'
-                self.completed_at = timezone.now()
-                self.transaction = transaction
-                self.save()
-                
-                return True, "Investment completed successfully"
-            else:
-                transaction.delete()
-                return False, f"Investment failed: {message}"
-                
-        except Exception as e:
-            self.status = 'failed'
-            self.save()
-            return False, f"Investment failed: {str(e)}"
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
     
-    def get_formatted_total(self):
-        """Get formatted total amount."""
-        return f"${self.total_amount:,.2f}"
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='currency_swaps')
+    currency_from = models.CharField(max_length=10)
+    currency_to = models.CharField(max_length=10)
+    amount_from = models.DecimalField(max_digits=15, decimal_places=8)
+    amount_to = models.DecimalField(max_digits=15, decimal_places=8)
+    exchange_rate = models.DecimalField(max_digits=15, decimal_places=8)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
-    def get_formatted_price(self):
-        """Get formatted price per share."""
-        return f"${self.price_per_share:,.2f}"
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'transaction_currency_swaps'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.currency_from} to {self.currency_to}"
+
+
+class BitcoinTransaction(models.Model):
+    """Model for Bitcoin transactions."""
+    
+    TRANSACTION_TYPES = [
+        ('incoming', 'Incoming'),
+        ('outgoing', 'Outgoing'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('failed', 'Failed'),
+    ]
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bitcoin_transactions')
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=15, decimal_places=8)
+    bitcoin_address = models.CharField(max_length=100)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    confirmations = models.PositiveIntegerField(default=0)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'transaction_bitcoin_transactions'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.transaction_type} - {self.amount} BTC"

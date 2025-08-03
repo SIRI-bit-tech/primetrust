@@ -1,838 +1,948 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/useAuth'
 import { adminAPI } from '@/lib/api'
-import { User, Transaction, VirtualCard, CardApplication, UserNotification } from '@/types'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
+import { AxiosError } from 'axios'
 import { 
   Users, 
   CreditCard, 
   FileText, 
   Bell, 
-  DollarSign, 
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertCircle,
-  RefreshCw,
-  TrendingUp,
+  TrendingUp, 
   Activity,
-  LogOut,
+  DollarSign,
+  Bitcoin,
+  Shield,
+  BarChart3,
+  Receipt,
+  PiggyBank,
+  AlertTriangle,
   Trash2,
-  Search,
+  CheckCircle,
+  XCircle
 } from 'lucide-react'
-import AdminLayout from '@/components/AdminLayout'
-import { useAuth } from '@/hooks/useAuth'
-import { formatDate } from '@/lib/utils'
+import { 
+  User, 
+  Transaction, 
+  VirtualCard, 
+  CardApplication, 
+  UserNotification,
+  SystemStatus,
+  CurrencySwap,
+  BitcoinTransaction,
+  Loan,
+  Bill,
+  Investment,
+  SecurityAuditLog,
+  AdminDashboardData,
+  TableItem
+} from '@/types'
 
 export default function AdminPage() {
-  const { user, logout } = useAuth()
-  const router = useRouter()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  // Data states
+  const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [cards, setCards] = useState<VirtualCard[]>([])
   const [applications, setApplications] = useState<CardApplication[]>([])
   const [notifications, setNotifications] = useState<UserNotification[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [message, setMessage] = useState('')
+  const [systemStatus, setSystemStatus] = useState<SystemStatus[]>([])
+  const [currencySwaps, setCurrencySwaps] = useState<CurrencySwap[]>([])
+  const [bitcoinTransactions, setBitcoinTransactions] = useState<BitcoinTransaction[]>([])
+  const [loans, setLoans] = useState<Loan[]>([])
+  const [bills, setBills] = useState<Bill[]>([])
+  const [investments, setInvestments] = useState<Investment[]>([])
+  const [securityLogs, setSecurityLogs] = useState<SecurityAuditLog[]>([])
 
-  // Balance management states
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [usdAmount, setUsdAmount] = useState('')
-  const [bitcoinAmount, setBitcoinAmount] = useState('')
-  const [bitcoinAction, setBitcoinAction] = useState<'set' | 'add' | 'subtract'>('set')
-
-  // Search and filter states
+  // Filter states
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedUser, setSelectedUser] = useState<number | null>(null)
+  const [balanceAmount, setBalanceAmount] = useState('')
+  const [bitcoinAmount, setBitcoinAmount] = useState('')
 
-  const loadAllData = useCallback(async () => {
-    setIsLoading(true)
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+    { id: 'users', label: 'Users', icon: Users },
+    { id: 'transactions', label: 'Transactions', icon: FileText },
+    { id: 'cards', label: 'Cards', icon: CreditCard },
+    { id: 'applications', label: 'Applications', icon: TrendingUp },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'system-status', label: 'System Status', icon: Activity },
+    { id: 'currency-swaps', label: 'Currency Swaps', icon: DollarSign },
+    { id: 'bitcoin-transactions', label: 'Bitcoin Transactions', icon: Bitcoin },
+    { id: 'loans', label: 'Loans', icon: Shield },
+    { id: 'bills', label: 'Bills', icon: Receipt },
+    { id: 'investments', label: 'Investments', icon: PiggyBank },
+    { id: 'security-logs', label: 'Security Logs', icon: AlertTriangle },
+  ]
+
+  const loadData = async () => {
+    setLoading(true)
+    setError('')
+    
     try {
-      const [usersData, transactionsData, cardsData, applicationsData, notificationsData] = await Promise.all([
-        adminAPI.getAllUsers(),
-        adminAPI.getAllTransactions(),
-        adminAPI.getAllCards(),
-        adminAPI.getAllCardApplications(),
-        adminAPI.getAllNotifications()
-      ])
-      
-      setUsers(usersData)
-      setTransactions(transactionsData)
-      setCards(cardsData)
-      setApplications(applicationsData)
-      setNotifications(notificationsData)
-    } catch (error) {
-      console.error('Error loading admin data:', error)
-      setMessage('Failed to load data')
+      switch (activeTab) {
+        case 'dashboard':
+          const dashboard = await adminAPI.getAdminDashboard()
+          setDashboardData(dashboard)
+          break
+        case 'users':
+          const usersData = await adminAPI.getAllUsers()
+          setUsers(usersData)
+          break
+        case 'transactions':
+          const transactionsData = await adminAPI.getAllTransactions()
+          setTransactions(transactionsData)
+          break
+        case 'cards':
+          const cardsData = await adminAPI.getAllCards()
+          setCards(cardsData)
+          break
+        case 'applications':
+          const applicationsData = await adminAPI.getAllCardApplications()
+          setApplications(applicationsData)
+          break
+        case 'notifications':
+          const notificationsData = await adminAPI.getAllNotifications()
+          setNotifications(notificationsData)
+          break
+        case 'system-status':
+          const systemStatusData = await adminAPI.getSystemStatus()
+          setSystemStatus(systemStatusData.components || [])
+          break
+        case 'currency-swaps':
+          const currencySwapsData = await adminAPI.getAllCurrencySwaps()
+          setCurrencySwaps(currencySwapsData)
+          break
+        case 'bitcoin-transactions':
+          const bitcoinTransactionsData = await adminAPI.getAllBitcoinTransactions()
+          setBitcoinTransactions(bitcoinTransactionsData)
+          break
+        case 'loans':
+          const loansData = await adminAPI.getAllLoans()
+          setLoans(loansData)
+          break
+        case 'bills':
+          const billsData = await adminAPI.getAllBills()
+          setBills(billsData)
+          break
+        case 'investments':
+          const investmentsData = await adminAPI.getAllInvestments()
+          setInvestments(investmentsData)
+          break
+        case 'security-logs':
+          const securityLogsData = await adminAPI.getAllSecurityLogs()
+          setSecurityLogs(securityLogsData)
+          break
+      }
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to load data')
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
-  }, [])
+  }
 
   useEffect(() => {
-    // Check if user is authenticated
-    if (!user) {
-      router.push('/admin/login')
-      return
-    }
+    loadData()
+  }, [activeTab])
+
+  const handleUpdateBalance = async () => {
+    if (!selectedUser || !balanceAmount) return
     
-    loadAllData()
-  }, [user, loadAllData]) // Add loadAllData to dependencies
-
-  const handleLogout = async () => {
     try {
-      await logout()
-      router.push('/admin/login')
-    } catch (error) {
-      console.error('Logout error:', error)
-      // Force redirect anyway
-      router.push('/admin/login')
+      await adminAPI.updateUserBalance(selectedUser, parseFloat(balanceAmount))
+      setBalanceAmount('')
+      loadData()
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to update balance')
     }
   }
 
-  const updateUsdBalance = async () => {
-    if (!selectedUser || !usdAmount) return
-
-    try {
-      await adminAPI.updateUserBalance(selectedUser.id, parseFloat(usdAmount))
-      setMessage(`USD balance updated for ${selectedUser.first_name} ${selectedUser.last_name}`)
-      setUsdAmount('')
-      loadAllData()
-    } catch {
-      setMessage('Failed to update USD balance')
-    }
-  }
-
-  const updateBitcoinBalance = async () => {
+  const handleUpdateBitcoinBalance = async () => {
     if (!selectedUser || !bitcoinAmount) return
-
+    
     try {
-      await adminAPI.updateUserBitcoinBalance(selectedUser.id, parseFloat(bitcoinAmount), bitcoinAction)
-      setMessage(`Bitcoin balance ${bitcoinAction} for ${selectedUser.first_name} ${selectedUser.last_name}`)
+      await adminAPI.updateUserBitcoinBalance(selectedUser, parseFloat(bitcoinAmount))
       setBitcoinAmount('')
-      loadAllData()
-    } catch {
-      setMessage('Failed to update Bitcoin balance')
+      loadData()
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to update Bitcoin balance')
     }
   }
 
-  const updateTransactionStatus = async (transactionId: number, status: string) => {
+  const handleDeleteUser = async (userId: number) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return
+    
     try {
-      await adminAPI.updateTransactionStatus(transactionId, status)
-      setMessage('Transaction status updated')
-      loadAllData()
-    } catch {
-      setMessage('Failed to update transaction status')
+      await adminAPI.deleteUser(userId)
+      loadData()
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to delete user')
     }
   }
 
-  const updateCardApplicationStatus = async (applicationId: number, status: string) => {
-    try {
-      await adminAPI.updateCardApplicationStatus(applicationId, status)
-      setMessage('Card application status updated')
-      loadAllData()
-    } catch {
-      setMessage('Failed to update card application status')
-    }
-  }
-
-  const deleteCard = async (cardId: number) => {
-    if (!confirm('Are you sure you want to delete this card?')) return
+  const handleDeleteCard = async (cardId: number) => {
+    if (!confirm('Are you sure you want to delete this card? This action cannot be undone.')) return
     
     try {
       await adminAPI.deleteCard(cardId)
-      setMessage('Card deleted successfully')
-      loadAllData()
-    } catch {
-      setMessage('Failed to delete card')
+      loadData()
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to delete card')
+    }
+  }
+
+  const handleUpdateTransactionStatus = async (transactionId: number, status: string) => {
+    try {
+      await adminAPI.updateTransactionStatus(transactionId, status)
+      loadData()
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to update transaction status')
+    }
+  }
+
+  const handleUpdateCardApplicationStatus = async (applicationId: number, status: string) => {
+    try {
+      await adminAPI.updateCardApplicationStatus(applicationId, status)
+      loadData()
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to update application status')
+    }
+  }
+
+  const handleUpdateLoanStatus = async (loanId: number, status: string) => {
+    try {
+      await adminAPI.updateLoanStatus(loanId, status)
+      loadData()
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to update loan status')
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800'
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'failed': return 'bg-red-100 text-red-800'
-      case 'active': return 'bg-green-100 text-green-800'
-      case 'approved': return 'bg-green-100 text-green-800'
-      case 'rejected': return 'bg-red-100 text-red-800'
-      case 'processing': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
       case 'active':
       case 'approved':
-        return <CheckCircle className="w-4 h-4" />
+      case 'completed':
+      case 'operational':
+      case 'confirmed':
+        return 'text-green-600 bg-green-100'
       case 'pending':
-        return <Clock className="w-4 h-4" />
       case 'processing':
-        return <Activity className="w-4 h-4" />
-      case 'failed':
+        return 'text-yellow-600 bg-yellow-100'
       case 'rejected':
-        return <XCircle className="w-4 h-4" />
+      case 'failed':
+      case 'major_outage':
+      case 'cancelled':
+        return 'text-red-600 bg-red-100'
+      case 'partial_outage':
+      case 'degraded':
+        return 'text-orange-600 bg-orange-100'
       default:
-        return <AlertCircle className="w-4 h-4" />
+        return 'text-gray-600 bg-gray-100'
     }
   }
 
-  const filteredUsers = (users || []).filter(user => 
-    user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount)
+  }
 
-  const filteredTransactions = (transactions || []).filter(transaction => {
-    const matchesSearch = transaction.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.transaction_type?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString()
+  }
 
-  const filteredCards = (cards || []).filter(card => {
-    const matchesSearch = card.card_number?.includes(searchTerm) ||
-                         card.user_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || card.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  const filteredData = (): TableItem[] => {
+    const dataMap: Record<string, TableItem[]> = {
+      users,
+      transactions,
+      cards,
+      applications,
+      notifications,
+      currencySwaps,
+      bitcoinTransactions,
+      loans,
+      bills,
+      investments,
+      securityLogs
+    }
+    
+    const data = dataMap[activeTab] || []
+    
+    if (!searchTerm) return data
+    
+    return data.filter((item: TableItem) => {
+      const userItem = item as User
+      const transactionItem = item as Transaction
+      const cardItem = item as VirtualCard
+      const applicationItem = item as CardApplication
+      const notificationItem = item as UserNotification
+      const systemStatusItem = item as SystemStatus
+      const currencySwapItem = item as CurrencySwap
+      const bitcoinTransactionItem = item as BitcoinTransaction
+      const loanItem = item as Loan
+      const billItem = item as Bill
+      const investmentItem = item as Investment
+      const securityLogItem = item as SecurityAuditLog
 
-  const filteredApplications = (applications || []).filter(application => {
-    const matchesSearch = application.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         application.card_type?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || application.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+      return (
+        userItem.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transactionItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cardItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        applicationItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        notificationItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        currencySwapItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bitcoinTransactionItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        loanItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        billItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        investmentItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        securityLogItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item as TableItem & { id?: number }).id?.toString().includes(searchTerm) ||
+        (item as TableItem & { status?: string }).status?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    })
+  }
 
-  const filteredNotifications = (notifications || []).filter(notification => {
-    const matchesSearch = notification.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         notification.message?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || notification.is_read === (statusFilter === 'read')
-    return matchesSearch && matchesStatus
-  })
+  const renderTableHeaders = () => {
+    switch (activeTab) {
+      case 'users':
+        return ['User', 'Email', 'Balance', 'Status', 'Actions']
+      case 'transactions':
+        return ['User', 'Type', 'Amount', 'Status', 'Date', 'Actions']
+      case 'cards':
+        return ['User', 'Card Number', 'Type', 'Status', 'Balance', 'Actions']
+      case 'applications':
+        return ['User', 'Card Type', 'Status', 'Date', 'Actions']
+      case 'notifications':
+        return ['User', 'Type', 'Title', 'Priority', 'Status', 'Date']
+      case 'system-status':
+        return ['Component', 'Status', 'Response Time', 'Uptime', 'Last Check']
+      case 'currency-swaps':
+        return ['User', 'From', 'To', 'Amount', 'Rate', 'Status', 'Date']
+      case 'bitcoin-transactions':
+        return ['User', 'Type', 'Amount', 'Address', 'Status', 'Confirmations', 'Date']
+      case 'loans':
+        return ['User', 'Type', 'Amount', 'Rate', 'Status', 'Purpose', 'Actions']
+      case 'bills':
+        return ['User', 'Type', 'Amount', 'Due Date', 'Status', 'Description']
+      case 'investments':
+        return ['User', 'Type', 'Amount', 'Return Rate', 'Status', 'Date']
+      case 'security-logs':
+        return ['User', 'Event Type', 'Description', 'IP Address', 'Timestamp']
+      default:
+        return []
+    }
+  }
 
-  if (isLoading) {
-    return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4">Loading admin data...</p>
-          </div>
-        </div>
-      </AdminLayout>
-    )
+  const renderTableRow = (item: TableItem) => {
+    switch (activeTab) {
+      case 'users':
+        const userItem = item as User
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {userItem.first_name} {userItem.last_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {userItem.email}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatCurrency(Number(userItem.balance) || 0)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(userItem.is_active ? 'active' : 'inactive')}`}>
+                {userItem.is_active ? 'Active' : 'Inactive'}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              <button
+                onClick={() => handleDeleteUser(userItem.id)}
+                className="text-red-400 hover:text-red-300 flex items-center"
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Delete
+              </button>
+            </td>
+          </>
+        )
+      case 'transactions':
+        const transactionItem = item as Transaction
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {transactionItem.user_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {transactionItem.transaction_type}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatCurrency(transactionItem.amount)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(transactionItem.status)}`}>
+                {transactionItem.status}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatDate(transactionItem.created_at)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              <select
+                value={transactionItem.status}
+                onChange={(e) => handleUpdateTransactionStatus(transactionItem.id, e.target.value)}
+                className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
+              >
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </td>
+          </>
+        )
+      case 'cards':
+        const cardItem = item as VirtualCard
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {cardItem.user_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {cardItem.card_number_display}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {cardItem.card_type}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(cardItem.status)}`}>
+                {cardItem.status}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatCurrency(cardItem.daily_limit)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              <button
+                onClick={() => handleDeleteCard(cardItem.id)}
+                className="text-red-400 hover:text-red-300 flex items-center"
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Delete
+              </button>
+            </td>
+          </>
+        )
+      case 'applications':
+        const applicationItem = item as CardApplication
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {applicationItem.user_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {applicationItem.card_type}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(applicationItem.status)}`}>
+                {applicationItem.status}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatDate(applicationItem.created_at)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              <select
+                value={applicationItem.status}
+                onChange={(e) => handleUpdateCardApplicationStatus(applicationItem.id, e.target.value)}
+                className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
+              >
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="completed">Completed</option>
+              </select>
+            </td>
+          </>
+        )
+      case 'notifications':
+        const notificationItem = item as UserNotification
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {notificationItem.user_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {notificationItem.notification_type}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {notificationItem.title}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(notificationItem.priority)}`}>
+                {notificationItem.priority}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(notificationItem.is_read ? 'read' : 'unread')}`}>
+                {notificationItem.is_read ? 'Read' : 'Unread'}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatDate(notificationItem.created_at)}
+            </td>
+          </>
+        )
+      case 'system-status':
+        const systemStatusItem = item as SystemStatus
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {systemStatusItem.component}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(systemStatusItem.status)}`}>
+                {systemStatusItem.status}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {systemStatusItem.response_time}ms
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {systemStatusItem.uptime_percentage}%
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatDate(systemStatusItem.last_check)}
+            </td>
+          </>
+        )
+      case 'currency-swaps':
+        const currencySwapItem = item as CurrencySwap
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {currencySwapItem.user_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {currencySwapItem.currency_from}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {currencySwapItem.currency_to}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatCurrency(Number(currencySwapItem.amount_from))}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {currencySwapItem.exchange_rate}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(currencySwapItem.status)}`}>
+                {currencySwapItem.status}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatDate(currencySwapItem.created_at)}
+            </td>
+          </>
+        )
+      case 'bitcoin-transactions':
+        const bitcoinTransactionItem = item as BitcoinTransaction
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {bitcoinTransactionItem.user_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {bitcoinTransactionItem.transaction_type}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {bitcoinTransactionItem.amount} BTC
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {bitcoinTransactionItem.bitcoin_address.slice(0, 8)}...
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(bitcoinTransactionItem.status)}`}>
+                {bitcoinTransactionItem.status}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {bitcoinTransactionItem.confirmations}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatDate(bitcoinTransactionItem.created_at)}
+            </td>
+          </>
+        )
+      case 'loans':
+        const loanItem = item as Loan
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {loanItem.user_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {loanItem.loan_type}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatCurrency(loanItem.amount)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {loanItem.interest_rate}%
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(loanItem.status)}`}>
+                {loanItem.status}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {loanItem.purpose}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              <select
+                value={loanItem.status}
+                onChange={(e) => handleUpdateLoanStatus(loanItem.id, e.target.value)}
+                className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
+              >
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+            </td>
+          </>
+        )
+      case 'bills':
+        const billItem = item as Bill
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {billItem.user_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {billItem.bill_type}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatCurrency(billItem.amount)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatDate(billItem.due_date)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(billItem.status)}`}>
+                {billItem.status}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {billItem.description}
+            </td>
+          </>
+        )
+      case 'investments':
+        const investmentItem = item as Investment
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {investmentItem.user_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {investmentItem.investment_type}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatCurrency(investmentItem.amount || investmentItem.amount_invested)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {investmentItem.return_rate}%
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(investmentItem.status)}`}>
+                {investmentItem.status}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatDate(investmentItem.created_at)}
+            </td>
+          </>
+        )
+      case 'security-logs':
+        const securityLogItem = item as SecurityAuditLog
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {securityLogItem.user_name}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {securityLogItem.event_type}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {securityLogItem.description}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {securityLogItem.ip_address}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatDate(securityLogItem.timestamp)}
+            </td>
+          </>
+        )
+      default:
+        return null
+    }
   }
 
   return (
-    <AdminLayout>
-      <div className="space-y-6 bg-gray-900 min-h-screen p-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
-          <div className="flex items-center gap-3">
-            <Button onClick={loadAllData} variant="outline" className="flex items-center gap-2 bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
-              <RefreshCw className="w-4 h-4" />
-              Refresh Data
-            </Button>
-            {/* <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2 bg-gray-800 text-white border-gray-600 hover:bg-gray-700">
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button> */}
+    <div className="min-h-screen bg-gray-900">
+      {/* Header */}
+      <div className="bg-gray-800 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <h1 className="text-2xl font-bold text-white">PrimeTrust Admin</h1>
+            <div className="flex items-center space-x-4">
+              <span className="text-gray-300">Welcome, {user?.first_name || 'Admin'}</span>
+              <button
+                onClick={() => {
+                  localStorage.clear()
+                  window.location.href = '/admin/login'
+                }}
+                className="text-red-400 hover:text-red-300"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        {message && (
-          <div className={`p-4 rounded-lg ${message.includes('Failed') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-            {message}
+      {/* Navigation Tabs */}
+      <div className="bg-gray-800 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-8 overflow-x-auto">
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-400'
+                      : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {error && (
+          <div className="mb-4 bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded">
+            {error}
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="transactions" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Transactions
-            </TabsTrigger>
-            <TabsTrigger value="cards" className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              Cards
-            </TabsTrigger>
-            <TabsTrigger value="applications" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Applications
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              Notifications
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Dashboard Tab */}
-          <TabsContent value="dashboard" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{users.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {users.filter(u => u.is_active).length} active
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{transactions.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {transactions.filter(t => t.status === 'pending').length} pending
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Cards</CardTitle>
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{cards.filter(c => c.status === 'active').length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {cards.length} total cards
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Applications</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{applications.filter(a => a.status === 'pending').length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {applications.length} total applications
-                  </p>
-                </CardContent>
-              </Card>
+        {/* Dashboard Tab */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-white">Admin Dashboard</h2>
+              <button
+                onClick={loadData}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 py-2 rounded"
+              >
+                {loading ? 'Loading...' : 'Refresh Data'}
+              </button>
             </div>
 
-            {/* Balance Management */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5" />
-                  Balance Management
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* User Selection */}
-                  <div>
-                    <Label>Select User</Label>
-                    <Select onValueChange={(value) => {
-                      const user = users.find(u => u.id.toString() === value)
-                      setSelectedUser(user || null)
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a user" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {users.map((user) => (
-                          <SelectItem key={user.id} value={user.id.toString()}>
-                            {user.first_name} {user.last_name} ({user.email})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            {dashboardData && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-gray-800 p-6 rounded-lg">
+                  <div className="flex items-center">
+                    <Users className="w-8 h-8 text-blue-400" />
+                    <div className="ml-4">
+                      <p className="text-gray-400 text-sm">Total Users</p>
+                      <p className="text-2xl font-bold text-white">{dashboardData.users?.total || 0}</p>
+                      <p className="text-gray-400 text-sm">{dashboardData.users?.active || 0} active</p>
+                    </div>
                   </div>
+                </div>
 
-                  {/* USD Balance */}
-                  <div className="space-y-2">
-                    <Label>USD Balance</Label>
-                    <div className="flex gap-2">
-                      <Input
+                <div className="bg-gray-800 p-6 rounded-lg">
+                  <div className="flex items-center">
+                    <FileText className="w-8 h-8 text-green-400" />
+                    <div className="ml-4">
+                      <p className="text-gray-400 text-sm">Total Transactions</p>
+                      <p className="text-2xl font-bold text-white">{dashboardData.transactions?.total || 0}</p>
+                      <p className="text-gray-400 text-sm">{dashboardData.transactions?.pending || 0} pending</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-800 p-6 rounded-lg">
+                  <div className="flex items-center">
+                    <CreditCard className="w-8 h-8 text-purple-400" />
+                    <div className="ml-4">
+                      <p className="text-gray-400 text-sm">Active Cards</p>
+                      <p className="text-2xl font-bold text-white">{dashboardData.cards?.active || 0}</p>
+                      <p className="text-gray-400 text-sm">{dashboardData.cards?.total || 0} total cards</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-800 p-6 rounded-lg">
+                  <div className="flex items-center">
+                    <TrendingUp className="w-8 h-8 text-yellow-400" />
+                    <div className="ml-4">
+                      <p className="text-gray-400 text-sm">Pending Applications</p>
+                      <p className="text-2xl font-bold text-white">{dashboardData.applications?.pending || 0}</p>
+                      <p className="text-gray-400 text-sm">{dashboardData.applications?.total || 0} total applications</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Balance Management */}
+            <div className="bg-gray-800 p-6 rounded-lg">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <DollarSign className="w-5 h-5 mr-2" />
+                Balance Management
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Select User</label>
+                  <select
+                    value={selectedUser || ''}
+                    onChange={(e) => setSelectedUser(Number(e.target.value) || null)}
+                    className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2"
+                  >
+                    <option value="">Choose a user</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.first_name} {user.last_name} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">USD Balance</label>
+                    <div className="flex">
+                      <input
                         type="number"
-                        step="0.01"
-                        value={usdAmount}
-                        onChange={(e) => setUsdAmount(e.target.value)}
+                        value={balanceAmount}
+                        onChange={(e) => setBalanceAmount(e.target.value)}
                         placeholder="Enter amount"
+                        className="flex-1 bg-gray-700 border border-gray-600 text-white rounded-l px-3 py-2"
                       />
-                      <Button onClick={updateUsdBalance} disabled={!selectedUser || !usdAmount}>
+                      <button
+                        onClick={handleUpdateBalance}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r"
+                      >
                         Update
-                      </Button>
+                      </button>
                     </div>
                   </div>
 
-                  {/* Bitcoin Balance */}
-                  <div className="space-y-2">
-                    <Label>Bitcoin Balance</Label>
-                    <div className="flex gap-2">
-                      <Select value={bitcoinAction} onValueChange={(value: 'set' | 'add' | 'subtract') => setBitcoinAction(value)}>
-                        <SelectTrigger className="w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="set">Set</SelectItem>
-                          <SelectItem value="add">Add</SelectItem>
-                          <SelectItem value="subtract">Sub</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Bitcoin Balance</label>
+                    <div className="flex">
+                      <input
                         type="number"
-                        step="0.00000001"
                         value={bitcoinAmount}
                         onChange={(e) => setBitcoinAmount(e.target.value)}
                         placeholder="BTC amount"
+                        className="flex-1 bg-gray-700 border border-gray-600 text-white rounded-l px-3 py-2"
                       />
-                      <Button onClick={updateBitcoinBalance} disabled={!selectedUser || !bitcoinAmount}>
+                      <button
+                        onClick={handleUpdateBitcoinBalance}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r"
+                      >
                         Update
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
+            </div>
+          </div>
+        )}
 
-          {/* Users Tab */}
-          <TabsContent value="users" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">User Management</h2>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search users..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
-                  />
-                </div>
+        {/* Other Tabs */}
+        {activeTab !== 'dashboard' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-white capitalize">
+                {tabs.find(tab => tab.id === activeTab)?.label}
+              </h2>
+              <div className="flex space-x-4">
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-gray-700 border border-gray-600 text-white rounded px-3 py-2"
+                />
+                <button
+                  onClick={loadData}
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 py-2 rounded"
+                >
+                  {loading ? 'Loading...' : 'Refresh'}
+                </button>
               </div>
             </div>
 
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">USD Balance</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BTC Balance</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10">
-                                <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                  <span className="text-sm font-medium text-gray-700">
-                                    {user.first_name?.[0]}{user.last_name?.[0]}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {user.first_name} {user.last_name}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.email}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge className={user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                              {user.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${(Number(user.balance) || 0).toFixed(2)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {(Number(user.bitcoin_balance) || 0).toFixed(8)} BTC
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(user.date_joined)}
-                          </td>
-                        </tr>
+            {/* Data Tables */}
+            <div className="bg-gray-800 rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-gray-700">
+                    <tr>
+                      {renderTableHeaders().map((header, index) => (
+                        <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                          {header}
+                        </th>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Transactions Tab */}
-          <TabsContent value="transactions" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Transaction Management</h2>
-              <div className="flex items-center gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32 bg-gray-800 text-white border-gray-600 hover:border-gray-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search transactions..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
-                  />
-                </div>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-gray-800 divide-y divide-gray-700">
+                    {filteredData().map((item: TableItem) => (
+                      <tr key={item.id} className="hover:bg-gray-700">
+                        {renderTableRow(item)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredTransactions.map((transaction) => (
-                        <tr key={transaction.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{transaction.description}</div>
-                            <div className="text-sm text-gray-500">#{transaction.id}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {transaction.user_name}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${transaction.amount?.toFixed(2)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {transaction.transaction_type}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge className={getStatusColor(transaction.status || '')}>
-                              {getStatusIcon(transaction.status || '')}
-                              <span className="ml-1">{transaction.status}</span>
-                            </Badge>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(transaction.created_at)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <Select onValueChange={(status) => updateTransactionStatus(transaction.id, status)}>
-                              <SelectTrigger className="w-32">
-                                <SelectValue placeholder="Update" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="completed">Completed</SelectItem>
-                                <SelectItem value="failed">Failed</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Cards Tab */}
-          <TabsContent value="cards" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Virtual Card Management</h2>
-              <div className="flex items-center gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32 bg-gray-800 text-white border-gray-600 hover:border-gray-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="frozen">Frozen</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                    <SelectItem value="expired">Expired</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search cards..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Card</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredCards.map((card) => (
-                        <tr key={card.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">**** **** **** {card.card_number?.slice(-4)}</div>
-                            <div className="text-sm text-gray-500">{card.card_type}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {card.user_name}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {card.card_type}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge className={getStatusColor(card.status || '')}>
-                              {getStatusIcon(card.status || '')}
-                              <span className="ml-1">{card.status}</span>
-                            </Badge>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {card.expiry_month}/{card.expiry_year}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(card.created_at)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => deleteCard(card.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Applications Tab */}
-          <TabsContent value="applications" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Card Application Management</h2>
-              <div className="flex items-center gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32 bg-gray-800 text-white border-gray-600 hover:border-gray-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="processing">Processing</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search applications..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Application</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Card Type</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applied</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredApplications.map((application) => (
-                        <tr key={application.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">#{application.id}</div>
-                            <div className="text-sm text-gray-500">{application.reason}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {application.user_name}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {application.card_type}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge className={getStatusColor(application.status || '')}>
-                              {getStatusIcon(application.status || '')}
-                              <span className="ml-1">{application.status}</span>
-                            </Badge>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(application.created_at)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <Select onValueChange={(status) => updateCardApplicationStatus(application.id, status)}>
-                              <SelectTrigger className="w-32">
-                                <SelectValue placeholder="Update" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="approved">Approved</SelectItem>
-                                <SelectItem value="rejected">Rejected</SelectItem>
-                                <SelectItem value="processing">Processing</SelectItem>
-                                <SelectItem value="completed">Completed</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Notification Management</h2>
-              <div className="flex items-center gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="read">Read</SelectItem>
-                    <SelectItem value="unread">Unread</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search notifications..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notification</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredNotifications.map((notification) => (
-                        <tr key={notification.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
-                            <div className="text-sm font-medium text-gray-900">{notification.title}</div>
-                            <div className="text-sm text-gray-500">{notification.message}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {notification.user_name}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {notification.notification_type}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge className={notification.is_read ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                              {notification.is_read ? 'Read' : 'Unread'}
-                            </Badge>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(notification.created_at)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
-    </AdminLayout>
+    </div>
   )
 }

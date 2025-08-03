@@ -24,7 +24,7 @@ class Loan(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='loans')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='loan_app_loans')
     loan_type = models.CharField(max_length=20, choices=LOAN_TYPES)
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     interest_rate = models.DecimalField(max_digits=5, decimal_places=2)  # Annual percentage rate
@@ -51,7 +51,7 @@ class Loan(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'loans'
+        db_table = 'loan_app_loans'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user', 'status']),
@@ -134,7 +134,7 @@ class LoanApplication(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='loan_applications')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='loan_app_applications')
     loan_type = models.CharField(max_length=20, choices=Loan.LOAN_TYPES)
     requested_amount = models.DecimalField(max_digits=15, decimal_places=2)
     purpose = models.TextField()
@@ -154,7 +154,7 @@ class LoanApplication(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'loan_applications'
+        db_table = 'loan_app_applications'
         ordering = ['-created_at']
     
     def __str__(self):

@@ -4,16 +4,17 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Sum, Count
 from django.utils import timezone
-
-from accounts.models import User
-from accounts.serializers import UserSerializer
-from transactions.models import Transaction
-from transactions.serializers import TransactionSerializer
-from banking.models import Transfer, VirtualCard, CardApplication
-from banking.serializers import VirtualCardSerializer, CardApplicationSerializer
-from loans.models import Loan
-from api.models import Notification
-from api.serializers import NotificationSerializer
+from django.contrib.auth import get_user_model
+from accounts.models import User, SecurityAuditLog
+from transactions.models import Transaction, Loan, Bill, Investment, CurrencySwap, BitcoinTransaction
+from banking.models import VirtualCard, CardApplication, Transfer
+from api.models import Notification, SystemStatus, MarketData
+from .serializers import (
+    UserSerializer, TransactionSerializer, VirtualCardSerializer,
+    CardApplicationSerializer, NotificationSerializer, SystemStatusSerializer,
+    LoanSerializer, BillSerializer, InvestmentSerializer, CurrencySwapSerializer,
+    BitcoinTransactionSerializer, SecurityAuditLogSerializer
+)
 
 
 class AdminAuthView(APIView):
@@ -369,3 +370,183 @@ class AdminDashboardView(APIView):
         }
         
         return Response(dashboard_data, status=status.HTTP_200_OK) 
+
+
+class AdminUserDeleteView(APIView):
+    """Delete a user."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def delete(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id)
+            user.delete()
+            return Response({'message': 'User deleted successfully'}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminSystemStatusView(APIView):
+    """Get system status information."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def get(self, request):
+        try:
+            # Get or create system status entries for each component
+            components = ['api', 'database', 'redis', 'celery', 'email', 'payment', 'market_data']
+            status_data = []
+            
+            for component in components:
+                status_obj, created = SystemStatus.objects.get_or_create(
+                    component=component,
+                    defaults={
+                        'status': 'operational',
+                        'message': f'{component.title()} is operational',
+                        'response_time': 100.0,
+                        'uptime_percentage': 99.9,
+                        'error_count': 0,
+                        'request_count': 1000
+                    }
+                )
+                
+                # Simulate health checks (in production, these would be real checks)
+                if component == 'database':
+                    try:
+                        from django.db import connection
+                        with connection.cursor() as cursor:
+                            cursor.execute("SELECT 1")
+                        status_obj.status = 'operational'
+                        status_obj.response_time = 50.0
+                    except Exception as e:
+                        status_obj.status = 'major_outage'
+                        status_obj.message = f'Database connection failed: {str(e)}'
+                
+                elif component == 'redis':
+                    try:
+                        from django.core.cache import cache
+                        cache.set('health_check', 'ok', 1)
+                        cache.get('health_check')
+                        status_obj.status = 'operational'
+                        status_obj.response_time = 10.0
+                    except Exception as e:
+                        status_obj.status = 'partial_outage'
+                        status_obj.message = f'Redis connection failed: {str(e)}'
+                
+                status_obj.save()
+                status_data.append(SystemStatusSerializer(status_obj).data)
+            
+            # Calculate overall system status
+            overall_status = 'operational'
+            for component in status_data:
+                if component['status'] == 'major_outage':
+                    overall_status = 'major_outage'
+                    break
+                elif component['status'] == 'partial_outage' and overall_status == 'operational':
+                    overall_status = 'partial_outage'
+                elif component['status'] == 'degraded' and overall_status == 'operational':
+                    overall_status = 'degraded'
+            
+            return Response({
+                'overall_status': overall_status,
+                'components': status_data,
+                'last_updated': timezone.now()
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminCurrencySwapListView(generics.ListAPIView):
+    """List all currency swaps."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = CurrencySwapSerializer
+    
+    def get_queryset(self):
+        return CurrencySwap.objects.all().order_by('-created_at')
+
+
+class AdminBitcoinTransactionListView(generics.ListAPIView):
+    """List all Bitcoin transactions."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = BitcoinTransactionSerializer
+    
+    def get_queryset(self):
+        return BitcoinTransaction.objects.all().order_by('-created_at')
+
+
+class AdminLoanListView(generics.ListAPIView):
+    """List all loans."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = LoanSerializer
+    
+    def get_queryset(self):
+        return Loan.objects.all().order_by('-created_at')
+
+
+class AdminLoanApplicationListView(generics.ListAPIView):
+    """List all loan applications."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = LoanSerializer
+    
+    def get_queryset(self):
+        return Loan.objects.filter(status='pending').order_by('-created_at')
+
+
+class AdminLoanStatusView(APIView):
+    """Update loan application status."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def patch(self, request, loan_id):
+        try:
+            loan = Loan.objects.get(id=loan_id)
+            new_status = request.data.get('status')
+            
+            if new_status in ['approved', 'rejected', 'active', 'completed']:
+                loan.status = new_status
+                if new_status == 'approved':
+                    loan.approved_at = timezone.now()
+                loan.save()
+                return Response({'message': 'Loan status updated successfully'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
+        except Loan.DoesNotExist:
+            return Response({'error': 'Loan not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AdminBillListView(generics.ListAPIView):
+    """List all bills."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = BillSerializer
+    
+    def get_queryset(self):
+        return Bill.objects.all().order_by('-created_at')
+
+
+class AdminInvestmentListView(generics.ListAPIView):
+    """List all investments."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = InvestmentSerializer
+    
+    def get_queryset(self):
+        return Investment.objects.all().order_by('-created_at')
+
+
+class AdminSecurityAuditLogListView(generics.ListAPIView):
+    """List all security audit logs."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = SecurityAuditLogSerializer
+    
+    def get_queryset(self):
+        return SecurityAuditLog.objects.all().order_by('-timestamp') 
