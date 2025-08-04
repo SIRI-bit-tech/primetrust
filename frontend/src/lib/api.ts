@@ -345,7 +345,7 @@ export const locationAPI = {
 export const loansAPI = {
   getLoans: async (): Promise<Loan[]> => {
     const response = await api.get('/loans/')
-    return response.data
+    return response.data?.results || response.data || []
   },
 
   getLoan: async (id: number): Promise<Loan> => {
@@ -368,7 +368,7 @@ export const loansAPI = {
 export const investmentsAPI = {
   getInvestments: async (): Promise<Investment[]> => {
     const response = await api.get('/investments/')
-    return response.data
+    return response.data?.results || response.data || []
   },
 
   getInvestment: async (id: number): Promise<Investment> => {
