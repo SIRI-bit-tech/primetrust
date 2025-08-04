@@ -90,7 +90,12 @@ export default function LoansPage() {
   const onSubmit = async (data: LoanApplicationForm) => {
     try {
       setApplying(true)
-      await loansAPI.applyForLoan(data)
+      // Convert empty string credit score to undefined
+      const formData = {
+        ...data,
+        credit_score: data.credit_score || undefined
+      }
+      await loansAPI.applyForLoan(formData)
       setShowApplicationForm(false)
       reset()
       fetchLoans()
