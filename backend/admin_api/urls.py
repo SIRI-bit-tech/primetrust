@@ -17,6 +17,7 @@ urlpatterns = [
     path('cards/<int:card_id>/delete/', views.AdminVirtualCardDeleteView.as_view(), name='admin-card-delete'),
     path('applications/', views.AdminCardApplicationListView.as_view(), name='admin-applications'),
     path('applications/<int:application_id>/status/', views.AdminCardApplicationStatusView.as_view(), name='admin-application-status'),
+    path('applications/<int:application_id>/complete/', views.AdminCardApplicationCompleteView.as_view(), name='admin-application-complete'),
     path('notifications/', views.AdminNotificationListView.as_view(), name='admin-notifications'),
     
     # New endpoints

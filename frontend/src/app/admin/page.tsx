@@ -223,6 +223,19 @@ export default function AdminPage() {
     }
   }
 
+  const handleCompleteCardApplication = async (applicationId: number) => {
+    try {
+      const result = await adminAPI.completeCardApplication(applicationId)
+      setError('') // Clear any previous errors
+      // Show success message
+      alert(`Application completed! Card ${result.card_number} generated successfully.`)
+      loadData() // Reload data
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to complete application')
+    }
+  }
+
   const handleUpdateLoanStatus = async (loanId: number, status: string) => {
     try {
       await adminAPI.updateLoanStatus(loanId, status)
@@ -468,17 +481,27 @@ export default function AdminPage() {
               {formatDate(applicationItem.created_at)}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              <select
-                value={applicationItem.status}
-                onChange={(e) => handleUpdateCardApplicationStatus(applicationItem.id, e.target.value)}
-                className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
-              >
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-                <option value="completed">Completed</option>
-              </select>
+              <div className="flex flex-col gap-2">
+                <select
+                  value={applicationItem.status}
+                  onChange={(e) => handleUpdateCardApplicationStatus(applicationItem.id, e.target.value)}
+                  className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="processing">Processing</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="completed">Completed</option>
+                </select>
+                {applicationItem.status === 'processing' && (
+                  <button
+                    onClick={() => handleCompleteCardApplication(applicationItem.id)}
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded"
+                  >
+                    Complete & Generate Card
+                  </button>
+                )}
+              </div>
             </td>
           </>
         )

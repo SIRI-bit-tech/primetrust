@@ -276,6 +276,46 @@ class AdminCardApplicationStatusView(APIView):
         return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class AdminCardApplicationCompleteView(APIView):
+    """Complete application and generate card (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, application_id):
+        application = get_object_or_404(CardApplication, pk=application_id)
+        
+        if application.status != 'processing':
+            return Response({
+                'error': 'Application must be in processing status to complete'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Create the virtual card
+            card = VirtualCard.objects.create(
+                user=application.user,
+                application=application,
+                card_type=application.card_type,
+                daily_limit=application.preferred_daily_limit or 1000.00,
+                monthly_limit=application.preferred_monthly_limit or 10000.00
+            )
+            
+            # Mark application as completed
+            notes = f"Card {card.card_number} generated successfully"
+            application.complete(request.user, notes)
+            
+            return Response({
+                'message': 'Application completed and card generated successfully',
+                'card_id': card.id,
+                'card_number': card.mask_card_number(),
+                'status': application.status
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error creating card: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class AdminNotificationListView(generics.ListAPIView):
     """List all notifications (admin only)."""
     

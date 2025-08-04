@@ -256,6 +256,11 @@ export const adminAPI = {
     return response.data
   },
 
+  completeCardApplication: async (applicationId: number): Promise<{ message: string; card_id: number; card_number: string; status: string }> => {
+    const response = await api.post(`/admin/applications/${applicationId}/complete/`)
+    return response.data
+  },
+
   getAllNotifications: async (): Promise<UserNotification[]> => {
     const response = await api.get('/admin/notifications/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
