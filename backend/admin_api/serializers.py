@@ -161,5 +161,5 @@ class SecurityAuditLogSerializer(serializers.ModelSerializer):
         model = SecurityAuditLog
         fields = [
             'id', 'user', 'user_name', 'event_type', 'description',
-            'ip_address', 'user_agent', 'timestamp'
+            'ip_address', 'user_agent', 'created_at'
         ] 

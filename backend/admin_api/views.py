@@ -549,4 +549,4 @@ class AdminSecurityAuditLogListView(generics.ListAPIView):
     serializer_class = SecurityAuditLogSerializer
     
     def get_queryset(self):
-        return SecurityAuditLog.objects.all().order_by('-timestamp') 
+        return SecurityAuditLog.objects.all().order_by('-created_at') 

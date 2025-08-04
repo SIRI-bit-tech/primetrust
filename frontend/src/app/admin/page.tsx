@@ -280,10 +280,12 @@ export default function AdminPage() {
       loans,
       bills,
       investments,
-      securityLogs
+      'security-logs': securityLogs
     }
     
     const data = dataMap[activeTab] || []
+    
+
     
     if (!searchTerm) return data
     
@@ -697,7 +699,7 @@ export default function AdminPage() {
               {securityLogItem.ip_address}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {formatDate(securityLogItem.timestamp)}
+              {formatDate(securityLogItem.created_at)}
             </td>
           </>
         )
@@ -729,30 +731,35 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="bg-gray-800 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8 overflow-x-auto">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-400'
-                      : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
+             {/* Navigation Tabs */}
+       <div className="bg-gray-800 border-b border-gray-700">
+         <style jsx>{`
+           .hide-scrollbar::-webkit-scrollbar {
+             display: none;
+           }
+         `}</style>
+         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                       <div className="flex space-x-8 overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+             {tabs.map((tab) => {
+               const Icon = tab.icon
+               return (
+                 <button
+                   key={tab.id}
+                   onClick={() => setActiveTab(tab.id)}
+                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                     activeTab === tab.id
+                       ? 'border-blue-500 text-blue-400'
+                       : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                   }`}
+                 >
+                   <Icon className="w-4 h-4" />
+                   <span>{tab.label}</span>
+                 </button>
+               )
+             })}
+           </div>
+         </div>
+       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -824,71 +831,69 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* Balance Management */}
-            <div className="bg-gray-800 p-6 rounded-lg">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                <DollarSign className="w-5 h-5 mr-2" />
-                Balance Management
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Select User</label>
-                  <select
-                    value={selectedUser || ''}
-                    onChange={(e) => setSelectedUser(Number(e.target.value) || null)}
-                    className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2"
-                  >
-                    <option value="">Choose a user</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.first_name} {user.last_name} ({user.email})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                         {/* Balance Management */}
+             <div className="bg-gray-800 p-6 rounded-lg">
+               <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                 <DollarSign className="w-5 h-5 mr-2" />
+                 Balance Management
+               </h3>
+               
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                 <div>
+                   <label className="block text-sm font-medium text-gray-300 mb-2">Select User</label>
+                   <select
+                     value={selectedUser || ''}
+                     onChange={(e) => setSelectedUser(Number(e.target.value) || null)}
+                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2"
+                   >
+                     <option value="">Choose a user</option>
+                     {users.map((user) => (
+                       <option key={user.id} value={user.id}>
+                         {user.first_name} {user.last_name} ({user.email})
+                       </option>
+                     ))}
+                   </select>
+                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">USD Balance</label>
-                    <div className="flex">
-                      <input
-                        type="number"
-                        value={balanceAmount}
-                        onChange={(e) => setBalanceAmount(e.target.value)}
-                        placeholder="Enter amount"
-                        className="flex-1 bg-gray-700 border border-gray-600 text-white rounded-l px-3 py-2"
-                      />
-                      <button
-                        onClick={handleUpdateBalance}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r"
-                      >
-                        Update
-                      </button>
-                    </div>
-                  </div>
+                 <div>
+                   <label className="block text-sm font-medium text-gray-300 mb-2">USD Balance</label>
+                   <div className="flex">
+                     <input
+                       type="number"
+                       value={balanceAmount}
+                       onChange={(e) => setBalanceAmount(e.target.value)}
+                       placeholder="Enter amount"
+                       className="flex-1 bg-gray-700 border border-gray-600 text-white rounded-l px-3 py-2"
+                     />
+                     <button
+                       onClick={handleUpdateBalance}
+                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r"
+                     >
+                       Update
+                     </button>
+                   </div>
+                 </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Bitcoin Balance</label>
-                    <div className="flex">
-                      <input
-                        type="number"
-                        value={bitcoinAmount}
-                        onChange={(e) => setBitcoinAmount(e.target.value)}
-                        placeholder="BTC amount"
-                        className="flex-1 bg-gray-700 border border-gray-600 text-white rounded-l px-3 py-2"
-                      />
-                      <button
-                        onClick={handleUpdateBitcoinBalance}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r"
-                      >
-                        Update
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                 <div>
+                   <label className="block text-sm font-medium text-gray-300 mb-2">Bitcoin Balance</label>
+                   <div className="flex">
+                     <input
+                       type="number"
+                       value={bitcoinAmount}
+                       onChange={(e) => setBitcoinAmount(e.target.value)}
+                       placeholder="BTC amount"
+                       className="flex-1 bg-gray-700 border border-gray-600 text-white rounded-l px-3 py-2"
+                     />
+                     <button
+                       onClick={handleUpdateBitcoinBalance}
+                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r"
+                     >
+                       Update
+                     </button>
+                   </div>
+                 </div>
+               </div>
+             </div>
           </div>
         )}
 
@@ -931,11 +936,11 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-gray-800 divide-y divide-gray-700">
-                    {filteredData().map((item: TableItem) => (
-                      <tr key={item.id} className="hover:bg-gray-700">
-                        {renderTableRow(item)}
-                      </tr>
-                    ))}
+                                         {filteredData().map((item: TableItem) => (
+                       <tr key={item.id} className="hover:bg-gray-700">
+                         {renderTableRow(item)}
+                       </tr>
+                     ))}
                   </tbody>
                 </table>
               </div>

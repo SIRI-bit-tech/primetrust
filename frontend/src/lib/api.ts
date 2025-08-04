@@ -209,12 +209,12 @@ export const adminAPI = {
   },
 
   getAllUsers: async (): Promise<User[]> => {
-    const response = await api.get('/admin-api/users/')
+    const response = await api.get('/admin/users/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
   deleteUser: async (userId: number) => {
-    const response = await api.delete(`/admin-api/users/${userId}/delete/`)
+    const response = await api.delete(`/admin/users/${userId}/delete/`)
     return response.data
   },
 
@@ -247,12 +247,12 @@ export const adminAPI = {
   },
 
   getAllCardApplications: async (): Promise<CardApplication[]> => {
-    const response = await api.get('/admin/card-applications/')
+    const response = await api.get('/admin/applications/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
   updateCardApplicationStatus: async (applicationId: number, status: string): Promise<CardApplication> => {
-    const response = await api.put(`/admin/card-applications/${applicationId}/status/`, { status })
+    const response = await api.put(`/admin/applications/${applicationId}/status/`, { status })
     return response.data
   },
 
@@ -272,53 +272,53 @@ export const adminAPI = {
 
   // System status
   getSystemStatus: async () => {
-    const response = await api.get('/admin-api/system-status/')
+    const response = await api.get('/admin/system-status/')
     return response.data
   },
 
   // Currency swaps
   getAllCurrencySwaps: async () => {
-    const response = await api.get('/admin-api/currency-swaps/')
+    const response = await api.get('/admin/currency-swaps/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
   // Bitcoin transactions
   getAllBitcoinTransactions: async () => {
-    const response = await api.get('/admin-api/bitcoin-transactions/')
+    const response = await api.get('/admin/bitcoin-transactions/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
   // Loans
   getAllLoans: async () => {
-    const response = await api.get('/admin-api/loans/')
+    const response = await api.get('/admin/loans/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
   getAllLoanApplications: async () => {
-    const response = await api.get('/admin-api/loan-applications/')
+    const response = await api.get('/admin/loan-applications/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
   updateLoanStatus: async (loanId: number, status: string) => {
-    const response = await api.patch(`/admin-api/loans/${loanId}/status/`, { status })
+    const response = await api.patch(`/admin/loans/${loanId}/status/`, { status })
     return response.data
   },
 
   // Bills
   getAllBills: async () => {
-    const response = await api.get('/admin-api/bills/')
+    const response = await api.get('/admin/bills/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
   // Investments
   getAllInvestments: async () => {
-    const response = await api.get('/admin-api/investments/')
+    const response = await api.get('/admin/investments/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
   // Security audit logs
   getAllSecurityLogs: async () => {
-    const response = await api.get('/admin-api/security-logs/')
+    const response = await api.get('/admin/security-logs/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 }
