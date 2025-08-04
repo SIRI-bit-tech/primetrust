@@ -228,7 +228,7 @@ export default function AdminPage() {
       const result = await adminAPI.completeCardApplication(applicationId)
       setError('') // Clear any previous errors
       // Show success message
-      alert(`Application completed! Card ${result.card_number} generated successfully.`)
+      alert(`Application completed! Card ${result.card_number} has been issued and is ready for use.`)
       loadData() // Reload data
     } catch (err: unknown) {
       const error = err as AxiosError<{ error?: string }>
@@ -341,7 +341,7 @@ export default function AdminPage() {
       case 'transactions':
         return ['User', 'Type', 'Amount', 'Status', 'Date', 'Actions']
       case 'cards':
-        return ['User', 'Card Number', 'Type', 'Status', 'Balance', 'Actions']
+        return ['User', 'Card Number', 'Type', 'Status', 'Daily Limit', 'Actions']
       case 'applications':
         return ['User', 'Card Type', 'Status', 'Date', 'Actions']
       case 'notifications':

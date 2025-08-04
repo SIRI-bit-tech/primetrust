@@ -38,13 +38,18 @@ class VirtualCardSerializer(serializers.ModelSerializer):
     """Serializer for VirtualCard model."""
     
     user_name = serializers.CharField(source='user.username', read_only=True)
+    card_number_display = serializers.SerializerMethodField()
     
     class Meta:
         model = VirtualCard
         fields = [
-            'id', 'user', 'user_name', 'card_number', 'card_type',
-            'status', 'balance', 'created_at'
+            'id', 'user', 'user_name', 'card_number', 'card_number_display', 'card_type',
+            'status', 'daily_limit', 'monthly_limit', 'created_at'
         ]
+    
+    def get_card_number_display(self, obj):
+        """Return masked card number for display."""
+        return obj.mask_card_number()
 
 
 class CardApplicationSerializer(serializers.ModelSerializer):

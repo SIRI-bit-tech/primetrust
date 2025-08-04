@@ -69,7 +69,7 @@ class CardApplicationAdmin(admin.ModelAdmin):
                 )
                 
                 # Mark application as completed
-                notes = f"Card {card.card_number} generated successfully"
+                notes = f"Your {application.card_type} card has been issued and is ready for use"
                 application.complete(request.user, notes)
                 completed_count += 1
                 
