@@ -1,14 +1,23 @@
-from rest_framework import status, generics, permissions
-from rest_framework.response import Response
-from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from django.db.models import Q, Sum, Count
-from django.utils import timezone
+from rest_framework import status, permissions, generics
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from accounts.models import User, SecurityAuditLog
-from transactions.models import Transaction, Loan, Bill, Investment, CurrencySwap, BitcoinTransaction
+from django.utils import timezone
+from django.db.models import Sum, Count, Avg
+from django.db import connection
+import redis
+import time
+import requests
+
+from accounts.models import SecurityAuditLog
+from transactions.models import Transaction, Loan, Bill, Investment, BitcoinTransaction
 from banking.models import VirtualCard, CardApplication, Transfer
-from api.models import Notification, SystemStatus, MarketData
+from api.models import Notification, SystemStatus
+from bitcoin_wallet.models import CurrencySwap
+
+User = get_user_model()
+
 from .serializers import (
     UserSerializer, TransactionSerializer, VirtualCardSerializer,
     CardApplicationSerializer, NotificationSerializer, SystemStatusSerializer,

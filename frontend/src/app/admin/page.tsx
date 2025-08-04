@@ -288,8 +288,8 @@ export default function AdminPage() {
       cards,
       applications,
       notifications,
-      currencySwaps,
-      bitcoinTransactions,
+      'currency-swaps': currencySwaps,
+      'bitcoin-transactions': bitcoinTransactions,
       loans,
       bills,
       investments,
@@ -349,7 +349,7 @@ export default function AdminPage() {
       case 'system-status':
         return ['Component', 'Status', 'Response Time', 'Uptime', 'Last Check']
       case 'currency-swaps':
-        return ['User', 'From', 'To', 'Amount', 'Rate', 'Status', 'Date']
+        return ['User', 'Swap Type', 'Amount From', 'Amount To', 'Rate', 'Status', 'Date']
       case 'bitcoin-transactions':
         return ['User', 'Type', 'Amount', 'Address', 'Status', 'Confirmations', 'Date']
       case 'loans':
@@ -564,20 +564,26 @@ export default function AdminPage() {
               {currencySwapItem.user_name}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {currencySwapItem.currency_from}
+              {currencySwapItem.swap_type_display || currencySwapItem.swap_type}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {currencySwapItem.currency_to}
+              {currencySwapItem.swap_type === 'usd_to_btc' 
+                ? `$${Number(currencySwapItem.amount_from).toFixed(2)}`
+                : `${Number(currencySwapItem.amount_from).toFixed(8)} BTC`
+              }
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {formatCurrency(Number(currencySwapItem.amount_from))}
+              {currencySwapItem.swap_type === 'usd_to_btc'
+                ? `${Number(currencySwapItem.amount_to).toFixed(8)} BTC`
+                : `$${Number(currencySwapItem.amount_to).toFixed(2)}`
+              }
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {currencySwapItem.exchange_rate}
+              ${Number(currencySwapItem.exchange_rate).toFixed(2)}
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(currencySwapItem.status)}`}>
-                {currencySwapItem.status}
+                {currencySwapItem.status_display || currencySwapItem.status}
               </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">

@@ -1,9 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from accounts.models import SecurityAuditLog
-from transactions.models import Transaction, Loan, Bill, Investment, CurrencySwap, BitcoinTransaction
+from transactions.models import Transaction, Loan, Bill, Investment, BitcoinTransaction
 from banking.models import VirtualCard, CardApplication, Transfer
 from api.models import Notification, SystemStatus
+from bitcoin_wallet.models import CurrencySwap
 
 User = get_user_model()
 
@@ -134,13 +135,15 @@ class CurrencySwapSerializer(serializers.ModelSerializer):
     """Serializer for CurrencySwap model."""
     
     user_name = serializers.CharField(source='user.username', read_only=True)
+    swap_type_display = serializers.CharField(source='get_swap_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
     
     class Meta:
         model = CurrencySwap
         fields = [
-            'id', 'user', 'user_name', 'currency_from', 'currency_to',
-            'amount_from', 'amount_to', 'exchange_rate', 'status',
-            'created_at'
+            'id', 'user', 'user_name', 'swap_type', 'swap_type_display',
+            'amount_from', 'amount_to', 'exchange_rate', 'status', 'status_display',
+            'created_at', 'completed_at', 'transaction_id'
         ]
 
 
