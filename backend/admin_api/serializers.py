@@ -56,7 +56,7 @@ class CardApplicationSerializer(serializers.ModelSerializer):
         model = CardApplication
         fields = [
             'id', 'user', 'user_name', 'card_type', 'status',
-            'created_at', 'approved_at'
+            'created_at', 'processed_at'
         ]
 
 

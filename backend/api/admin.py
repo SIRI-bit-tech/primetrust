@@ -23,10 +23,19 @@ class MarketDataAdmin(admin.ModelAdmin):
 
 @admin.register(SystemStatus)
 class SystemStatusAdmin(admin.ModelAdmin):
-    list_display = ('component', 'status', 'response_time', 'last_check')
+    list_display = ('component', 'status', 'response_time', 'uptime_percentage', 'last_check')
     list_filter = ('status', 'component', 'last_check')
     search_fields = ('component',)
-    readonly_fields = ('last_check',)
+    readonly_fields = ('last_check', 'created_at', 'uptime_percentage', 'error_count', 'request_count')
+    list_editable = ('status',)  # Allow manual status override if needed
+    
+    def has_add_permission(self, request):
+        """Disable manual creation - data is managed automatically."""
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """Disable deletion - data is managed automatically."""
+        return False
 
 
 @admin.register(SupportTicket)
