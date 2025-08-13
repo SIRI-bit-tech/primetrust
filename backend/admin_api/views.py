@@ -93,8 +93,8 @@ class AdminUserBalanceView(APIView):
     
     permission_classes = [permissions.IsAdminUser]
     
-    def put(self, request, pk):
-        user = get_object_or_404(User, pk=pk)
+    def put(self, request, user_id):  # Changed from 'pk' to 'user_id'
+        user = get_object_or_404(User, pk=user_id)
         balance = request.data.get('balance')
         
         if balance is not None:
@@ -117,8 +117,8 @@ class AdminUserBitcoinBalanceView(APIView):
     
     permission_classes = [permissions.IsAdminUser]
     
-    def put(self, request, pk):
-        user = get_object_or_404(User, pk=pk)
+    def put(self, request, user_id):  # Changed from 'pk' to 'user_id'
+        user = get_object_or_404(User, pk=user_id)
         bitcoin_balance = request.data.get('bitcoin_balance')
         action = request.data.get('action', 'set')  # 'set', 'add', 'subtract'
         

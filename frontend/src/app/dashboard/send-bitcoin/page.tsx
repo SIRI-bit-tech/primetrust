@@ -349,7 +349,3 @@ export default function SendBitcoinPage() {
     </DashboardLayout>
   )
 }
-      </div>
-    </DashboardLayout>
-  )
-} 
