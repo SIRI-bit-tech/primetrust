@@ -6,6 +6,8 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.db.models import Sum, Count, Avg
 from django.db import connection
+from django.db.models import Q
+from django.core.cache import cache
 import redis
 import time
 import requests
