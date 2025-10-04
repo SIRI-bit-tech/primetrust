@@ -1,122 +1,152 @@
-'use client'
+'use client';
 
-import { useState, useRef, useEffect } from 'react'
-import { Bell, X, Check, AlertCircle, Info, Shield, DollarSign, TrendingUp } from 'lucide-react'
-import { UserNotification } from '@/types'
-import { useNotifications } from '@/hooks/useNotifications'
+import { useState, useRef, useEffect } from 'react';
+import {
+  Bell,
+  X,
+  Check,
+  AlertCircle,
+  Info,
+  Shield,
+  DollarSign,
+  TrendingUp,
+} from 'lucide-react';
+import { UserNotification } from '@/types';
+import { useNotifications } from '@/hooks/useNotifications';
+import NotificationModal from './NotificationModal';
 // Custom date formatting function to replace date-fns
 const formatDistanceToNow = (date: Date, options?: { addSuffix?: boolean }) => {
-  const now = new Date()
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-  
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
   if (diffInSeconds < 60) {
-    return options?.addSuffix ? 'just now' : 'less than a minute'
+    return options?.addSuffix ? 'just now' : 'less than a minute';
   }
-  
-  const diffInMinutes = Math.floor(diffInSeconds / 60)
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
   if (diffInMinutes < 60) {
-    return options?.addSuffix ? `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago` : `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''}`
+    return options?.addSuffix
+      ? `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`
+      : `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''}`;
   }
-  
-  const diffInHours = Math.floor(diffInMinutes / 60)
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
   if (diffInHours < 24) {
-    return options?.addSuffix ? `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago` : `${diffInHours} hour${diffInHours > 1 ? 's' : ''}`
+    return options?.addSuffix
+      ? `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`
+      : `${diffInHours} hour${diffInHours > 1 ? 's' : ''}`;
   }
-  
-  const diffInDays = Math.floor(diffInHours / 24)
+
+  const diffInDays = Math.floor(diffInHours / 24);
   if (diffInDays < 7) {
-    return options?.addSuffix ? `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago` : `${diffInDays} day${diffInDays > 1 ? 's' : ''}`
+    return options?.addSuffix
+      ? `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`
+      : `${diffInDays} day${diffInDays > 1 ? 's' : ''}`;
   }
-  
-  const diffInWeeks = Math.floor(diffInDays / 7)
+
+  const diffInWeeks = Math.floor(diffInDays / 7);
   if (diffInWeeks < 4) {
-    return options?.addSuffix ? `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''} ago` : `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''}`
+    return options?.addSuffix
+      ? `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''} ago`
+      : `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''}`;
   }
-  
-  const diffInMonths = Math.floor(diffInDays / 30)
+
+  const diffInMonths = Math.floor(diffInDays / 30);
   if (diffInMonths < 12) {
-    return options?.addSuffix ? `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago` : `${diffInMonths} month${diffInMonths > 1 ? 's' : ''}`
+    return options?.addSuffix
+      ? `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`
+      : `${diffInMonths} month${diffInMonths > 1 ? 's' : ''}`;
   }
-  
-  const diffInYears = Math.floor(diffInDays / 365)
-  return options?.addSuffix ? `${diffInYears} year${diffInYears > 1 ? 's' : ''} ago` : `${diffInYears} year${diffInYears > 1 ? 's' : ''}`
-}
+
+  const diffInYears = Math.floor(diffInDays / 365);
+  return options?.addSuffix
+    ? `${diffInYears} year${diffInYears > 1 ? 's' : ''} ago`
+    : `${diffInYears} year${diffInYears > 1 ? 's' : ''}`;
+};
 
 interface NotificationDropdownProps {
-  className?: string
+  className?: string;
 }
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
     case 'security':
-      return <Shield className="w-4 h-4 text-red-500" />
+      return <Shield className="w-4 h-4 text-red-500" />;
     case 'transaction':
-      return <DollarSign className="w-4 h-4 text-green-500" />
+      return <DollarSign className="w-4 h-4 text-green-500" />;
     case 'investment':
-      return <TrendingUp className="w-4 h-4 text-blue-500" />
+      return <TrendingUp className="w-4 h-4 text-blue-500" />;
     case 'urgent':
-      return <AlertCircle className="w-4 h-4 text-red-500" />
+      return <AlertCircle className="w-4 h-4 text-red-500" />;
     default:
-      return <Info className="w-4 h-4 text-gray-500" />
+      return <Info className="w-4 h-4 text-gray-500" />;
   }
-}
+};
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
     case 'urgent':
-      return 'border-l-red-500 bg-red-50'
+      return 'border-l-red-500 bg-red-50';
     case 'high':
-      return 'border-l-orange-500 bg-orange-50'
+      return 'border-l-orange-500 bg-orange-50';
     case 'medium':
-      return 'border-l-blue-500 bg-blue-50'
+      return 'border-l-blue-500 bg-blue-50';
     case 'low':
-      return 'border-l-gray-500 bg-gray-50'
+      return 'border-l-gray-500 bg-gray-50';
     default:
-      return 'border-l-gray-500 bg-gray-50'
+      return 'border-l-gray-500 bg-gray-50';
   }
-}
+};
 
-export default function NotificationDropdown({ className }: NotificationDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  
+export default function NotificationDropdown({
+  className,
+}: NotificationDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] =
+    useState<UserNotification | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const {
     notifications = [],
     unreadCount = 0,
     isLoading,
     markAsRead,
-    markAllAsRead
-  } = useNotifications()
+    markAllAsRead,
+  } = useNotifications();
 
   // Close dropdown when clicking outside
   const handleClickOutside = (event: MouseEvent) => {
-    if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-      setIsOpen(false)
+    if (
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target as Node)
+    ) {
+      setIsOpen(false);
     }
-  }
+  };
 
   // Add click outside listener when dropdown is open (client-side only)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (isOpen) {
-        document.addEventListener('mousedown', handleClickOutside)
+        document.addEventListener('mousedown', handleClickOutside);
       } else {
-        document.removeEventListener('mousedown', handleClickOutside)
+        document.removeEventListener('mousedown', handleClickOutside);
       }
 
       return () => {
-        document.removeEventListener('mousedown', handleClickOutside)
-      }
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   const formatTime = (dateString: string) => {
     try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true })
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
     } catch {
-      return 'Recently'
+      return 'Recently';
     }
-  }
+  };
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
@@ -138,7 +168,9 @@ export default function NotificationDropdown({ className }: NotificationDropdown
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Notifications
+            </h3>
             <div className="flex items-center space-x-2">
               {unreadCount > 0 && (
                 <button
@@ -164,7 +196,7 @@ export default function NotificationDropdown({ className }: NotificationDropdown
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-2">Loading notifications...</p>
               </div>
-            ) : (!notifications || notifications.length === 0) ? (
+            ) : !notifications || notifications.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 <Bell className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                 <p className="text-lg font-medium">No notifications</p>
@@ -172,51 +204,64 @@ export default function NotificationDropdown({ className }: NotificationDropdown
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {notifications && notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer border-l-4 ${getPriorityColor(notification.priority)} ${!notification.is_read ? 'bg-blue-50' : ''}`}
-                    onClick={() => markAsRead(notification.id)}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0 mt-0.5">
-                        {getNotificationIcon(notification.notification_type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className={`text-sm font-medium ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
-                            {notification.title}
-                          </p>
-                          {!notification.is_read && (
-                            <div className="flex-shrink-0">
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            </div>
-                          )}
+                {notifications &&
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer border-l-4 ${getPriorityColor(
+                        notification.priority
+                      )} ${!notification.is_read ? 'bg-blue-50' : ''}`}
+                      onClick={() => {
+                        setSelectedNotification(notification);
+                        setIsModalOpen(true);
+                        setIsOpen(false);
+                      }}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="flex-shrink-0 mt-0.5">
+                          {getNotificationIcon(notification.notification_type)}
                         </div>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                          {notification.message}
-                        </p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-gray-500">
-                            {formatTime(notification.created_at)}
-                          </span>
-                          {!notification.is_read && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                markAsRead(notification.id)
-                              }}
-                              className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1"
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p
+                              className={`text-sm font-medium ${
+                                !notification.is_read
+                                  ? 'text-gray-900'
+                                  : 'text-gray-700'
+                              }`}
                             >
-                              <Check className="w-3 h-3" />
-                              <span>Mark read</span>
-                            </button>
-                          )}
+                              {notification.title}
+                            </p>
+                            {!notification.is_read && (
+                              <div className="flex-shrink-0">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                            {notification.message}
+                          </p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">
+                              {formatTime(notification.created_at)}
+                            </span>
+                            {!notification.is_read && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markAsRead(notification.id);
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1"
+                              >
+                                <Check className="w-3 h-3" />
+                                <span>Mark read</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
@@ -227,7 +272,7 @@ export default function NotificationDropdown({ className }: NotificationDropdown
               <button
                 onClick={() => {
                   // Navigate to notifications page
-                  window.location.href = '/dashboard/notifications'
+                  window.location.href = '/dashboard/notifications';
                 }}
                 className="w-full text-sm text-blue-600 hover:text-blue-800 font-medium"
               >
@@ -237,6 +282,12 @@ export default function NotificationDropdown({ className }: NotificationDropdown
           )}
         </div>
       )}
+      <NotificationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        notification={selectedNotification}
+        onMarkAsRead={markAsRead}
+      />
     </div>
-  )
-} 
+  );
+}
