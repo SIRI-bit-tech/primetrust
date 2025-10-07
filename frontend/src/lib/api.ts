@@ -132,11 +132,14 @@ export const authAPI = {
   },
 
   verifyTwoFactorLogin: async (code: string, tempToken: string, isBackupCode = false): Promise<AuthResponse> => {
-    const response = await api.post('/auth/two-factor-login-verify/', { 
-      code, 
-      temp_token: tempToken,
-      is_backup_code: isBackupCode 
-    })
+    const response = await api.post('/auth/two-factor-login-verify/',
+      isBackupCode ? { backup_code: code } : { code },
+      {
+        headers: {
+          Authorization: `Bearer ${tempToken}`
+        }
+      }
+    )
     return response.data
   },
 

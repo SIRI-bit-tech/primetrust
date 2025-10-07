@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { 
-  Shield, 
-  Smartphone, 
-  Key, 
+import {
+  Shield,
+  Smartphone,
+  Key,
   AlertCircle,
   ArrowRight,
   RefreshCw,
@@ -16,6 +16,7 @@ import {
   EyeOff
 } from 'lucide-react'
 import { authAPI } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 
 const twoFactorSchema = z.object({
   code: z.string()
@@ -34,6 +35,7 @@ export default function TwoFactorLoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const tempToken = searchParams.get('token')
+  const { setUserFromTokens } = useAuth()
 
   const {
     register,
@@ -41,7 +43,6 @@ export default function TwoFactorLoginPage() {
     formState: { errors },
     watch
   } = useForm<TwoFactorForm>({
-    resolver: zodResolver(twoFactorSchema)
   })
 
   const watchedCode = watch('code')
@@ -56,14 +57,12 @@ export default function TwoFactorLoginPage() {
     try {
       setLoading(true)
       setError('')
-      
+
       const response = await authAPI.verifyTwoFactorLogin(data.code, tempToken!)
-      
-      // Store tokens and user data
-      localStorage.setItem('access_token', response.access_token)
-      localStorage.setItem('refresh_token', response.refresh_token)
-      localStorage.setItem('user', JSON.stringify(response.user))
-      
+
+      // Update auth context with tokens and user data
+      setUserFromTokens(response.access_token, response.refresh_token, response.user)
+
       router.push('/dashboard')
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } }
@@ -77,14 +76,12 @@ export default function TwoFactorLoginPage() {
     try {
       setLoading(true)
       setError('')
-      
+
       const response = await authAPI.verifyTwoFactorLogin(data.code, tempToken!, true)
-      
-      // Store tokens and user data
-      localStorage.setItem('access_token', response.access_token)
-      localStorage.setItem('refresh_token', response.refresh_token)
-      localStorage.setItem('user', JSON.stringify(response.user))
-      
+
+      // Update auth context with tokens and user data
+      setUserFromTokens(response.access_token, response.refresh_token, response.user)
+
       router.push('/dashboard')
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } }
