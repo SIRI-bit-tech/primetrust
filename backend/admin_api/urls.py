@@ -30,4 +30,15 @@ urlpatterns = [
     path('bills/', views.AdminBillListView.as_view(), name='admin-bills'),
     path('investments/', views.AdminInvestmentListView.as_view(), name='admin-investments'),
     path('security-logs/', views.AdminSecurityAuditLogListView.as_view(), name='admin-security-logs'),
+    
+    # Transfer approval endpoints
+    path('pending-transfers/', views.AdminPendingTransfersView.as_view(), name='admin-pending-transfers'),
+    path('transfers/<int:transfer_id>/approve/', views.AdminApproveTransferView.as_view(), name='admin-approve-transfer'),
+    path('transfers/<int:transfer_id>/reject/', views.AdminRejectTransferView.as_view(), name='admin-reject-transfer'),
+    
+    # Account locking endpoints
+    path('users/<int:user_id>/lock/', views.AdminLockUserAccountView.as_view(), name='admin-lock-user'),
+    path('unlock-requests/', views.AdminUnlockRequestListView.as_view(), name='admin-unlock-requests'),
+    path('users/<int:user_id>/unlock/approve/', views.AdminApproveUnlockView.as_view(), name='admin-approve-unlock'),
+    path('users/<int:user_id>/unlock/reject/', views.AdminRejectUnlockView.as_view(), name='admin-reject-unlock'),
 ] 

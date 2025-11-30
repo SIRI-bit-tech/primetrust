@@ -106,6 +106,17 @@ class UserLoginView(APIView):
         if serializer.is_valid():
             user = serializer.validated_data['user']
             
+            # Check if account is locked
+            if user.is_account_locked():
+                return Response({
+                    'error': 'Account is locked',
+                    'account_locked': True,
+                    'locked_until': user.account_locked_until,
+                    'lock_reason': user.account_lock_reason,
+                    'unlock_request_pending': user.unlock_request_pending,
+                    'message': f'Your account has been locked. Reason: {user.account_lock_reason}. Please request an unlock or wait until {user.account_locked_until}.'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
             # Check if 2FA is enabled
             if user.two_factor_enabled:
                 # Return temporary token for 2FA verification
@@ -1040,3 +1051,72 @@ class TokenRefreshView(BaseTokenRefreshView):
                 'error': 'Token refresh failed',
                 'detail': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class RequestAccountUnlockView(APIView):
+    """User requests account unlock."""
+    
+    permission_classes = [permissions.AllowAny]  # Allow locked users to access
+    
+    def post(self, request):
+        """Submit unlock request to admin."""
+        email = request.data.get('email')
+        message = request.data.get('message', '')
+        
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(email=email)
+            
+            if not user.is_account_locked():
+                return Response({'error': 'Account is not locked'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            success, response_message = user.request_unlock(message=message)
+            
+            if success:
+                return Response({
+                    'message': response_message,
+                    'status': 'pending'
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': response_message}, status=status.HTTP_400_BAD_REQUEST)
+                
+        except User.DoesNotExist:
+            # Don't reveal if user exists or not
+            return Response({
+                'message': 'If an account with this email exists and is locked, an unlock request has been submitted.'
+            }, status=status.HTTP_200_OK)
+
+
+class CheckAccountLockStatusView(APIView):
+    """Check if account is locked and get lock details."""
+    
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        """Check account lock status."""
+        email = request.data.get('email')
+        
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(email=email)
+            
+            is_locked = user.is_account_locked()
+            
+            return Response({
+                'is_locked': is_locked,
+                'locked_until': user.account_locked_until if is_locked else None,
+                'lock_reason': user.account_lock_reason if is_locked else None,
+                'unlock_request_pending': user.unlock_request_pending,
+                'unlock_request_submitted_at': user.unlock_request_submitted_at
+            }, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            # Don't reveal if user exists or not
+            return Response({
+                'is_locked': False
+            }, status=status.HTTP_200_OK)

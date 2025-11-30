@@ -41,4 +41,8 @@ urlpatterns = [
     path('bitcoin/send/', views.BitcoinSendView.as_view(), name='bitcoin-send'),
     path('bitcoin/transactions/', views.BitcoinTransactionListView.as_view(), name='bitcoin-transactions'),
     path('bitcoin/transactions/<int:transaction_id>/', views.BitcoinTransactionDetailView.as_view(), name='bitcoin-transaction-detail'),
+    
+    # Account unlock
+    path('request-unlock/', views.RequestAccountUnlockView.as_view(), name='request-unlock'),
+    path('check-lock-status/', views.CheckAccountLockStatusView.as_view(), name='check-lock-status'),
 ] 

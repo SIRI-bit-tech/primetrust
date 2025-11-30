@@ -801,3 +801,194 @@ class AdminSecurityAuditLogListView(generics.ListAPIView):
     
     def get_queryset(self):
         return SecurityAuditLog.objects.all().order_by('-created_at') 
+
+
+
+class AdminPendingTransfersView(generics.ListAPIView):
+    """List all pending transfers awaiting approval (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = TransactionSerializer
+    
+    def get_queryset(self):
+        """Return pending transfers."""
+        from banking.serializers import TransferSerializer
+        self.serializer_class = TransferSerializer
+        
+        return Transfer.objects.filter(
+            status__in=['pending', 'processing'],
+            requires_admin_approval=True
+        ).select_related('sender', 'recipient', 'admin_approved_by').order_by('created_at')
+
+
+class AdminApproveTransferView(APIView):
+    """Approve a pending transfer (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, transfer_id):
+        """Approve transfer and process it immediately."""
+        transfer = get_object_or_404(Transfer, id=transfer_id)
+        notes = request.data.get('notes', '')
+        
+        success, message = transfer.admin_approve_transfer(request.user, notes)
+        
+        if success:
+            return Response({
+                'message': 'Transfer approved and processed successfully',
+                'transfer_id': transfer.id,
+                'status': transfer.status
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'error': message
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminRejectTransferView(APIView):
+    """Reject a pending transfer (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, transfer_id):
+        """Reject transfer and refund sender."""
+        transfer = get_object_or_404(Transfer, id=transfer_id)
+        notes = request.data.get('notes', 'Transfer rejected by admin')
+        
+        success, message = transfer.admin_reject_transfer(request.user, notes)
+        
+        if success:
+            return Response({
+                'message': message,
+                'transfer_id': transfer.id,
+                'status': transfer.status
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'error': message
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminLockUserAccountView(APIView):
+    """Lock a user account (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, user_id):
+        """Lock user account with reason."""
+        user = get_object_or_404(User, id=user_id)
+        reason = request.data.get('reason', 'Account locked by administrator')
+        duration_hours = request.data.get('duration_hours', 24)  # Default 24 hours
+        
+        # Convert hours to minutes
+        duration_minutes = duration_hours * 60
+        
+        user.lock_account(duration_minutes=duration_minutes, reason=reason)
+        
+        # Log security event
+        from accounts.utils import log_security_event
+        log_security_event(
+            user=user,
+            event_type='account_locked',
+            description=f'Account locked by admin: {request.user.email}',
+            metadata={
+                'admin_id': request.user.id,
+                'reason': reason,
+                'duration_hours': duration_hours
+            }
+        )
+        
+        return Response({
+            'message': 'User account locked successfully',
+            'user_id': user.id,
+            'locked_until': user.account_locked_until,
+            'reason': reason
+        }, status=status.HTTP_200_OK)
+
+
+class AdminUnlockRequestListView(generics.ListAPIView):
+    """List all pending unlock requests (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = UserSerializer
+    
+    def get_queryset(self):
+        """Return users with pending unlock requests."""
+        return User.objects.filter(
+            unlock_request_pending=True
+        ).order_by('unlock_request_submitted_at')
+
+
+class AdminApproveUnlockView(APIView):
+    """Approve unlock request and unlock user account (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, user_id):
+        """Approve unlock request."""
+        user = get_object_or_404(User, id=user_id)
+        
+        if not user.unlock_request_pending:
+            return Response({
+                'error': 'No pending unlock request for this user'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        success, message = user.approve_unlock(admin_user=request.user)
+        
+        if success:
+            # Send notification to user
+            from api.services import trigger_notification
+            trigger_notification(
+                user=user,
+                notification_type='account_unlocked',
+                title='Account Unlocked',
+                message=f'Your account has been unlocked by an administrator. You can now log in.',
+                priority='high'
+            )
+            
+            return Response({
+                'message': message,
+                'user_id': user.id
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'error': message
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminRejectUnlockView(APIView):
+    """Reject unlock request (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, user_id):
+        """Reject unlock request."""
+        user = get_object_or_404(User, id=user_id)
+        reason = request.data.get('reason', 'Unlock request denied')
+        
+        if not user.unlock_request_pending:
+            return Response({
+                'error': 'No pending unlock request for this user'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        success, message = user.reject_unlock(admin_user=request.user, reason=reason)
+        
+        if success:
+            # Send notification to user
+            from api.services import trigger_notification
+            trigger_notification(
+                user=user,
+                notification_type='unlock_rejected',
+                title='Unlock Request Denied',
+                message=f'Your unlock request has been denied. Reason: {reason}',
+                priority='high'
+            )
+            
+            return Response({
+                'message': message,
+                'user_id': user.id
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'error': message
+            }, status=status.HTTP_400_BAD_REQUEST)

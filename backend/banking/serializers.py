@@ -68,17 +68,26 @@ class TransferSerializer(serializers.ModelSerializer):
     """Serializer for Transfer model."""
     
     sender_email = serializers.EmailField(source='sender.email', read_only=True)
-    recipient_email = serializers.EmailField(source='recipient.email', read_only=True)
+    sender_name = serializers.CharField(source='sender.get_full_name', read_only=True)
+    recipient_name = serializers.CharField(source='recipient.get_full_name', read_only=True, allow_null=True)
+    admin_approved_by_name = serializers.CharField(source='admin_approved_by.get_full_name', read_only=True, allow_null=True)
     
     class Meta:
         model = Transfer
         fields = [
-            'id', 'sender', 'sender_email', 'recipient', 'recipient_email',
+            'id', 'sender', 'sender_email', 'sender_name', 'recipient', 'recipient_name',
             'recipient_email', 'amount', 'currency', 'transfer_type', 'status',
-            'reference_number', 'description', 'fee', 'completed_at',
+            'reference_number', 'description', 'fee', 
+            'requires_admin_approval', 'admin_approved', 'admin_approved_by', 
+            'admin_approved_by_name', 'admin_approved_at', 'admin_notes',
+            'scheduled_completion_time', 'completed_at',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['reference_number', 'completed_at', 'created_at', 'updated_at']
+        read_only_fields = [
+            'reference_number', 'admin_approved', 'admin_approved_by', 
+            'admin_approved_at', 'scheduled_completion_time', 'completed_at', 
+            'created_at', 'updated_at'
+        ]
 
 
 class TransferCreateSerializer(serializers.ModelSerializer):

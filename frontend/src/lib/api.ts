@@ -171,6 +171,23 @@ export const authAPI = {
     const response = await api.get('/auth/registration-status/')
     return response.data
   },
+
+  // Account unlock
+  requestAccountUnlock: async (email: string, message: string): Promise<{ message: string; status: string }> => {
+    const response = await api.post('/auth/request-unlock/', { email, message })
+    return response.data
+  },
+
+  checkAccountLockStatus: async (email: string): Promise<{
+    is_locked: boolean
+    locked_until: string | null
+    lock_reason: string | null
+    unlock_request_pending: boolean
+    unlock_request_submitted_at: string | null
+  }> => {
+    const response = await api.post('/auth/check-lock-status/', { email })
+    return response.data
+  },
 }
 
 // Banking API
@@ -338,6 +355,46 @@ export const adminAPI = {
   getAllSecurityLogs: async () => {
     const response = await api.get('/admin/security-logs/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  // Transfer approval
+  getPendingTransfers: async () => {
+    const response = await api.get('/admin/pending-transfers/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  approveTransfer: async (transferId: number, notes?: string) => {
+    const response = await api.post(`/admin/transfers/${transferId}/approve/`, { notes })
+    return response.data
+  },
+
+  rejectTransfer: async (transferId: number, notes?: string) => {
+    const response = await api.post(`/admin/transfers/${transferId}/reject/`, { notes })
+    return response.data
+  },
+
+  // Account locking
+  lockUserAccount: async (userId: number, reason: string, durationHours: number = 24) => {
+    const response = await api.post(`/admin/users/${userId}/lock/`, { 
+      reason, 
+      duration_hours: durationHours 
+    })
+    return response.data
+  },
+
+  getUnlockRequests: async () => {
+    const response = await api.get('/admin/unlock-requests/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  approveUnlockRequest: async (userId: number) => {
+    const response = await api.post(`/admin/users/${userId}/unlock/approve/`)
+    return response.data
+  },
+
+  rejectUnlockRequest: async (userId: number, reason?: string) => {
+    const response = await api.post(`/admin/users/${userId}/unlock/reject/`, { reason })
+    return response.data
   },
 }
 
