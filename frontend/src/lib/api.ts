@@ -33,9 +33,15 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    // Don't add auth header for public endpoints
+    const publicEndpoints = ['/auth/register/', '/auth/login/', '/auth/verify-email/', '/auth/password-reset-request/', '/auth/password-reset/']
+    const isPublicEndpoint = publicEndpoints.some(endpoint => config.url?.includes(endpoint))
+    
+    if (!isPublicEndpoint) {
+      const token = localStorage.getItem('access_token')
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
     }
     return config
   },
@@ -50,7 +56,11 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Don't try to refresh tokens for public endpoints
+    const publicEndpoints = ['/auth/register/', '/auth/login/', '/auth/verify-email/', '/auth/password-reset-request/', '/auth/password-reset/', '/auth/refresh/']
+    const isPublicEndpoint = publicEndpoints.some(endpoint => originalRequest.url?.includes(endpoint))
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isPublicEndpoint) {
       originalRequest._retry = true
 
       try {
@@ -60,10 +70,10 @@ api.interceptors.response.use(
             refresh: refreshToken,
           })
           
-                     const { access_token } = response.data
-           localStorage.setItem('access_token', access_token)
+          const { access_token } = response.data
+          localStorage.setItem('access_token', access_token)
           
-                     originalRequest.headers.Authorization = `Bearer ${access_token}`
+          originalRequest.headers.Authorization = `Bearer ${access_token}`
           return api(originalRequest)
         }
       } catch {
