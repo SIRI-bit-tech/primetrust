@@ -891,6 +891,7 @@ class AdminLockUserAccountView(APIView):
             user=user,
             event_type='account_locked',
             description=f'Account locked by admin: {request.user.email}',
+            request=request,
             metadata={
                 'admin_id': request.user.id,
                 'reason': reason,
@@ -903,6 +904,57 @@ class AdminLockUserAccountView(APIView):
             'user_id': user.id,
             'locked_until': user.account_locked_until,
             'reason': reason
+        }, status=status.HTTP_200_OK)
+
+
+class AdminUnlockUserAccountView(APIView):
+    """Directly unlock a user account (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, user_id):
+        """Unlock user account directly."""
+        user = get_object_or_404(User, id=user_id)
+        
+        if not user.is_account_locked():
+            return Response({
+                'error': 'Account is not locked'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Clear lock fields
+        user.account_locked_until = None
+        user.account_lock_reason = ''
+        user.unlock_request_pending = False
+        user.unlock_request_submitted_at = None
+        user.unlock_request_message = ''
+        user.save()
+        
+        # Log security event
+        from accounts.utils import log_security_event
+        log_security_event(
+            user=user,
+            event_type='account_unlocked',
+            description=f'Account unlocked by admin: {request.user.email}',
+            request=request,
+            metadata={
+                'admin_id': request.user.id,
+                'unlock_method': 'direct_admin_unlock'
+            }
+        )
+        
+        # Send notification to user
+        from api.services import trigger_notification
+        trigger_notification(
+            user=user,
+            notification_type='account_unlocked',
+            title='Account Unlocked',
+            message=f'Your account has been unlocked by an administrator. You can now log in.',
+            priority='high'
+        )
+        
+        return Response({
+            'message': 'User account unlocked successfully',
+            'user_id': user.id
         }, status=status.HTTP_200_OK)
 
 

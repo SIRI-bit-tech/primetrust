@@ -382,6 +382,11 @@ export const adminAPI = {
     return response.data
   },
 
+  unlockUserAccount: async (userId: number) => {
+    const response = await api.post(`/admin/users/${userId}/unlock/`)
+    return response.data
+  },
+
   getUnlockRequests: async () => {
     const response = await api.get('/admin/unlock-requests/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])

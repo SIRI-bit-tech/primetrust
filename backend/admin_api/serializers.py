@@ -18,7 +18,9 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'first_name', 'last_name', 'is_active',
             'is_staff', 'is_superuser', 'date_joined', 'last_login',
             'balance', 'bitcoin_balance', 'two_factor_setup_completed',
-            'transfer_pin_setup_completed'
+            'transfer_pin_setup_completed', 'account_locked_until', 
+            'account_lock_reason', 'unlock_request_pending',
+            'unlock_request_submitted_at', 'unlock_request_message'
         ]
 
 
