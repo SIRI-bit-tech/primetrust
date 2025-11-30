@@ -10,6 +10,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
+import AccountLockedModal from '@/components/AccountLockedModal'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -22,6 +23,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [accountLocked, setAccountLocked] = useState(false)
+  const [lockDetails, setLockDetails] = useState<{
+    reason: string
+    lockedUntil: string
+    unlockRequestPending: boolean
+  } | null>(null)
   const router = useRouter()
   const { login } = useAuth()
 
@@ -29,6 +36,7 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { errors },
+    getValues,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   })
@@ -36,6 +44,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
     setError('')
+    setAccountLocked(false)
 
     try {
       const response = await login(data.email, data.password)
@@ -47,8 +56,30 @@ export default function LoginPage() {
         router.push('/dashboard')
       }
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Login failed. Please try again.')
+      const error = err as { 
+        response?: { 
+          data?: { 
+            message?: string
+            account_locked?: boolean
+            lock_reason?: string
+            locked_until?: string
+            unlock_request_pending?: boolean
+          }
+          status?: number
+        } 
+      }
+      
+      // Check if account is locked
+      if (error.response?.status === 403 && error.response?.data?.account_locked) {
+        setAccountLocked(true)
+        setLockDetails({
+          reason: error.response.data.lock_reason || 'Account locked by administrator',
+          lockedUntil: error.response.data.locked_until || '',
+          unlockRequestPending: error.response.data.unlock_request_pending || false
+        })
+      } else {
+        setError(error.response?.data?.message || 'Login failed. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -202,6 +233,18 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* Account Locked Modal */}
+      {accountLocked && lockDetails && (
+        <AccountLockedModal
+          isOpen={accountLocked}
+          onClose={() => setAccountLocked(false)}
+          email={getValues('email')}
+          lockReason={lockDetails.reason}
+          lockedUntil={lockDetails.lockedUntil}
+          unlockRequestPending={lockDetails.unlockRequestPending}
+        />
+      )}
     </div>
   )
 } 

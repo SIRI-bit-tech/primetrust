@@ -243,6 +243,7 @@ class Transfer(models.Model):
     
     TRANSFER_STATUS = [
         ('pending', 'Pending'),
+        ('processing', 'Processing'),
         ('completed', 'Completed'),
         ('failed', 'Failed'),
         ('cancelled', 'Cancelled'),
@@ -264,6 +265,17 @@ class Transfer(models.Model):
     reference_number = models.CharField(max_length=20, unique=True)
     description = models.TextField(blank=True)
     fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    # Admin approval fields
+    requires_admin_approval = models.BooleanField(default=True)  # All transfers require approval by default
+    admin_approved = models.BooleanField(default=False)
+    admin_approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_transfers')
+    admin_approved_at = models.DateTimeField(null=True, blank=True)
+    admin_notes = models.TextField(blank=True)
+    
+    # Scheduled completion (15-30 min delay)
+    scheduled_completion_time = models.DateTimeField(null=True, blank=True)
+    
     completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -279,6 +291,12 @@ class Transfer(models.Model):
         # Generate reference number if not exists
         if not self.reference_number:
             self.reference_number = self.generate_reference_number()
+        
+        # Set scheduled completion time (15-30 minutes from now) if not set
+        if not self.scheduled_completion_time and self.status == 'pending':
+            import random
+            delay_minutes = random.randint(15, 30)
+            self.scheduled_completion_time = timezone.now() + timezone.timedelta(minutes=delay_minutes)
         
         super().save(*args, **kwargs)
     
@@ -331,12 +349,65 @@ class Transfer(models.Model):
     
     def cancel_transfer(self):
         """Cancel a pending transfer."""
-        if self.status != 'pending':
-            return False, "Only pending transfers can be cancelled"
+        if self.status not in ['pending', 'processing']:
+            return False, "Only pending or processing transfers can be cancelled"
         
         self.status = 'cancelled'
         self.save()
         return True, "Transfer cancelled successfully"
+    
+    def admin_approve_transfer(self, admin_user, notes=""):
+        """Admin approves the transfer for immediate processing."""
+        if self.status not in ['pending', 'processing']:
+            return False, "Only pending or processing transfers can be approved"
+        
+        self.admin_approved = True
+        self.admin_approved_by = admin_user
+        self.admin_approved_at = timezone.now()
+        self.admin_notes = notes
+        self.status = 'processing'
+        self.save()
+        
+        # Process the transfer immediately
+        success, message = self.process_transfer()
+        
+        return success, message
+    
+    def admin_reject_transfer(self, admin_user, notes=""):
+        """Admin rejects the transfer."""
+        if self.status not in ['pending', 'processing']:
+            return False, "Only pending or processing transfers can be rejected"
+        
+        # Refund sender if amount was already deducted
+        if self.status == 'processing':
+            self.sender.balance += self.amount
+            self.sender.save()
+        
+        self.status = 'failed'
+        self.admin_notes = notes
+        self.save()
+        
+        return True, "Transfer rejected successfully"
+    
+    def auto_process_if_ready(self):
+        """Auto-process transfer if scheduled time has passed and admin approval not required."""
+        if self.status != 'pending':
+            return False, "Transfer is not in pending status"
+        
+        # Check if scheduled time has passed
+        if self.scheduled_completion_time and timezone.now() >= self.scheduled_completion_time:
+            # If admin approval is required and not yet approved, don't auto-process
+            if self.requires_admin_approval and not self.admin_approved:
+                return False, "Waiting for admin approval"
+            
+            # Process the transfer
+            self.status = 'processing'
+            self.save()
+            
+            success, message = self.process_transfer()
+            return success, message
+        
+        return False, "Scheduled time not yet reached"
 
 
 class BankAccount(models.Model):

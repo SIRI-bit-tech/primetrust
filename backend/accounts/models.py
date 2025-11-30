@@ -51,6 +51,10 @@ class User(AbstractUser):
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
     failed_login_attempts = models.PositiveIntegerField(default=0)
     account_locked_until = models.DateTimeField(null=True, blank=True)
+    account_lock_reason = models.CharField(max_length=255, blank=True)  # Reason for account lock
+    unlock_request_pending = models.BooleanField(default=False)  # User requested unlock
+    unlock_request_submitted_at = models.DateTimeField(null=True, blank=True)  # When unlock was requested
+    unlock_request_message = models.TextField(blank=True)  # User's message for unlock request
     failed_pin_attempts = models.PositiveIntegerField(default=0)  # Track failed PIN attempts
     pin_locked_until = models.DateTimeField(null=True, blank=True)  # PIN lockout
     
@@ -130,9 +134,13 @@ class User(AbstractUser):
         
         return True, "Transfer allowed"
     
-    def lock_account(self, duration_minutes=30):
-        """Lock the account for a specified duration."""
+    def lock_account(self, duration_minutes=30, reason=""):
+        """Lock the account for a specified duration with a reason."""
         self.account_locked_until = timezone.now() + timezone.timedelta(minutes=duration_minutes)
+        self.account_lock_reason = reason
+        self.unlock_request_pending = False  # Reset any pending unlock requests
+        self.unlock_request_submitted_at = None
+        self.unlock_request_message = ""
         self.save()
     
     def is_account_locked(self):
@@ -140,6 +148,72 @@ class User(AbstractUser):
         if self.account_locked_until and self.account_locked_until > timezone.now():
             return True
         return False
+    
+    def request_unlock(self, message=""):
+        """Submit an unlock request to admin."""
+        if not self.is_account_locked():
+            return False, "Account is not locked"
+        
+        if self.unlock_request_pending:
+            return False, "Unlock request already pending"
+        
+        self.unlock_request_pending = True
+        self.unlock_request_submitted_at = timezone.now()
+        self.unlock_request_message = message
+        self.save()
+        
+        # Log security event
+        from .utils import log_security_event
+        log_security_event(
+            user=self,
+            event_type='unlock_requested',
+            description='User requested account unlock',
+            metadata={'message': message}
+        )
+        
+        return True, "Unlock request submitted successfully"
+    
+    def approve_unlock(self, admin_user=None):
+        """Approve unlock request and unlock the account."""
+        self.account_locked_until = None
+        self.account_lock_reason = ""
+        self.unlock_request_pending = False
+        self.unlock_request_submitted_at = None
+        self.unlock_request_message = ""
+        self.failed_login_attempts = 0
+        self.save()
+        
+        # Log security event
+        from .utils import log_security_event
+        log_security_event(
+            user=self,
+            event_type='unlock_approved',
+            description=f'Account unlocked by admin: {admin_user.email if admin_user else "System"}',
+            metadata={'admin_id': admin_user.id if admin_user else None}
+        )
+        
+        return True, "Account unlocked successfully"
+    
+    def reject_unlock(self, admin_user=None, reason=""):
+        """Reject unlock request."""
+        self.unlock_request_pending = False
+        self.unlock_request_submitted_at = None
+        self.unlock_request_message = ""
+        self.save()
+        
+        # Log security event
+        from .utils import log_security_event
+        log_security_event(
+            user=self,
+            event_type='unlock_rejected',
+            description=f'Unlock request rejected by admin: {admin_user.email if admin_user else "System"}',
+            metadata={
+                'admin_id': admin_user.id if admin_user else None,
+                'reason': reason
+            }
+        )
+        
+        return True, "Unlock request rejected"
     
     def increment_failed_login(self):
         """Increment failed login attempts and lock account if necessary."""

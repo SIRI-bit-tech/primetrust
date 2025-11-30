@@ -27,6 +27,11 @@ export interface User {
   bitcoin_balance?: number
   two_factor_setup_completed?: boolean
   transfer_pin_setup_completed?: boolean
+  account_locked_until?: string | null
+  account_lock_reason?: string
+  unlock_request_pending?: boolean
+  unlock_request_submitted_at?: string | null
+  unlock_request_message?: string
 }
 
 export interface Account {
@@ -408,3 +413,54 @@ export type TableItem =
   | Bill 
   | Investment 
   | SecurityAuditLog 
+
+
+// Transfer with approval fields
+export interface Transfer {
+  id: number
+  sender: number
+  sender_email: string
+  sender_name: string
+  recipient: number | null
+  recipient_name: string | null
+  recipient_email: string
+  amount: number
+  currency: string
+  transfer_type: 'internal' | 'external' | 'instant'
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+  reference_number: string
+  description: string
+  fee: number
+  requires_admin_approval: boolean
+  admin_approved: boolean
+  admin_approved_by: number | null
+  admin_approved_by_name: string | null
+  admin_approved_at: string | null
+  admin_notes: string
+  scheduled_completion_time: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+// Unlock request interface
+export interface UnlockRequest {
+  id: number
+  email: string
+  first_name: string
+  last_name: string
+  account_locked_until: string
+  account_lock_reason: string
+  unlock_request_pending: boolean
+  unlock_request_submitted_at: string
+  unlock_request_message: string
+}
+
+// Account lock status
+export interface AccountLockStatus {
+  is_locked: boolean
+  locked_until: string | null
+  lock_reason: string | null
+  unlock_request_pending: boolean
+  unlock_request_submitted_at: string | null
+}

@@ -18,6 +18,9 @@ import {
   Receipt,
   PiggyBank,
   AlertTriangle,
+  Clock,
+  Unlock,
+  Lock,
   Trash2,
   CheckCircle,
   XCircle
@@ -25,6 +28,7 @@ import {
 import { 
   User, 
   Transaction, 
+  Transfer,
   VirtualCard, 
   CardApplication, 
   UserNotification,
@@ -38,17 +42,26 @@ import {
   AdminDashboardData,
   TableItem
 } from '@/types'
+import PendingTransfersTable from '@/components/admin/PendingTransfersTable'
+import UnlockRequestsTable from '@/components/admin/UnlockRequestsTable'
+import AdminActionModal from '@/components/admin/AdminActionModal'
 
 export default function AdminPage() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  
+  // Modal states
+  const [showLockModal, setShowLockModal] = useState(false)
+  const [selectedUserForAction, setSelectedUserForAction] = useState<number | null>(null)
 
   // Data states
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [pendingTransfers, setPendingTransfers] = useState<Transfer[]>([])
+  const [unlockRequests, setUnlockRequests] = useState<User[]>([])
   const [cards, setCards] = useState<VirtualCard[]>([])
   const [applications, setApplications] = useState<CardApplication[]>([])
   const [notifications, setNotifications] = useState<UserNotification[]>([])
@@ -70,6 +83,8 @@ export default function AdminPage() {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'transactions', label: 'Transactions', icon: FileText },
+    { id: 'pending-transfers', label: 'Pending Transfers', icon: Clock },
+    { id: 'unlock-requests', label: 'Unlock Requests', icon: Unlock },
     { id: 'cards', label: 'Cards', icon: CreditCard },
     { id: 'applications', label: 'Applications', icon: TrendingUp },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -140,6 +155,14 @@ export default function AdminPage() {
           const securityLogsData = await adminAPI.getAllSecurityLogs()
           setSecurityLogs(securityLogsData)
           break
+        case 'pending-transfers':
+          const pendingTransfersData = await adminAPI.getPendingTransfers()
+          setPendingTransfers(pendingTransfersData)
+          break
+        case 'unlock-requests':
+          const unlockRequestsData = await adminAPI.getUnlockRequests()
+          setUnlockRequests(unlockRequestsData)
+          break
       }
     } catch (err: unknown) {
       const error = err as AxiosError<{ error?: string }>
@@ -188,6 +211,31 @@ export default function AdminPage() {
     } catch (err: unknown) {
       const error = err as AxiosError<{ error?: string }>
       setError(error.response?.data?.error || 'Failed to delete user')
+    }
+  }
+
+  const handleLockAccount = (userId: number) => {
+    setSelectedUserForAction(userId)
+    setShowLockModal(true)
+  }
+
+  const handleLockAccountConfirm = async (data: { [key: string]: string }) => {
+    if (!selectedUserForAction) return
+
+    const durationHours = parseInt(data.duration || '24')
+
+    if (isNaN(durationHours) || durationHours <= 0) {
+      setError('Invalid duration')
+      return
+    }
+
+    try {
+      await adminAPI.lockUserAccount(selectedUserForAction, data.reason, durationHours)
+      setError('')
+      loadData()
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to lock account')
     }
   }
 
@@ -386,13 +434,23 @@ export default function AdminPage() {
               </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              <button
-                onClick={() => handleDeleteUser(userItem.id)}
-                className="text-red-400 hover:text-red-300 flex items-center"
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Delete
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleLockAccount(userItem.id)}
+                  className="text-yellow-400 hover:text-yellow-300 flex items-center"
+                  title="Lock Account"
+                >
+                  <Lock className="w-4 h-4 mr-1" />
+                  Lock
+                </button>
+                <button
+                  onClick={() => handleDeleteUser(userItem.id)}
+                  className="text-red-400 hover:text-red-300 flex items-center"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete
+                </button>
+              </div>
             </td>
           </>
         )
@@ -926,8 +984,42 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Pending Transfers Tab */}
+        {activeTab === 'pending-transfers' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-white">Pending Transfers</h2>
+              <button
+                onClick={loadData}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 py-2 rounded"
+              >
+                {loading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+            <PendingTransfersTable transfers={pendingTransfers} onUpdate={loadData} />
+          </div>
+        )}
+
+        {/* Unlock Requests Tab */}
+        {activeTab === 'unlock-requests' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-white">Account Unlock Requests</h2>
+              <button
+                onClick={loadData}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 py-2 rounded"
+              >
+                {loading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+            <UnlockRequestsTable users={unlockRequests} onUpdate={loadData} />
+          </div>
+        )}
+
         {/* Other Tabs */}
-        {activeTab !== 'dashboard' && (
+        {activeTab !== 'dashboard' && activeTab !== 'pending-transfers' && activeTab !== 'unlock-requests' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-white capitalize">
@@ -977,6 +1069,38 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Lock Account Modal */}
+      <AdminActionModal
+        isOpen={showLockModal}
+        onClose={() => {
+          setShowLockModal(false)
+          setSelectedUserForAction(null)
+        }}
+        onConfirm={handleLockAccountConfirm}
+        title="Lock User Account"
+        description="Enter the reason and duration for locking this account."
+        fields={[
+          {
+            name: 'reason',
+            label: 'Reason for Lock',
+            type: 'textarea',
+            placeholder: 'e.g., Suspicious activity detected, Unusual login location',
+            required: true
+          },
+          {
+            name: 'duration',
+            label: 'Lock Duration (hours)',
+            type: 'number',
+            placeholder: '24',
+            defaultValue: '24',
+            required: true
+          }
+        ]}
+        confirmText="Lock Account"
+        cancelText="Cancel"
+        isDestructive={true}
+      />
     </div>
   )
 }
