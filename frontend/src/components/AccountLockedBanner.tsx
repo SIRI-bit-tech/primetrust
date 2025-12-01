@@ -77,31 +77,31 @@ export default function AccountLockedBanner({
   }
 
   return (
-    <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-lg shadow-sm p-4 mb-6">
+    <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30 border-l-4 border-red-500 rounded-lg shadow-sm p-4 mb-6">
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 mt-1">
-          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-            <Lock className="h-5 w-5 text-red-600" />
+          <div className="w-10 h-10 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center">
+            <Lock className="h-5 w-5 text-red-600 dark:text-red-400" />
           </div>
         </div>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
                 Account Locked
               </h3>
               <div className="mt-2 space-y-1">
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-red-900 dark:text-red-100">
                   <span className="font-semibold">Reason:</span> {lockReason}
                 </p>
-                <p className="text-sm text-gray-700 flex items-center gap-1">
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
                   <Clock className="w-4 h-4" />
                   <span className="font-semibold">Time remaining:</span> {getTimeRemaining()}
                 </p>
               </div>
-              <p className="mt-2 text-xs text-gray-600">
+              <p className="mt-2 text-xs text-muted-foreground">
                 Your account is temporarily restricted. Most features are disabled until the lock expires or is removed by an administrator.
               </p>
             </div>
@@ -112,7 +112,7 @@ export default function AccountLockedBanner({
                   onClick={() => setShowRequestForm(!showRequestForm)}
                   variant="outline"
                   size="sm"
-                  className="whitespace-nowrap border-blue-600 text-blue-600 hover:bg-blue-50"
+                  className="whitespace-nowrap"
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Request Unlock
@@ -120,13 +120,13 @@ export default function AccountLockedBanner({
               )}
               
               {unlockRequestPending && (
-                <div className="px-3 py-2 bg-yellow-100 border border-yellow-300 rounded text-xs text-yellow-800 whitespace-nowrap">
+                <div className="px-3 py-2 bg-yellow-100 dark:bg-yellow-950/30 border border-yellow-300 dark:border-yellow-800 rounded text-xs text-yellow-800 dark:text-yellow-200 whitespace-nowrap">
                   ⏳ Request Pending
                 </div>
               )}
               
               {success && (
-                <div className="px-3 py-2 bg-green-100 border border-green-300 rounded text-xs text-green-800 whitespace-nowrap">
+                <div className="px-3 py-2 bg-green-100 dark:bg-green-950/30 border border-green-300 dark:border-green-800 rounded text-xs text-green-800 dark:text-green-200 whitespace-nowrap">
                   ✓ Request Submitted
                 </div>
               )}
@@ -135,9 +135,9 @@ export default function AccountLockedBanner({
 
           {/* Request Form */}
           {showRequestForm && !unlockRequestPending && (
-            <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Request Early Unlock</h4>
-              <p className="text-xs text-gray-600 mb-3">
+            <div className="mt-4 p-4 bg-background border border-border rounded-lg">
+              <h4 className="text-sm font-semibold text-foreground mb-2">Request Early Unlock</h4>
+              <p className="text-xs text-muted-foreground mb-3">
                 Explain why you're requesting an early unlock. An administrator will review your request.
               </p>
               
@@ -151,7 +151,7 @@ export default function AccountLockedBanner({
               />
 
               {error && (
-                <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                <div className="mb-2 p-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded text-xs text-red-700 dark:text-red-300">
                   {error}
                 </div>
               )}
@@ -161,7 +161,6 @@ export default function AccountLockedBanner({
                   onClick={handleRequestUnlock}
                   disabled={isSubmitting || !message.trim()}
                   size="sm"
-                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   {isSubmitting ? 'Submitting...' : 'Submit Request'}
                 </Button>

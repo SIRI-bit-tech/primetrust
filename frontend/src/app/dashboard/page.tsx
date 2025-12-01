@@ -26,8 +26,6 @@ import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
 import ReceiveBitcoinModal from '@/components/ReceiveBitcoinModal'
 import SwapBitcoinModal from '@/components/SwapBitcoinModal'
-import AccountLockedModal from '@/components/AccountLockedModal'
-import AccountLockedBanner from '@/components/AccountLockedBanner'
 import { ToastContainer } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { bankingAPI, transactionsAPI, bitcoinAPI, virtualCardAPI } from '@/lib/api'
@@ -52,8 +50,7 @@ export default function DashboardPage() {
   const [exchangeRate, setExchangeRate] = useState<number | null>(null)
   const [toasts, setToasts] = useState<{ id: number; title: string; description: string; variant?: 'default' | 'destructive' }[]>([])
   
-  // Account lock modal state - using real-time polling
-  const [showLockModal, setShowLockModal] = useState(false)
+  // Check if account is locked
   const isAccountLocked = user?.is_account_locked || false
 
   const copyToClipboard = async (text: string, type: 'account' | 'routing') => {
@@ -145,13 +142,6 @@ export default function DashboardPage() {
     fetchData()
   }, [fetchData])
 
-  // Check lock status immediately when user data changes and show modal
-  useEffect(() => {
-    if (user?.is_account_locked) {
-      setShowLockModal(true)
-    }
-  }, [user?.is_account_locked])
-
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'transfer':
@@ -195,20 +185,6 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Account Locked Banner */}
-        {isAccountLocked && user && (
-          <AccountLockedBanner
-            lockReason={user.account_lock_reason || ''}
-            lockedUntil={user.account_locked_until || ''}
-            unlockRequestPending={user.unlock_request_pending || false}
-            userEmail={user.email}
-            onUnlockRequested={() => {
-              // Refresh user data to update unlock request status
-              fetchData()
-            }}
-          />
-        )}
-
         {/* Welcome Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -539,22 +515,6 @@ export default function DashboardPage() {
             }, 35000)
           }}
         />
-
-        {/* Account Locked Modal */}
-        {isAccountLocked && user && (
-          <AccountLockedModal
-            isOpen={showLockModal}
-            lockedUntil={user.account_locked_until || ''}
-            lockReason={user.account_lock_reason || ''}
-            unlockRequestPending={user.unlock_request_pending || false}
-            userEmail={user.email}
-            onClose={() => setShowLockModal(false)}
-            onUnlockRequested={() => {
-              // Refresh user data to update unlock request status
-              fetchData()
-            }}
-          />
-        )}
 
         {/* Toast Container */}
         <ToastContainer toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
