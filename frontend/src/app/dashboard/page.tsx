@@ -26,6 +26,8 @@ import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
 import ReceiveBitcoinModal from '@/components/ReceiveBitcoinModal'
 import SwapBitcoinModal from '@/components/SwapBitcoinModal'
+import AccountLockedModal from '@/components/AccountLockedModal'
+import AccountLockedBanner from '@/components/AccountLockedBanner'
 import { ToastContainer } from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 import { bankingAPI, transactionsAPI, bitcoinAPI, virtualCardAPI } from '@/lib/api'
@@ -49,6 +51,10 @@ export default function DashboardPage() {
   const [bitcoinBalance, setBitcoinBalance] = useState<number>(0)
   const [exchangeRate, setExchangeRate] = useState<number | null>(null)
   const [toasts, setToasts] = useState<{ id: number; title: string; description: string; variant?: 'default' | 'destructive' }[]>([])
+  
+  // Account lock modal state - using real-time polling
+  const [showLockModal, setShowLockModal] = useState(false)
+  const isAccountLocked = user?.is_account_locked || false
 
   const copyToClipboard = async (text: string, type: 'account' | 'routing') => {
     try {
@@ -105,7 +111,7 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [user])
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -138,6 +144,13 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  // Check lock status immediately when user data changes and show modal
+  useEffect(() => {
+    if (user?.is_account_locked) {
+      setShowLockModal(true)
+    }
+  }, [user?.is_account_locked])
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -182,6 +195,20 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Account Locked Banner */}
+        {isAccountLocked && user && (
+          <AccountLockedBanner
+            lockReason={user.account_lock_reason || ''}
+            lockedUntil={user.account_locked_until || ''}
+            unlockRequestPending={user.unlock_request_pending || false}
+            userEmail={user.email}
+            onUnlockRequested={() => {
+              // Refresh user data to update unlock request status
+              fetchData()
+            }}
+          />
+        )}
+
         {/* Welcome Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -213,19 +240,25 @@ export default function DashboardPage() {
                 <div className="flex-1">
                   <p className="text-blue-100 text-sm font-medium">Current Balance</p>
                   <div className="flex items-center mt-1">
-                    {showBalance ? (
+                    {isAccountLocked ? (
+                      <div className="flex items-center gap-2">
+                        <p className="text-2xl font-bold text-red-200">🔒 Account Locked</p>
+                      </div>
+                    ) : showBalance ? (
                       <p className="text-3xl font-bold">
                         {formatCurrency(parseFloat(account?.balance || '0'))}
                       </p>
                     ) : (
                       <p className="text-3xl font-bold">••••••</p>
                     )}
-                    <button
-                      onClick={() => setShowBalance(!showBalance)}
-                      className="ml-2 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-                    >
-                      {showBalance ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                    </button>
+                    {!isAccountLocked && (
+                      <button
+                        onClick={() => setShowBalance(!showBalance)}
+                        className="ml-2 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                      >
+                        {showBalance ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-col items-end">
@@ -241,7 +274,9 @@ export default function DashboardPage() {
                   <div className="flex-1">
                     <p className="text-blue-100 text-sm font-medium">Bitcoin Balance</p>
                     <div className="flex items-center mt-1">
-                      {showBalance ? (
+                      {isAccountLocked ? (
+                        <p className="text-lg font-bold text-red-200">🔒 Hidden</p>
+                      ) : showBalance ? (
                         <div>
                           <p className="text-xl font-bold">
                             {bitcoinBalance.toFixed(8)} BTC
@@ -361,43 +396,53 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button 
-                  className="h-20 flex-col gap-2 bg-blue-500 hover:bg-blue-600 text-white border-blue-500" 
-                  asChild
-                >
-                  <Link href="/dashboard/transfer">
-                    <Send className="w-6 h-6" />
-                    <span className="text-sm">Send Money</span>
-                  </Link>
-                </Button>
-                
-                <Button 
-                  className="h-20 flex-col gap-2 bg-orange-500 hover:bg-orange-600 text-white border-orange-500" 
-                  asChild
-                >
-                  <Link href="/dashboard/send-bitcoin">
-                    <Bitcoin className="w-6 h-6" />
-                    <span className="text-sm">Send Bitcoin</span>
-                  </Link>
-                </Button>
-                
-                <Button 
-                  className="h-20 flex-col gap-2 bg-green-500 hover:bg-green-600 text-white border-green-500"
-                  onClick={() => setIsReceiveBitcoinModalOpen(true)}
-                >
-                  <ArrowDownUp className="w-6 h-6" />
-                  <span className="text-sm">Receive Bitcoin</span>
-                </Button>
-                
-                <Button 
-                  className="h-20 flex-col gap-2 bg-purple-500 hover:bg-purple-600 text-white border-purple-500"
-                  onClick={() => setIsSwapBitcoinModalOpen(true)}
-                >
-                  <ArrowUpDown className="w-6 h-6" />
-                  <span className="text-sm">Swap Bitcoin</span>
-                </Button>
-              </div>
+              {isAccountLocked ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <DollarSign className="w-8 h-8 text-red-600" />
+                  </div>
+                  <p className="text-red-600 font-semibold">Transactions Disabled</p>
+                  <p className="text-sm text-gray-500 mt-1">Account is locked</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Button 
+                    className="h-20 flex-col gap-2 bg-blue-500 hover:bg-blue-600 text-white border-blue-500" 
+                    asChild
+                  >
+                    <Link href="/dashboard/transfer">
+                      <Send className="w-6 h-6" />
+                      <span className="text-sm">Send Money</span>
+                    </Link>
+                  </Button>
+                  
+                  <Button 
+                    className="h-20 flex-col gap-2 bg-orange-500 hover:bg-orange-600 text-white border-orange-500" 
+                    asChild
+                  >
+                    <Link href="/dashboard/send-bitcoin">
+                      <Bitcoin className="w-6 h-6" />
+                      <span className="text-sm">Send Bitcoin</span>
+                    </Link>
+                  </Button>
+                  
+                  <Button 
+                    className="h-20 flex-col gap-2 bg-green-500 hover:bg-green-600 text-white border-green-500"
+                    onClick={() => setIsReceiveBitcoinModalOpen(true)}
+                  >
+                    <ArrowDownUp className="w-6 h-6" />
+                    <span className="text-sm">Receive Bitcoin</span>
+                  </Button>
+                  
+                  <Button 
+                    className="h-20 flex-col gap-2 bg-purple-500 hover:bg-purple-600 text-white border-purple-500"
+                    onClick={() => setIsSwapBitcoinModalOpen(true)}
+                  >
+                    <ArrowUpDown className="w-6 h-6" />
+                    <span className="text-sm">Swap Bitcoin</span>
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -452,7 +497,7 @@ export default function DashboardPage() {
                     <div className="text-right">
                       <p className={`font-semibold ${getTransactionColor(transaction.transaction_type)}`}>
                         {transaction.transaction_type === 'withdrawal' ? '-' : '+'}
-                        {formatCurrency(parseFloat(transaction.amount))}
+                        {formatCurrency(transaction.amount)}
                       </p>
                       <Badge variant="secondary" className="text-xs">
                         {transaction.transaction_type}
@@ -494,6 +539,22 @@ export default function DashboardPage() {
             }, 35000)
           }}
         />
+
+        {/* Account Locked Modal */}
+        {isAccountLocked && user && (
+          <AccountLockedModal
+            isOpen={showLockModal}
+            lockedUntil={user.account_locked_until || ''}
+            lockReason={user.account_lock_reason || ''}
+            unlockRequestPending={user.unlock_request_pending || false}
+            userEmail={user.email}
+            onClose={() => setShowLockModal(false)}
+            onUnlockRequested={() => {
+              // Refresh user data to update unlock request status
+              fetchData()
+            }}
+          />
+        )}
 
         {/* Toast Container */}
         <ToastContainer toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />

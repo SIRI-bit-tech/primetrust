@@ -106,16 +106,8 @@ class UserLoginView(APIView):
         if serializer.is_valid():
             user = serializer.validated_data['user']
             
-            # Check if account is locked
-            if user.is_account_locked():
-                return Response({
-                    'error': 'Account is locked',
-                    'account_locked': True,
-                    'locked_until': user.account_locked_until,
-                    'lock_reason': user.account_lock_reason,
-                    'unlock_request_pending': user.unlock_request_pending,
-                    'message': f'Your account has been locked. Reason: {user.account_lock_reason}. Please request an unlock or wait until {user.account_locked_until}.'
-                }, status=status.HTTP_403_FORBIDDEN)
+            # Note: We allow locked users to log in, but they'll see a modal on the dashboard
+            # The middleware will still block API calls, but they can request unlock
             
             # Check if 2FA is enabled
             if user.two_factor_enabled:

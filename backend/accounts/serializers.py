@@ -97,8 +97,7 @@ class UserLoginSerializer(serializers.Serializer):
             if not user.is_active:
                 raise serializers.ValidationError('Account is disabled')
             
-            if user.is_account_locked():
-                raise serializers.ValidationError('Account is temporarily locked due to multiple failed login attempts')
+            # Note: Account lock check is handled in the view to provide detailed error response
             
             # Reset failed login attempts on successful login
             user.reset_failed_login()
@@ -126,6 +125,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     profile = UserProfileSerializer(read_only=True)
     full_name = serializers.SerializerMethodField()
+    is_account_locked = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -135,15 +135,20 @@ class UserSerializer(serializers.ModelSerializer):
             'account_number', 'routing_number', 'balance', 'bitcoin_balance', 'is_verified',
             'email_verified', 'phone_verified', 'two_factor_enabled',
             'is_staff', 'is_superuser', 'is_active', 'date_joined', 'last_login',
-            'created_at', 'last_activity', 'profile'
+            'created_at', 'last_activity', 'profile', 'is_account_locked',
+            'account_locked_until', 'account_lock_reason', 'unlock_request_pending'
         ]
         read_only_fields = [
             'id', 'account_number', 'routing_number', 'balance', 'is_verified',
-            'email_verified', 'phone_verified', 'created_at', 'last_activity'
+            'email_verified', 'phone_verified', 'created_at', 'last_activity',
+            'is_account_locked', 'account_locked_until', 'account_lock_reason', 'unlock_request_pending'
         ]
     
     def get_full_name(self, obj):
         return obj.get_full_name()
+    
+    def get_is_account_locked(self, obj):
+        return obj.is_account_locked()
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):

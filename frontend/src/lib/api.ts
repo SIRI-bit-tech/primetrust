@@ -56,6 +56,21 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
+    // Check for account lock (403 with account_locked flag)
+    if (error.response?.status === 403 && error.response?.data?.account_locked) {
+      // Dispatch a custom event to show account lock modal
+      const lockEvent = new CustomEvent('accountLocked', {
+        detail: {
+          reason: error.response.data.lock_reason || 'Account locked by administrator',
+          lockedUntil: error.response.data.locked_until || '',
+          unlockRequestPending: error.response.data.unlock_request_pending || false
+        }
+      })
+      window.dispatchEvent(lockEvent)
+      
+      return Promise.reject(error)
+    }
+
     // Don't try to refresh tokens for public endpoints
     const publicEndpoints = ['/auth/register/', '/auth/login/', '/auth/verify-email/', '/auth/password-reset-request/', '/auth/password-reset/', '/auth/refresh/']
     const isPublicEndpoint = publicEndpoints.some(endpoint => originalRequest.url?.includes(endpoint))

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { User, RegisterData } from '@/types'
 import { authAPI } from '@/lib/api'
 
@@ -20,10 +20,33 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     checkAuth()
   }, [])
+
+  // Start/stop polling based on user login status
+  useEffect(() => {
+    // Clear any existing interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+
+    // Only poll if user is logged in
+    if (user?.id) {
+      pollingIntervalRef.current = setInterval(() => {
+        refreshUser()
+      }, 15000) // Poll every 15 seconds
+    }
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+      }
+    }
+  }, [user?.id]) // Only restart polling when user logs in/out
 
   const checkAuth = async () => {
     try {
@@ -53,7 +76,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const refreshUser = async () => {
-    await checkAuth()
+    try {
+      const token = localStorage.getItem('access_token')
+      if (token) {
+        const userData = await authAPI.getProfile()
+        // Only update if data actually changed to prevent unnecessary re-renders
+        if (JSON.stringify(userData) !== JSON.stringify(user)) {
+          setUser(userData)
+          localStorage.setItem('user', JSON.stringify(userData))
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error)
+    }
   }
 
   const setUserFromTokens = (accessToken: string, refreshToken: string, userData: User) => {
