@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import { AlertTriangle, Lock, Clock, MessageSquare } from 'lucide-react'
-import axios from 'axios'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { authAPI } from '@/lib/api'
 
 interface AccountLockedBannerProps {
   lockReason: string
@@ -53,13 +53,7 @@ export default function AccountLockedBanner({
     setError('')
 
     try {
-      await axios.post(
-        'http://localhost:8000/api/auth/request-unlock/',
-        { 
-          email: userEmail,
-          message: message.trim() 
-        }
-      )
+      await authAPI.requestAccountUnlock(userEmail, message.trim())
 
       setSuccess(true)
       setMessage('')
