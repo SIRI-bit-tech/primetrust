@@ -41,13 +41,16 @@ class AccountLockMiddleware(MiddlewareMixin):
             
         # Check if account is locked - block most API calls but allow viewing lock status
         if hasattr(request.user, 'is_account_locked') and request.user.is_account_locked():
+            # Convert datetime to JSON-safe string
+            locked_until_str = request.user.account_locked_until.isoformat() if request.user.account_locked_until else None
+            
             return JsonResponse({
                 'error': 'Account is locked',
                 'account_locked': True,
-                'locked_until': request.user.account_locked_until,
+                'locked_until': locked_until_str,
                 'lock_reason': request.user.account_lock_reason,
                 'unlock_request_pending': request.user.unlock_request_pending,
-                'message': f'Your account has been locked. Reason: {request.user.account_lock_reason}. Please request an unlock or wait until {request.user.account_locked_until}.'
+                'message': f'Your account has been locked. Reason: {request.user.account_lock_reason}. Please request an unlock or wait until {locked_until_str}.'
             }, status=status.HTTP_403_FORBIDDEN)
             
         return None

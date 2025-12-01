@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { X, Lock, AlertTriangle, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import axios from 'axios'
+import { authAPI } from '@/lib/api'
 
 interface AccountLockedModalProps {
   isOpen: boolean
@@ -70,13 +70,7 @@ export default function AccountLockedModal({
     setError('')
 
     try {
-      await axios.post(
-        'http://localhost:8000/api/auth/request-unlock/',
-        { 
-          email: userEmail,
-          message: message.trim() 
-        }
-      )
+      await authAPI.requestAccountUnlock(userEmail, message.trim())
 
       setSuccess(true)
       setMessage('')
