@@ -144,6 +144,10 @@ def log_security_event(user, event_type, description, request=None, metadata=Non
             # Get user agent
             user_agent = request.META.get('HTTP_USER_AGENT', '')
         
+        # Ensure user_agent is never None (use empty string as default)
+        if user_agent is None:
+            user_agent = ''
+        
         SecurityAuditLog.objects.create(
             user=user,
             event_type=event_type,

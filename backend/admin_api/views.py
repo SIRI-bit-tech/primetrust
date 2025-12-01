@@ -943,12 +943,12 @@ class AdminUnlockUserAccountView(APIView):
         )
         
         # Send notification to user
-        from api.services import trigger_notification
-        trigger_notification(
+        from api.services import NotificationService
+        NotificationService.create_notification(
             user=user,
-            notification_type='account_unlocked',
+            notification_type='account',
             title='Account Unlocked',
-            message=f'Your account has been unlocked by an administrator. You can now log in.',
+            message=f'Your account has been unlocked by an administrator. You can now access all features.',
             priority='high'
         )
         
@@ -989,12 +989,12 @@ class AdminApproveUnlockView(APIView):
         
         if success:
             # Send notification to user
-            from api.services import trigger_notification
-            trigger_notification(
+            from api.services import NotificationService
+            NotificationService.create_notification(
                 user=user,
-                notification_type='account_unlocked',
+                notification_type='account',
                 title='Account Unlocked',
-                message=f'Your account has been unlocked by an administrator. You can now log in.',
+                message=f'Your account has been unlocked by an administrator. You can now access all features.',
                 priority='high'
             )
             
@@ -1027,8 +1027,8 @@ class AdminRejectUnlockView(APIView):
         
         if success:
             # Send notification to user
-            from api.services import trigger_notification
-            trigger_notification(
+            from api.services import NotificationService
+            NotificationService.create_notification(
                 user=user,
                 notification_type='unlock_rejected',
                 title='Unlock Request Denied',

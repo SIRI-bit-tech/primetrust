@@ -20,6 +20,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { loansAPI } from '@/lib/api'
 import { Loan } from '@/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 const loanApplicationSchema = z.object({
   loan_type: z.enum(['personal', 'business', 'mortgage', 'auto']),
@@ -46,6 +47,7 @@ const employmentStatuses = [
 ]
 
 export default function LoansPage() {
+  const { user } = useAuth()
   const [loans, setLoans] = useState<Loan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -54,6 +56,8 @@ export default function LoansPage() {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
   const [makingPayment, setMakingPayment] = useState(false)
+  
+  const isAccountLocked = user?.is_account_locked || false
 
   const {
     register,
@@ -182,7 +186,7 @@ export default function LoansPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className={cn("space-y-6 relative", isAccountLocked && "pointer-events-none opacity-50")}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

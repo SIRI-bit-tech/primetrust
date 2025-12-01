@@ -5,6 +5,7 @@ import { Check, X, Lock, Unlock, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { User } from '@/types'
 import { adminAPI } from '@/lib/api'
+import ConfirmModal from './ConfirmModal'
 
 interface UnlockRequestsTableProps {
   users: User[]
@@ -14,35 +15,54 @@ interface UnlockRequestsTableProps {
 export default function UnlockRequestsTable({ users, onUpdate }: UnlockRequestsTableProps) {
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [showApproveModal, setShowApproveModal] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
 
   const handleApprove = async (userId: number) => {
-    if (!confirm('Are you sure you want to unlock this account?')) return
+    setSelectedUserId(userId)
+    setShowApproveModal(true)
+  }
 
-    setProcessingId(userId)
+  const confirmApprove = async () => {
+    if (!selectedUserId) return
+
+    setProcessingId(selectedUserId)
+    setShowApproveModal(false)
+    
     try {
-      await adminAPI.approveUnlockRequest(userId)
+      await adminAPI.approveUnlockRequest(selectedUserId)
       onUpdate()
     } catch (error) {
       console.error('Failed to approve unlock:', error)
       alert('Failed to approve unlock request')
     } finally {
       setProcessingId(null)
+      setSelectedUserId(null)
     }
   }
 
   const handleReject = async (userId: number) => {
-    const reason = prompt('Enter rejection reason:')
-    if (!reason) return
+    setSelectedUserId(userId)
+    setShowRejectModal(true)
+  }
 
-    setProcessingId(userId)
+  const confirmReject = async (reason?: string) => {
+    if (!selectedUserId || !reason) return
+
+    setProcessingId(selectedUserId)
+    setShowRejectModal(false)
+    
     try {
-      await adminAPI.rejectUnlockRequest(userId, reason)
+      await adminAPI.rejectUnlockRequest(selectedUserId, reason)
       onUpdate()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to reject unlock:', error)
-      alert('Failed to reject unlock request')
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to reject unlock request'
+      alert(errorMessage)
     } finally {
       setProcessingId(null)
+      setSelectedUserId(null)
     }
   }
 
@@ -142,6 +162,39 @@ export default function UnlockRequestsTable({ users, onUpdate }: UnlockRequestsT
           ))}
         </tbody>
       </table>
+
+      {/* Approve Modal */}
+      <ConfirmModal
+        isOpen={showApproveModal}
+        title="Approve Unlock Request"
+        message="Are you sure you want to unlock this account?"
+        confirmText="Approve"
+        cancelText="Cancel"
+        variant="info"
+        onConfirm={confirmApprove}
+        onCancel={() => {
+          setShowApproveModal(false)
+          setSelectedUserId(null)
+        }}
+      />
+
+      {/* Reject Modal */}
+      <ConfirmModal
+        isOpen={showRejectModal}
+        title="Reject Unlock Request"
+        message="Please provide a reason for rejecting this unlock request:"
+        confirmText="Reject"
+        cancelText="Cancel"
+        variant="warning"
+        requireInput
+        inputLabel="Rejection Reason"
+        inputPlaceholder="Enter reason for rejection..."
+        onConfirm={confirmReject}
+        onCancel={() => {
+          setShowRejectModal(false)
+          setSelectedUserId(null)
+        }}
+      />
     </div>
   )
 }
