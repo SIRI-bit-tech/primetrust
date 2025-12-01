@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/theme-provider";
+import GlobalAccountLockModal from "@/components/GlobalAccountLockModal";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -48,6 +49,7 @@ export default function RootLayout({
         >
           <AuthProvider>
             {children}
+            <GlobalAccountLockModal />
           </AuthProvider>
         </ThemeProvider>
       </body>

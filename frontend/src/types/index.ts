@@ -27,6 +27,7 @@ export interface User {
   bitcoin_balance?: number
   two_factor_setup_completed?: boolean
   transfer_pin_setup_completed?: boolean
+  is_account_locked?: boolean
   account_locked_until?: string | null
   account_lock_reason?: string
   unlock_request_pending?: boolean

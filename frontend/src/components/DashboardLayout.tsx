@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { 
   Home, 
   CreditCard, 
@@ -14,6 +15,8 @@ import {
   Receipt,
 } from 'lucide-react'
 import NotificationDropdown from './NotificationDropdown'
+import AccountLockedBanner from './AccountLockedBanner'
+import AccountLockedModal from './AccountLockedModal'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
@@ -58,6 +61,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const { unreadCount } = useNotifications()
+  
+  // Account lock state
+  const [showLockModal, setShowLockModal] = useState(false)
+  const isAccountLocked = user?.is_account_locked || false
+
+  // Show modal when account becomes locked
+  useEffect(() => {
+    if (user?.is_account_locked) {
+      setShowLockModal(true)
+    }
+  }, [user?.is_account_locked])
 
   const handleLogout = async () => {
     try {
@@ -145,10 +159,38 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+            {/* Account Locked Banner - Shows on all pages */}
+            {isAccountLocked && user && (
+              <AccountLockedBanner
+                lockReason={user.account_lock_reason || ''}
+                lockedUntil={user.account_locked_until || ''}
+                unlockRequestPending={user.unlock_request_pending || false}
+                userEmail={user.email}
+                onUnlockRequested={() => {
+                  // Banner will auto-update when user data refreshes
+                }}
+              />
+            )}
+            
             {children}
           </div>
         </SidebarInset>
       </div>
+
+      {/* Account Locked Modal */}
+      {isAccountLocked && user && (
+        <AccountLockedModal
+          isOpen={showLockModal}
+          lockedUntil={user.account_locked_until || ''}
+          lockReason={user.account_lock_reason || ''}
+          unlockRequestPending={user.unlock_request_pending || false}
+          userEmail={user.email}
+          onClose={() => setShowLockModal(false)}
+          onUnlockRequested={() => {
+            // Modal will auto-update when user data refreshes
+          }}
+        />
+      )}
     </SidebarProvider>
   )
 } 

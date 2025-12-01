@@ -239,6 +239,19 @@ export default function AdminPage() {
     }
   }
 
+  const handleUnlockAccount = async (userId: number) => {
+    if (!confirm('Are you sure you want to unlock this account?')) return
+
+    try {
+      await adminAPI.unlockUserAccount(userId)
+      setError('')
+      loadData()
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to unlock account')
+    }
+  }
+
   const handleDeleteCard = async (cardId: number) => {
     if (!confirm('Are you sure you want to delete this card? This action cannot be undone.')) return
     
@@ -305,6 +318,10 @@ export default function AdminPage() {
       case 'pending':
       case 'processing':
         return 'text-yellow-600 bg-yellow-100'
+      case 'locked':
+        return 'text-red-600 bg-red-100'
+      case 'inactive':
+        return 'text-gray-600 bg-gray-100'
       case 'rejected':
       case 'failed':
       case 'major_outage':
@@ -429,20 +446,35 @@ export default function AdminPage() {
               {formatCurrency(Number(userItem.balance) || 0)}
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
-              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(userItem.is_active ? 'active' : 'inactive')}`}>
-                {userItem.is_active ? 'Active' : 'Inactive'}
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                userItem.account_locked_until && new Date(userItem.account_locked_until) > new Date() ? 'locked' : 
+                userItem.is_active ? 'active' : 'inactive'
+              )}`}>
+                {userItem.account_locked_until && new Date(userItem.account_locked_until) > new Date() ? 'Locked' :
+                 userItem.is_active ? 'Active' : 'Inactive'}
               </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleLockAccount(userItem.id)}
-                  className="text-yellow-400 hover:text-yellow-300 flex items-center"
-                  title="Lock Account"
-                >
-                  <Lock className="w-4 h-4 mr-1" />
-                  Lock
-                </button>
+                {userItem.account_locked_until && new Date(userItem.account_locked_until) > new Date() ? (
+                  <button
+                    onClick={() => handleUnlockAccount(userItem.id)}
+                    className="text-green-400 hover:text-green-300 flex items-center"
+                    title="Unlock Account"
+                  >
+                    <Unlock className="w-4 h-4 mr-1" />
+                    Unlock
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleLockAccount(userItem.id)}
+                    className="text-yellow-400 hover:text-yellow-300 flex items-center"
+                    title="Lock Account"
+                  >
+                    <Lock className="w-4 h-4 mr-1" />
+                    Lock
+                  </button>
+                )}
                 <button
                   onClick={() => handleDeleteUser(userItem.id)}
                   className="text-red-400 hover:text-red-300 flex items-center"

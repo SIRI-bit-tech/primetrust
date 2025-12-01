@@ -38,6 +38,7 @@ urlpatterns = [
     
     # Account locking endpoints
     path('users/<int:user_id>/lock/', views.AdminLockUserAccountView.as_view(), name='admin-lock-user'),
+    path('users/<int:user_id>/unlock/', views.AdminUnlockUserAccountView.as_view(), name='admin-unlock-user'),
     path('unlock-requests/', views.AdminUnlockRequestListView.as_view(), name='admin-unlock-requests'),
     path('users/<int:user_id>/unlock/approve/', views.AdminApproveUnlockView.as_view(), name='admin-approve-unlock'),
     path('users/<int:user_id>/unlock/reject/', views.AdminRejectUnlockView.as_view(), name='admin-reject-unlock'),
