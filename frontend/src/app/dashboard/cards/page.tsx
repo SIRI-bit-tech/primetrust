@@ -24,9 +24,12 @@ import { VirtualCard, CardApplication } from '@/types'
 
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/useAuth'
+import { cn } from '@/lib/utils'
 
 export default function CardsPage() {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [cards, setCards] = useState<VirtualCard[]>([])
   const [applications, setApplications] = useState<CardApplication[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -40,6 +43,8 @@ export default function CardsPage() {
     preferred_daily_limit: 1000,
     preferred_monthly_limit: 10000
   })
+  
+  const isAccountLocked = user?.is_account_locked || false
 
   useEffect(() => {
     loadData()
@@ -367,7 +372,7 @@ export default function CardsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className={cn("space-y-6 relative", isAccountLocked && "pointer-events-none opacity-50")}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

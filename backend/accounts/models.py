@@ -225,7 +225,10 @@ class User(AbstractUser):
     def reset_failed_login(self):
         """Reset failed login attempts."""
         self.failed_login_attempts = 0
-        self.account_locked_until = None
+        # Only clear the lock if it was caused by failed login attempts (no lock reason means auto-lock)
+        # Admin-imposed locks have a lock_reason, so we don't clear those
+        if not self.account_lock_reason:
+            self.account_locked_until = None
         self.save()
     
     def update_last_activity(self):

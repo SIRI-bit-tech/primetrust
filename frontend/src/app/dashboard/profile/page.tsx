@@ -116,7 +116,7 @@ export default function ProfilePage() {
               Manage your account information and preferences.
             </p>
           </div>
-          {!isEditing && (
+          {!isEditing && !user?.is_account_locked && (
             <button
               onClick={() => setIsEditing(true)}
               className="bg-gradient-to-r from-primary-dark to-primary-navy text-white px-4 py-2 rounded-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center"
@@ -124,6 +124,11 @@ export default function ProfilePage() {
               <Edit className="w-4 h-4 mr-2" />
               Edit Profile
             </button>
+          )}
+          {user?.is_account_locked && (
+            <div className="text-sm text-gray-500 italic">
+              Profile editing is disabled while your account is locked
+            </div>
           )}
         </div>
 

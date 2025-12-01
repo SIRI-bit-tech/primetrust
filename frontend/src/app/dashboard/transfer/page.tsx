@@ -14,6 +14,7 @@ import { bankingAPI } from '@/lib/api'
 import { TransferData } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 const transferSchema = z.object({
   recipient_email: z.string().email('Please enter a valid email address'),
@@ -24,12 +25,15 @@ const transferSchema = z.object({
 type TransferFormData = z.infer<typeof transferSchema>
 
 export default function TransferPage() {
+  const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [showPinModal, setShowPinModal] = useState(false)
   const [pendingTransfer, setPendingTransfer] = useState<TransferData | null>(null)
   const router = useRouter()
+  
+  const isAccountLocked = user?.is_account_locked || false
 
   const {
     register,
@@ -107,7 +111,7 @@ export default function TransferPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto relative">
         {/* Header */}
         <div className="mb-8">
           <Link
@@ -128,7 +132,10 @@ export default function TransferPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className={cn(
+            "bg-white rounded-lg shadow-sm p-6 relative",
+            isAccountLocked && "pointer-events-none opacity-50"
+          )}>
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}

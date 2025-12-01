@@ -24,6 +24,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { investmentsAPI } from '@/lib/api'
 import { Investment, InvestmentPurchase } from '@/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 const investmentPurchaseSchema = z.object({
   investment_type: z.enum(['stocks', 'bonds', 'mutual_funds', 'etfs', 'crypto']),
@@ -53,6 +54,7 @@ const mockMarketData = {
 }
 
 export default function InvestmentsPage() {
+  const { user } = useAuth()
   const [investments, setInvestments] = useState<Investment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -64,6 +66,8 @@ export default function InvestmentsPage() {
   const [showMarketData, setShowMarketData] = useState(false)
   const [marketData, setMarketData] = useState(mockMarketData)
   const [refreshing, setRefreshing] = useState(false)
+  
+  const isAccountLocked = user?.is_account_locked || false
 
   const {
     register,
@@ -179,7 +183,7 @@ export default function InvestmentsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className={cn("space-y-6 relative", isAccountLocked && "pointer-events-none opacity-50")}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

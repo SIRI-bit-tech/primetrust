@@ -26,27 +26,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth()
   }, [])
 
-  // Start/stop polling based on user login status
-  useEffect(() => {
-    // Clear any existing interval
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current)
-      pollingIntervalRef.current = null
-    }
-
-    // Only poll if user is logged in
-    if (user?.id) {
-      pollingIntervalRef.current = setInterval(() => {
-        refreshUser()
-      }, 15000) // Poll every 15 seconds
-    }
-
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-      }
-    }
-  }, [user?.id]) // Only restart polling when user logs in/out
+  // Polling disabled - causes page reloads
+  // User can manually refresh or lock status will update on next login
+  // useEffect(() => {
+  //   if (pollingIntervalRef.current) {
+  //     clearInterval(pollingIntervalRef.current)
+  //     pollingIntervalRef.current = null
+  //   }
+  //   if (user?.id) {
+  //     pollingIntervalRef.current = setInterval(() => {
+  //       refreshUser()
+  //     }, 15000)
+  //   }
+  //   return () => {
+  //     if (pollingIntervalRef.current) {
+  //       clearInterval(pollingIntervalRef.current)
+  //     }
+  //   }
+  // }, [user?.id])
 
   const checkAuth = async () => {
     try {

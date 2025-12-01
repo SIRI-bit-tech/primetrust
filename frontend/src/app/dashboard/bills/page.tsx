@@ -22,6 +22,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { billsAPI } from '@/lib/api'
 import { Bill, BillPayment } from '@/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 const billSchema = z.object({
   biller_name: z.string().min(1, 'Biller name is required'),
@@ -50,6 +51,7 @@ const recurringFrequencies = [
 ]
 
 export default function BillsPage() {
+  const { user } = useAuth()
   const [bills, setBills] = useState<Bill[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -59,6 +61,8 @@ export default function BillsPage() {
   const [editingBill, setEditingBill] = useState<Bill | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'account_balance' | 'virtual_card'>('account_balance')
   const [paying, setPaying] = useState(false)
+  
+  const isAccountLocked = user?.is_account_locked || false
 
   const {
     register,
@@ -206,7 +210,7 @@ export default function BillsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className={cn("space-y-6 relative", isAccountLocked && "pointer-events-none opacity-50")}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
