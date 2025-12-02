@@ -5,52 +5,163 @@ import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Send, DollarSign, User, MessageSquare, ArrowLeft } from 'lucide-react'
+import { Send, DollarSign, User, MessageSquare, ArrowLeft, Globe } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import TransferPinModal from '@/components/TransferPinModal'
+import TransferTypeSelector from '@/components/transfer/TransferTypeSelector'
+import BankAccountInput from '@/components/transfer/BankAccountInput'
+import TransferFeeDisplay from '@/components/transfer/TransferFeeDisplay'
+import SavedBeneficiarySelector from '@/components/transfer/SavedBeneficiarySelector'
 import { bankingAPI } from '@/lib/api'
-import { TransferData } from '@/types'
+import { TransferData, TransferType, BankLookupResponse, SavedBeneficiary } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 
-const transferSchema = z.object({
+// Internal transfer schema
+const internalTransferSchema = z.object({
   recipient_email: z.string().email('Please enter a valid email address'),
   amount: z.number().min(0.01, 'Amount must be at least $0.01').max(10000, 'Maximum transfer amount is $10,000'),
   description: z.string().min(1, 'Description is required').max(100, 'Description must be less than 100 characters'),
 })
 
-type TransferFormData = z.infer<typeof transferSchema>
+// ACH transfer schema
+const achTransferSchema = z.object({
+  recipient_name: z.string().min(2, 'Recipient name is required'),
+  routing_number: z.string().length(9, 'Routing number must be 9 digits'),
+  account_number: z.string().min(4, 'Account number is required'),
+  account_type: z.enum(['checking', 'savings']),
+  amount: z.number().min(0.01, 'Amount must be at least $0.01').max(50000, 'Maximum ACH transfer is $50,000'),
+  description: z.string().min(1, 'Description is required').max(100, 'Description must be less than 100 characters'),
+  save_recipient: z.boolean().optional(),
+  recipient_nickname: z.string().optional(),
+})
+
+// Wire transfer schema
+const wireTransferSchema = z.object({
+  recipient_name: z.string().min(2, 'Recipient name is required'),
+  routing_number: z.string().length(9, 'Routing number must be 9 digits'),
+  account_number: z.string().min(4, 'Account number is required'),
+  bank_name: z.string().min(2, 'Bank name is required'),
+  bank_address: z.string().min(5, 'Bank address is required'),
+  amount: z.number().min(0.01, 'Amount must be at least $0.01').max(100000, 'Maximum wire transfer is $100,000'),
+  description: z.string().min(1, 'Description is required').max(100, 'Description must be less than 100 characters'),
+  reference: z.string().optional(),
+  save_recipient: z.boolean().optional(),
+  recipient_nickname: z.string().optional(),
+})
+
+// International wire schema
+const internationalWireSchema = z.object({
+  recipient_name: z.string().min(2, 'Recipient name is required'),
+  recipient_address: z.string().min(5, 'Recipient address is required'),
+  recipient_city: z.string().min(2, 'City is required'),
+  recipient_country: z.string().min(2, 'Country is required'),
+  swift_code: z.string().min(8, 'SWIFT/BIC code is required'),
+  iban: z.string().optional(),
+  bank_name: z.string().min(2, 'Bank name is required'),
+  bank_address: z.string().min(5, 'Bank address is required'),
+  amount: z.number().min(0.01, 'Amount must be at least $0.01').max(250000, 'Maximum international wire is $250,000'),
+  currency: z.string().default('USD'),
+  description: z.string().min(1, 'Description is required').max(100, 'Description must be less than 100 characters'),
+  purpose: z.string().min(5, 'Purpose of transfer is required'),
+  save_recipient: z.boolean().optional(),
+  recipient_nickname: z.string().optional(),
+})
+
+type InternalTransferFormData = z.infer<typeof internalTransferSchema>
+type ACHTransferFormData = z.infer<typeof achTransferSchema>
+type WireTransferFormData = z.infer<typeof wireTransferSchema>
+type InternationalWireFormData = z.infer<typeof internationalWireSchema>
 
 export default function TransferPage() {
   const { user } = useAuth()
+  const router = useRouter()
+  
+  // State
+  const [transferType, setTransferType] = useState<TransferType>('internal')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [showPinModal, setShowPinModal] = useState(false)
-  const [pendingTransfer, setPendingTransfer] = useState<TransferData | null>(null)
-  const router = useRouter()
+  const [pendingTransfer, setPendingTransfer] = useState<any>(null)
+  const [bankInfo, setBankInfo] = useState<BankLookupResponse | null>(null)
+  const [savedBeneficiaries] = useState<SavedBeneficiary[]>([]) // TODO: Fetch from API
+  const [accountType, setAccountType] = useState<'checking' | 'savings'>('checking')
+  const [saveRecipient, setSaveRecipient] = useState(false)
   
   const isAccountLocked = user?.is_account_locked || false
+
+  // Get schema based on transfer type
+  const getSchema = () => {
+    switch (transferType) {
+      case 'internal':
+        return internalTransferSchema
+      case 'ach':
+        return achTransferSchema
+      case 'wire_domestic':
+        return wireTransferSchema
+      case 'wire_international':
+        return internationalWireSchema
+      default:
+        return internalTransferSchema
+    }
+  }
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<TransferFormData>({
-    resolver: zodResolver(transferSchema),
+    watch,
+    setValue,
+  } = useForm({
+    resolver: zodResolver(getSchema()),
   })
 
-  const onSubmit = async (data: TransferFormData) => {
+  const amount = watch('amount', 0)
+
+  // Calculate fees based on transfer type
+  const getFeeInfo = () => {
+    const fees = {
+      internal: { base: 0, percentage: 0, time: 'Instant', completion: 'Immediately' },
+      ach: { base: 0.5, percentage: 0, time: '1-3 business days', completion: 'Within 3 business days' },
+      wire_domestic: { base: 25, percentage: 0, time: 'Same day', completion: 'Today by 5 PM EST' },
+      wire_international: { base: 45, percentage: 0.5, time: '1-5 business days', completion: 'Within 5 business days' },
+    }
+    
+    const feeConfig = fees[transferType]
+    const baseFee = feeConfig.base
+    const percentageFee = (amount * feeConfig.percentage) / 100
+    const totalFee = baseFee + percentageFee
+    
+    return {
+      fee: totalFee,
+      totalAmount: amount + totalFee,
+      processingTime: feeConfig.time,
+      estimatedCompletion: feeConfig.completion,
+    }
+  }
+
+  const feeInfo = getFeeInfo()
+
+  const onSubmit = async (data: any) => {
     setIsLoading(true)
     setError('')
 
     try {
+      // Add transfer type and fee info to data
+      const transferData = {
+        ...data,
+        transfer_type: transferType,
+        fee: feeInfo.fee,
+        total_amount: feeInfo.totalAmount,
+      }
+      
       // Store pending transfer and show PIN modal
-      setPendingTransfer(data)
+      setPendingTransfer(transferData)
       setShowPinModal(true)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
@@ -67,7 +178,24 @@ export default function TransferPage() {
     setError('')
 
     try {
-      await bankingAPI.initiateTransfer(pendingTransfer)
+      // Call appropriate API based on transfer type
+      switch (transferType) {
+        case 'internal':
+          await bankingAPI.initiateTransfer(pendingTransfer)
+          break
+        case 'ach':
+          await bankingAPI.createACHTransfer(pendingTransfer)
+          break
+        case 'wire_domestic':
+          await bankingAPI.createWireTransfer(pendingTransfer)
+          break
+        case 'wire_international':
+          await bankingAPI.createInternationalWireTransfer(pendingTransfer)
+          break
+        default:
+          throw new Error('Invalid transfer type')
+      }
+      
       setSuccess(true)
       setShowPinModal(false)
       setPendingTransfer(null)
@@ -78,10 +206,20 @@ export default function TransferPage() {
         router.push('/dashboard/transactions')
       }, 2000)
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Transfer failed. Please try again.')
+      const error = err as { response?: { data?: { message?: string; error?: string } } }
+      setError(error.response?.data?.message || error.response?.data?.error || 'Transfer failed. Please try again.')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleBeneficiarySelect = (beneficiary: SavedBeneficiary) => {
+    setValue('recipient_name', beneficiary.recipient_name)
+    setValue('routing_number', beneficiary.routing_number || '')
+    setValue('account_number', beneficiary.account_number || '')
+    setValue('bank_name', beneficiary.bank_name)
+    if (beneficiary.account_type) {
+      setAccountType(beneficiary.account_type)
     }
   }
 
@@ -111,29 +249,41 @@ export default function TransferPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto relative">
+      <div className="max-w-4xl mx-auto relative">
         {/* Header */}
         <div className="mb-8">
           <Link
             href="/dashboard"
-            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+            className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Transfer Money</h1>
-          <p className="text-gray-600 mt-2">
-            Send money to other PrimeTrust users instantly and securely.
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Transfer Money</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Send money securely with multiple transfer options
           </p>
         </div>
+
+        {/* Transfer Type Selector */}
+        <TransferTypeSelector
+          selectedType={transferType}
+          onTypeChange={(type) => {
+            setTransferType(type)
+            reset()
+            setError('')
+          }}
+          className="mb-8"
+        />
 
         {/* Transfer Form */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          key={transferType}
         >
           <div className={cn(
-            "bg-white rounded-lg shadow-sm p-6 relative",
+            "bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 relative",
             isAccountLocked && "pointer-events-none opacity-50"
           )}>
             {error && (
@@ -141,43 +291,187 @@ export default function TransferPage() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-600 text-sm">{error}</p>
+                <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
                 </div>
               </motion.div>
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Recipient Email */}
-              <div>
-                <label htmlFor="recipient_email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Recipient Email
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+              {/* Saved Beneficiaries */}
+              {transferType !== 'internal' && savedBeneficiaries.length > 0 && (
+                <SavedBeneficiarySelector
+                  beneficiaries={savedBeneficiaries.filter(b => b.transfer_type === transferType)}
+                  onSelect={handleBeneficiarySelect}
+                />
+              )}
+
+              {/* Internal Transfer Fields */}
+              {transferType === 'internal' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Recipient Email
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      {...register('recipient_email')}
+                      type="email"
+                      className={cn(
+                        "block w-full pl-10 pr-3 py-3 border rounded-lg",
+                        "focus:ring-2 focus:ring-primary-dark focus:border-transparent",
+                        "bg-white dark:bg-gray-800 text-gray-900 dark:text-white",
+                        "placeholder-gray-400 dark:placeholder-gray-500",
+                        errors.recipient_email
+                          ? "border-red-300 dark:border-red-700"
+                          : "border-gray-300 dark:border-gray-600"
+                      )}
+                      placeholder="Enter recipient's email address"
+                    />
                   </div>
-                  <input
-                    {...register('recipient_email')}
-                    type="email"
-                    id="recipient_email"
-                    className={cn(
-                      "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                      errors.recipient_email
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark"
-                    )}
-                    placeholder="Enter recipient's email address"
-                  />
+                  {errors.recipient_email && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {errors.recipient_email.message as string}
+                    </p>
+                  )}
                 </div>
-                {errors.recipient_email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.recipient_email.message}</p>
-                )}
-              </div>
+              )}
+
+              {/* ACH/Wire Transfer Fields */}
+              {(transferType === 'ach' || transferType === 'wire_domestic') && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Recipient Name
+                    </label>
+                    <input
+                      {...register('recipient_name')}
+                      type="text"
+                      className={cn(
+                        "w-full px-4 py-3 border rounded-lg",
+                        "focus:ring-2 focus:ring-primary-dark focus:border-transparent",
+                        "bg-white dark:bg-gray-800 text-gray-900 dark:text-white",
+                        "placeholder-gray-400 dark:placeholder-gray-500",
+                        errors.recipient_name
+                          ? "border-red-300 dark:border-red-700"
+                          : "border-gray-300 dark:border-gray-600"
+                      )}
+                      placeholder="Full name on account"
+                    />
+                    {errors.recipient_name && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {errors.recipient_name.message as string}
+                      </p>
+                    )}
+                  </div>
+
+                  <BankAccountInput
+                    routingNumber={watch('routing_number') || ''}
+                    accountNumber={watch('account_number') || ''}
+                    bankName={watch('bank_name') || ''}
+                    onRoutingNumberChange={(value) => setValue('routing_number', value)}
+                    onAccountNumberChange={(value) => setValue('account_number', value)}
+                    onBankNameChange={(value) => setValue('bank_name', value)}
+                    onBankInfoLoaded={(info) => {
+                      setBankInfo(info)
+                    }}
+                    accountType={accountType}
+                    onAccountTypeChange={setAccountType}
+                    showAccountType={transferType === 'ach'}
+                    errors={{
+                      routingNumber: errors.routing_number?.message as string,
+                      accountNumber: errors.account_number?.message as string,
+                      bankName: errors.bank_name?.message as string,
+                    }}
+                  />
+
+                  {transferType === 'wire_domestic' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Reference (Optional)
+                      </label>
+                      <input
+                        {...register('reference')}
+                        type="text"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                        placeholder="Reference number or memo"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* International Wire Fields */}
+              {transferType === 'wire_international' && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Recipient Name
+                      </label>
+                      <input
+                        {...register('recipient_name')}
+                        type="text"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        placeholder="Full name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        SWIFT/BIC Code
+                      </label>
+                      <input
+                        {...register('swift_code')}
+                        type="text"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        placeholder="e.g., CHASUS33"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      IBAN (Optional)
+                    </label>
+                    <input
+                      {...register('iban')}
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      placeholder="International Bank Account Number"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Bank Name
+                    </label>
+                    <input
+                      {...register('bank_name')}
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      placeholder="Recipient's bank name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Purpose of Transfer
+                    </label>
+                    <input
+                      {...register('purpose')}
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      placeholder="e.g., Family support, Business payment"
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Amount */}
               <div>
-                <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Amount
                 </label>
                 <div className="relative">
@@ -187,54 +481,77 @@ export default function TransferPage() {
                   <input
                     {...register('amount', { valueAsNumber: true })}
                     type="number"
-                    id="amount"
                     step="0.01"
-                    min="0.01"
-                    max="10000"
                     className={cn(
-                      "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
+                      "block w-full pl-10 pr-3 py-3 border rounded-lg",
+                      "focus:ring-2 focus:ring-primary-dark focus:border-transparent",
+                      "bg-white dark:bg-gray-800 text-gray-900 dark:text-white",
                       errors.amount
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark"
+                        ? "border-red-300 dark:border-red-700"
+                        : "border-gray-300 dark:border-gray-600"
                     )}
                     placeholder="0.00"
                   />
                 </div>
                 {errors.amount && (
-                  <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.amount.message as string}
+                  </p>
                 )}
-                <p className="mt-1 text-xs text-gray-500">
-                  Maximum transfer amount: {formatCurrency(10000)}
-                </p>
               </div>
 
               {/* Description */}
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MessageSquare className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    {...register('description')}
-                    type="text"
-                    id="description"
-                    maxLength={100}
-                    className={cn(
-                      "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                      errors.description
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark"
-                    )}
-                    placeholder="What's this transfer for?"
-                  />
-                </div>
+                <input
+                  {...register('description')}
+                  type="text"
+                  maxLength={100}
+                  className={cn(
+                    "w-full px-4 py-3 border rounded-lg",
+                    "focus:ring-2 focus:ring-primary-dark focus:border-transparent",
+                    "bg-white dark:bg-gray-800 text-gray-900 dark:text-white",
+                    errors.description
+                      ? "border-red-300 dark:border-red-700"
+                      : "border-gray-300 dark:border-gray-600"
+                  )}
+                  placeholder="What's this transfer for?"
+                />
                 {errors.description && (
-                  <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.description.message as string}
+                  </p>
                 )}
               </div>
+
+              {/* Save Recipient */}
+              {transferType !== 'internal' && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="save_recipient"
+                    checked={saveRecipient}
+                    onChange={(e) => setSaveRecipient(e.target.checked)}
+                    className="w-4 h-4 text-primary-dark focus:ring-primary-dark border-gray-300 rounded"
+                  />
+                  <label htmlFor="save_recipient" className="text-sm text-gray-700 dark:text-gray-300">
+                    Save this recipient for future transfers
+                  </label>
+                </div>
+              )}
+
+              {/* Fee Display */}
+              {amount > 0 && (
+                <TransferFeeDisplay
+                  amount={amount}
+                  fee={feeInfo.fee}
+                  totalAmount={feeInfo.totalAmount}
+                  processingTime={feeInfo.processingTime}
+                  estimatedCompletion={feeInfo.estimatedCompletion}
+                />
+              )}
 
               {/* Submit Button */}
               <button
@@ -250,7 +567,7 @@ export default function TransferPage() {
                 ) : (
                   <>
                     <Send className="w-5 h-5 mr-2" />
-                    Send Money
+                    {transferType === 'internal' ? 'Send Money' : 'Review Transfer'}
                   </>
                 )}
               </button>
@@ -264,53 +581,87 @@ export default function TransferPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="mt-6 bg-blue-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-blue-900 mb-3">Transfer Information</h3>
-            <div className="space-y-2 text-sm text-blue-800">
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Transfers are processed instantly between PrimeTrust users</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Maximum transfer amount: {formatCurrency(10000)}</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>No transfer fees for PrimeTrust users</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Recipient must have a PrimeTrust account</span>
-              </div>
+          <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">
+              {transferType === 'internal' && 'Internal Transfer Information'}
+              {transferType === 'ach' && 'ACH Transfer Information'}
+              {transferType === 'wire_domestic' && 'Wire Transfer Information'}
+              {transferType === 'wire_international' && 'International Wire Information'}
+            </h3>
+            <div className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+              {transferType === 'internal' && (
+                <>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Transfers are processed instantly</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>No transfer fees</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Recipient must have a PrimeTrust account</span>
+                  </div>
+                </>
+              )}
+              {transferType === 'ach' && (
+                <>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Processing time: 1-3 business days</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Transfer fee: $0.50 per transaction</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Maximum amount: $50,000 per transfer</span>
+                  </div>
+                </>
+              )}
+              {transferType === 'wire_domestic' && (
+                <>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Same-day processing (before 5 PM EST)</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Transfer fee: $25 per transaction</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Maximum amount: $100,000 per transfer</span>
+                  </div>
+                </>
+              )}
+              {transferType === 'wire_international' && (
+                <>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Processing time: 1-5 business days</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Transfer fee: $45 + 0.5% of amount</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>Maximum amount: $250,000 per transfer</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>SWIFT/BIC code required</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </motion.div>
 
-        {/* Security Notice */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <div className="mt-6 bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Security Notice</h3>
-            <div className="space-y-2 text-sm text-gray-600">
-              <p>
-                • All transfers are encrypted and secure
-              </p>
-              <p>
-                • Double-check the recipient email before sending
-              </p>
-              <p>
-                • Transfers cannot be cancelled once processed
-              </p>
-              <p>
-                • Contact support if you notice any suspicious activity
-              </p>
-            </div>
-          </div>
-        </motion.div>
+
       </div>
 
       {/* Transfer PIN Modal */}

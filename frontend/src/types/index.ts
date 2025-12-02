@@ -465,3 +465,103 @@ export interface AccountLockStatus {
   unlock_request_pending: boolean
   unlock_request_submitted_at: string | null
 }
+
+// Transfer types
+export type TransferType = 'internal' | 'ach' | 'wire_domestic' | 'wire_international'
+
+// External bank account
+export interface ExternalBankAccount {
+  id: number
+  user: number
+  account_holder_name: string
+  account_number: string
+  routing_number: string
+  account_type: 'checking' | 'savings'
+  bank_name: string
+  bank_address?: string
+  is_verified: boolean
+  is_default: boolean
+  nickname?: string
+  created_at: string
+  updated_at: string
+}
+
+// Bank lookup response
+export interface BankLookupResponse {
+  is_valid: boolean
+  message: string
+  routing_number?: string
+  note?: string
+}
+
+// Transfer fee info
+export interface TransferFeeInfo {
+  transfer_type: TransferType
+  base_fee: number
+  percentage_fee: number
+  total_fee: number
+  estimated_completion: string
+  processing_time: string
+}
+
+// ACH Transfer
+export interface ACHTransferData {
+  recipient_account_id?: number
+  recipient_name: string
+  account_number: string
+  routing_number: string
+  account_type: 'checking' | 'savings'
+  amount: number
+  description: string
+  save_recipient?: boolean
+  recipient_nickname?: string
+}
+
+// Wire Transfer (Domestic)
+export interface WireTransferData {
+  recipient_name: string
+  account_number: string
+  routing_number: string
+  bank_name: string
+  bank_address: string
+  amount: number
+  description: string
+  reference?: string
+  save_recipient?: boolean
+  recipient_nickname?: string
+}
+
+// Wire Transfer (International)
+export interface InternationalWireTransferData {
+  recipient_name: string
+  recipient_address: string
+  recipient_city: string
+  recipient_country: string
+  iban?: string
+  swift_code: string
+  bank_name: string
+  bank_address: string
+  amount: number
+  currency: string
+  description: string
+  purpose: string
+  save_recipient?: boolean
+  recipient_nickname?: string
+}
+
+// Saved beneficiary
+export interface SavedBeneficiary {
+  id: number
+  user: number
+  nickname: string
+  transfer_type: TransferType
+  recipient_name: string
+  account_number?: string
+  routing_number?: string
+  iban?: string
+  swift_code?: string
+  bank_name: string
+  account_type?: 'checking' | 'savings'
+  created_at: string
+  last_used: string | null
+}

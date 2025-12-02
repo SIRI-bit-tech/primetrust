@@ -251,6 +251,9 @@ class Transfer(models.Model):
     
     TRANSFER_TYPE = [
         ('internal', 'Internal Transfer'),
+        ('ach', 'ACH Transfer'),
+        ('wire_domestic', 'Wire Transfer (Domestic)'),
+        ('wire_international', 'Wire Transfer (International)'),
         ('external', 'External Transfer'),
         ('instant', 'Instant Transfer'),
     ]
@@ -410,8 +413,89 @@ class Transfer(models.Model):
         return False, "Scheduled time not yet reached"
 
 
-class BankAccount(models.Model):
+class ExternalBankAccount(models.Model):
     """Model for external bank accounts."""
+    
+    ACCOUNT_TYPES = [
+        ('checking', 'Checking'),
+        ('savings', 'Savings'),
+    ]
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='external_bank_accounts')
+    account_holder_name = models.CharField(max_length=200)
+    account_number = models.CharField(max_length=20)
+    routing_number = models.CharField(max_length=9)
+    account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES, default='checking')
+    bank_name = models.CharField(max_length=200)
+    bank_address = models.TextField(blank=True)
+    nickname = models.CharField(max_length=100, blank=True)
+    is_verified = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'external_bank_accounts'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.bank_name} - {self.account_holder_name} for {self.user.email}"
+    
+    def save(self, *args, **kwargs):
+        # Ensure only one default account per user
+        if self.is_default:
+            ExternalBankAccount.objects.filter(user=self.user, is_default=True).exclude(pk=self.pk).update(is_default=False)
+        
+        super().save(*args, **kwargs)
+    
+    def mask_account_number(self):
+        """Return masked account number for display."""
+        if len(self.account_number) > 4:
+            return f"****{self.account_number[-4:]}"
+        return "****"
+
+
+class SavedBeneficiary(models.Model):
+    """Model for saved transfer beneficiaries."""
+    
+    TRANSFER_TYPES = [
+        ('ach', 'ACH Transfer'),
+        ('wire_domestic', 'Wire Transfer (Domestic)'),
+        ('wire_international', 'Wire Transfer (International)'),
+    ]
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='saved_beneficiaries')
+    nickname = models.CharField(max_length=100)
+    transfer_type = models.CharField(max_length=30, choices=TRANSFER_TYPES)
+    recipient_name = models.CharField(max_length=200)
+    
+    # For ACH and domestic wire
+    account_number = models.CharField(max_length=20, blank=True)
+    routing_number = models.CharField(max_length=9, blank=True)
+    account_type = models.CharField(max_length=20, blank=True)
+    
+    # For international wire
+    iban = models.CharField(max_length=34, blank=True)
+    swift_code = models.CharField(max_length=11, blank=True)
+    
+    # Common fields
+    bank_name = models.CharField(max_length=200)
+    bank_address = models.TextField(blank=True)
+    
+    last_used = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'saved_beneficiaries'
+        ordering = ['-last_used', '-created_at']
+    
+    def __str__(self):
+        return f"{self.nickname} - {self.recipient_name} ({self.get_transfer_type_display()})"
+
+
+class BankAccount(models.Model):
+    """Model for external bank accounts (legacy - keeping for compatibility)."""
     
     ACCOUNT_TYPES = [
         ('checking', 'Checking'),

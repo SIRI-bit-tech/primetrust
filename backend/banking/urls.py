@@ -5,9 +5,11 @@ from . import views
 router = DefaultRouter()
 router.register(r'card-applications', views.CardApplicationViewSet, basename='card-application')
 router.register(r'admin/card-applications', views.AdminCardApplicationViewSet, basename='admin-card-application')
+router.register(r'external-accounts', views.ExternalBankAccountViewSet, basename='external-account')
+router.register(r'saved-beneficiaries', views.SavedBeneficiaryViewSet, basename='saved-beneficiary')
 
 urlpatterns = [
-    # Card Applications
+    # Router URLs
     path('', include(router.urls)),
     
     # Virtual Card URLs
@@ -20,6 +22,14 @@ urlpatterns = [
     # Transfers
     path('transfers/', views.TransferListView.as_view(), name='transfer-list'),
     path('transfers/<int:pk>/', views.TransferDetailView.as_view(), name='transfer-detail'),
+    
+    # New Transfer Types
+    path('transfers/ach/', views.create_ach_transfer, name='create-ach-transfer'),
+    path('transfers/wire/', views.create_wire_transfer, name='create-wire-transfer'),
+    path('transfers/international/', views.create_international_wire_transfer, name='create-international-wire-transfer'),
+    
+    # Bank Validation
+    path('validate-routing/', views.validate_routing_number, name='validate-routing-number'),
     
     # Bank Accounts
     path('bank-accounts/', views.BankAccountListView.as_view(), name='bank-account-list'),
