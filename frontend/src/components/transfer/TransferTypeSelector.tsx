@@ -50,7 +50,7 @@ const transferTypes: TransferTypeOption[] = [
     description: 'Cross-border payments',
     icon: Globe,
     processingTime: '1-5 business days',
-    fee: '$45'
+    fee: '$45 + 0.50%'
   }
 ]
 

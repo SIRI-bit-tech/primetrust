@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 import uuid
+from encrypted_model_fields.fields import EncryptedCharField
 
 
 class CardApplication(models.Model):
@@ -120,8 +121,8 @@ class VirtualCard(models.Model):
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='virtual_cards')
     application = models.ForeignKey(CardApplication, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_card')
-    card_number = models.CharField(max_length=16, unique=True)
-    cvv = models.CharField(max_length=4)
+    card_number = EncryptedCharField(max_length=16, unique=True)
+    cvv = EncryptedCharField(max_length=4)
     expiry_month = models.PositiveIntegerField()
     expiry_year = models.PositiveIntegerField()
     card_type = models.CharField(max_length=10, choices=CARD_TYPES, default='debit')
@@ -260,7 +261,8 @@ class Transfer(models.Model):
     
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_transfers')
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_transfers', null=True, blank=True)
-    recipient_email = models.EmailField()  # For external transfers
+    recipient_email = models.EmailField(blank=True)  # For internal transfers
+    recipient_name = models.CharField(max_length=200, blank=True)  # For external transfers (ACH/Wire)
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     currency = models.CharField(max_length=3, default='USD')
     transfer_type = models.CharField(max_length=20, choices=TRANSFER_TYPE, default='internal')
@@ -423,8 +425,8 @@ class ExternalBankAccount(models.Model):
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='external_bank_accounts')
     account_holder_name = models.CharField(max_length=200)
-    account_number = models.CharField(max_length=20)
-    routing_number = models.CharField(max_length=9)
+    account_number = EncryptedCharField(max_length=20)
+    routing_number = EncryptedCharField(max_length=9)
     account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES, default='checking')
     bank_name = models.CharField(max_length=200)
     bank_address = models.TextField(blank=True)
@@ -470,8 +472,8 @@ class SavedBeneficiary(models.Model):
     recipient_name = models.CharField(max_length=200)
     
     # For ACH and domestic wire
-    account_number = models.CharField(max_length=20, blank=True)
-    routing_number = models.CharField(max_length=9, blank=True)
+    account_number = EncryptedCharField(max_length=20, blank=True)
+    routing_number = EncryptedCharField(max_length=9, blank=True)
     account_type = models.CharField(max_length=20, blank=True)
     
     # For international wire
@@ -505,8 +507,8 @@ class BankAccount(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bank_accounts')
     account_name = models.CharField(max_length=200)
     account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES, default='checking')
-    account_number = models.CharField(max_length=20)
-    routing_number = models.CharField(max_length=9)
+    account_number = EncryptedCharField(max_length=20)
+    routing_number = EncryptedCharField(max_length=9)
     bank_name = models.CharField(max_length=200)
     is_verified = models.BooleanField(default=False)
     is_default = models.BooleanField(default=False)
@@ -545,8 +547,8 @@ class DirectDeposit(models.Model):
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='direct_deposits')
     employer_name = models.CharField(max_length=200)
-    account_number = models.CharField(max_length=20)
-    routing_number = models.CharField(max_length=9)
+    account_number = EncryptedCharField(max_length=20)
+    routing_number = EncryptedCharField(max_length=9)
     deposit_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     frequency = models.CharField(max_length=20, choices=[
         ('weekly', 'Weekly'),

@@ -112,7 +112,11 @@ export default function SavedBeneficiarySelector({
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
                       {beneficiary.bank_name}
-                      {beneficiary.account_number && ` • ****${beneficiary.account_number.slice(-4)}`}
+                      {beneficiary.account_number && ` • ${
+                        beneficiary.account_number.length >= 4 
+                          ? `****${beneficiary.account_number.slice(-4)}` 
+                          : '****'
+                      }`}
                     </p>
                   </div>
                   <span className={cn(

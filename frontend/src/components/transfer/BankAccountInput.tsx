@@ -40,6 +40,12 @@ export default function BankAccountInput({
   const [isRoutingValid, setIsRoutingValid] = useState(false)
   const [validationError, setValidationError] = useState<string>('')
   const lastValidatedRef = useRef<string>('')
+  const onBankInfoLoadedRef = useRef(onBankInfoLoaded)
+
+  // Keep the callback ref up to date
+  useEffect(() => {
+    onBankInfoLoadedRef.current = onBankInfoLoaded
+  }, [onBankInfoLoaded])
 
   useEffect(() => {
     const validateRoutingNumber = async () => {
@@ -56,7 +62,7 @@ export default function BankAccountInput({
           if (response.is_valid) {
             setIsRoutingValid(true)
             lastValidatedRef.current = routingNumber
-            onBankInfoLoaded?.(response)
+            onBankInfoLoadedRef.current?.(response)
           } else {
             setValidationError(response.message || 'Invalid routing number')
             setIsRoutingValid(false)
