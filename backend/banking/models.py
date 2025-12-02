@@ -2,6 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 import uuid
+import hashlib
+import hmac
 from encrypted_model_fields.fields import EncryptedCharField
 
 
@@ -121,7 +123,8 @@ class VirtualCard(models.Model):
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='virtual_cards')
     application = models.ForeignKey(CardApplication, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_card')
-    card_number = EncryptedCharField(max_length=16, unique=True)
+    card_number = EncryptedCharField(max_length=16)
+    card_number_hash = models.CharField(max_length=64, unique=True, db_index=True, default='')  # SHA256 hash for uniqueness checks
     cvv = EncryptedCharField(max_length=4)
     expiry_month = models.PositiveIntegerField()
     expiry_year = models.PositiveIntegerField()
@@ -147,6 +150,10 @@ class VirtualCard(models.Model):
         if not self.card_number:
             self.card_number = self.generate_card_number()
         
+        # Generate hash for card number
+        if self.card_number and not self.card_number_hash:
+            self.card_number_hash = self._hash_field(self.card_number)
+        
         # Generate CVV if not exists
         if not self.cvv:
             self.cvv = self.generate_cvv()
@@ -161,18 +168,22 @@ class VirtualCard(models.Model):
         
         super().save(*args, **kwargs)
     
+    @staticmethod
+    def _hash_field(value):
+        """Generate a deterministic hash for a field value using HMAC-SHA256."""
+        secret_key = settings.SECRET_KEY.encode('utf-8')
+        return hmac.new(secret_key, value.encode('utf-8'), hashlib.sha256).hexdigest()
+    
     def generate_card_number(self):
         """Generate a unique 16-digit card number."""
         import random
-        while True:
-            # Generate a card number starting with 4 (Visa) or 5 (Mastercard)
-            prefix = '4' if self.card_type == 'debit' else '5'
-            # Generate 15 random digits
-            digits = ''.join([str(random.randint(0, 9)) for _ in range(15)])
-            card_number = prefix + digits
-            
-            if not VirtualCard.objects.filter(card_number=card_number).exists():
-                return card_number
+        # Generate a card number starting with 4 (Visa) or 5 (Mastercard)
+        # With 15 random digits, collision probability is extremely low (1 in 10^15)
+        # We rely on randomness rather than checking for collisions
+        prefix = '4' if self.card_type == 'debit' else '5'
+        digits = ''.join([str(random.randint(0, 9)) for _ in range(15)])
+        card_number = prefix + digits
+        return card_number
     
     def generate_cvv(self):
         """Generate a 3-digit CVV."""
@@ -426,7 +437,9 @@ class ExternalBankAccount(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='external_bank_accounts')
     account_holder_name = models.CharField(max_length=200)
     account_number = EncryptedCharField(max_length=20)
+    account_number_hash = models.CharField(max_length=64, db_index=True, default='')  # SHA256 hash for lookups
     routing_number = EncryptedCharField(max_length=9)
+    routing_number_hash = models.CharField(max_length=64, db_index=True, default='')  # SHA256 hash for lookups
     account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES, default='checking')
     bank_name = models.CharField(max_length=200)
     bank_address = models.TextField(blank=True)
@@ -444,11 +457,23 @@ class ExternalBankAccount(models.Model):
         return f"{self.bank_name} - {self.account_holder_name} for {self.user.email}"
     
     def save(self, *args, **kwargs):
+        # Generate hashes for encrypted fields
+        if self.account_number and not self.account_number_hash:
+            self.account_number_hash = self._hash_field(self.account_number)
+        if self.routing_number and not self.routing_number_hash:
+            self.routing_number_hash = self._hash_field(self.routing_number)
+        
         # Ensure only one default account per user
         if self.is_default:
             ExternalBankAccount.objects.filter(user=self.user, is_default=True).exclude(pk=self.pk).update(is_default=False)
         
         super().save(*args, **kwargs)
+    
+    @staticmethod
+    def _hash_field(value):
+        """Generate a deterministic hash for a field value using HMAC-SHA256."""
+        secret_key = settings.SECRET_KEY.encode('utf-8')
+        return hmac.new(secret_key, value.encode('utf-8'), hashlib.sha256).hexdigest()
     
     def mask_account_number(self):
         """Return masked account number for display."""
@@ -473,7 +498,9 @@ class SavedBeneficiary(models.Model):
     
     # For ACH and domestic wire
     account_number = EncryptedCharField(max_length=20, blank=True)
+    account_number_hash = models.CharField(max_length=64, db_index=True, blank=True, default='')  # SHA256 hash for lookups
     routing_number = EncryptedCharField(max_length=9, blank=True)
+    routing_number_hash = models.CharField(max_length=64, db_index=True, blank=True, default='')  # SHA256 hash for lookups
     account_type = models.CharField(max_length=20, blank=True)
     
     # For international wire
@@ -494,6 +521,21 @@ class SavedBeneficiary(models.Model):
     
     def __str__(self):
         return f"{self.nickname} - {self.recipient_name} ({self.get_transfer_type_display()})"
+    
+    def save(self, *args, **kwargs):
+        # Generate hashes for encrypted fields
+        if self.account_number and not self.account_number_hash:
+            self.account_number_hash = self._hash_field(self.account_number)
+        if self.routing_number and not self.routing_number_hash:
+            self.routing_number_hash = self._hash_field(self.routing_number)
+        
+        super().save(*args, **kwargs)
+    
+    @staticmethod
+    def _hash_field(value):
+        """Generate a deterministic hash for a field value using HMAC-SHA256."""
+        secret_key = settings.SECRET_KEY.encode('utf-8')
+        return hmac.new(secret_key, value.encode('utf-8'), hashlib.sha256).hexdigest()
 
 
 class BankAccount(models.Model):
@@ -508,7 +550,9 @@ class BankAccount(models.Model):
     account_name = models.CharField(max_length=200)
     account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES, default='checking')
     account_number = EncryptedCharField(max_length=20)
+    account_number_hash = models.CharField(max_length=64, db_index=True, default='')  # SHA256 hash for lookups
     routing_number = EncryptedCharField(max_length=9)
+    routing_number_hash = models.CharField(max_length=64, db_index=True, default='')  # SHA256 hash for lookups
     bank_name = models.CharField(max_length=200)
     is_verified = models.BooleanField(default=False)
     is_default = models.BooleanField(default=False)
@@ -523,11 +567,23 @@ class BankAccount(models.Model):
         return f"{self.bank_name} - {self.account_name} for {self.user.email}"
     
     def save(self, *args, **kwargs):
+        # Generate hashes for encrypted fields
+        if self.account_number and not self.account_number_hash:
+            self.account_number_hash = self._hash_field(self.account_number)
+        if self.routing_number and not self.routing_number_hash:
+            self.routing_number_hash = self._hash_field(self.routing_number)
+        
         # Ensure only one default account per user
         if self.is_default:
             BankAccount.objects.filter(user=self.user, is_default=True).exclude(pk=self.pk).update(is_default=False)
         
         super().save(*args, **kwargs)
+    
+    @staticmethod
+    def _hash_field(value):
+        """Generate a deterministic hash for a field value using HMAC-SHA256."""
+        secret_key = settings.SECRET_KEY.encode('utf-8')
+        return hmac.new(secret_key, value.encode('utf-8'), hashlib.sha256).hexdigest()
     
     def mask_account_number(self):
         """Return masked account number for display."""
@@ -548,7 +604,9 @@ class DirectDeposit(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='direct_deposits')
     employer_name = models.CharField(max_length=200)
     account_number = EncryptedCharField(max_length=20)
+    account_number_hash = models.CharField(max_length=64, db_index=True, default='')  # SHA256 hash for lookups
     routing_number = EncryptedCharField(max_length=9)
+    routing_number_hash = models.CharField(max_length=64, db_index=True, default='')  # SHA256 hash for lookups
     deposit_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     frequency = models.CharField(max_length=20, choices=[
         ('weekly', 'Weekly'),
@@ -565,4 +623,19 @@ class DirectDeposit(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"Direct deposit for {self.user.email} from {self.employer_name}" 
+        return f"Direct deposit for {self.user.email} from {self.employer_name}"
+    
+    def save(self, *args, **kwargs):
+        # Generate hashes for encrypted fields
+        if self.account_number and not self.account_number_hash:
+            self.account_number_hash = self._hash_field(self.account_number)
+        if self.routing_number and not self.routing_number_hash:
+            self.routing_number_hash = self._hash_field(self.routing_number)
+        
+        super().save(*args, **kwargs)
+    
+    @staticmethod
+    def _hash_field(value):
+        """Generate a deterministic hash for a field value using HMAC-SHA256."""
+        secret_key = settings.SECRET_KEY.encode('utf-8')
+        return hmac.new(secret_key, value.encode('utf-8'), hashlib.sha256).hexdigest() 
