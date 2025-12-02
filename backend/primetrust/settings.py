@@ -27,11 +27,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-(9w9(hvm4n5+a9s=ye0j6nxc9p11$+&(jnvto35k=&8==0d(rw')
 
-# Field encryption key for django-encrypted-model-fields
-FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY', default=SECRET_KEY)
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool('DEBUG', default=True)
+
+# Field encryption key for django-encrypted-model-fields
+# REQUIRED in production - must be set in environment variables
+# Keep this separate from SECRET_KEY for security best practices
+if DEBUG:
+    # Development-only fallback - DO NOT use in production
+    FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY', default='dev-only-encryption-key-change-in-production==')
+else:
+    # Production - no default, will raise error if not set
+    FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY')
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 

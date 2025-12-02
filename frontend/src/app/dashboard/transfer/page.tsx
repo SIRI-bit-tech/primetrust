@@ -127,11 +127,14 @@ export default function TransferPage() {
   // Reset form when transfer type changes to apply new schema
   useEffect(() => {
     reset()
-    // Initialize account_type in form when transfer type changes
+  }, [transferType, reset])
+
+  // Sync account_type separately to avoid resetting entire form
+  useEffect(() => {
     if (transferType === 'ach') {
       setValue('account_type', accountType)
     }
-  }, [transferType, reset, setValue, accountType])
+  }, [transferType, accountType, setValue])
 
   const amount = watch('amount', 0)
 
@@ -284,7 +287,6 @@ export default function TransferPage() {
           selectedType={transferType}
           onTypeChange={(type) => {
             setTransferType(type)
-            reset()
             setError('')
           }}
           className="mb-8"
