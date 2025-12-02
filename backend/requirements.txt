@@ -5,6 +5,8 @@ django-cors-headers
 django-environ
 Pillow
 requests
+beautifulsoup4
+plaid-python
 bitcoin
 blockcypher
 pycoin

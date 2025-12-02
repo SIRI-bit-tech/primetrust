@@ -231,6 +231,49 @@ export const bankingAPI = {
     const response = await api.get('/bitcoin-wallet/wallets/bitcoin_balance/')
     return { bitcoin_balance: response.data.bitcoin_balance }
   },
+
+  // New transfer endpoints
+  validateRoutingNumber: async (routingNumber: string) => {
+    const response = await api.post('/banking/validate-routing/', { routing_number: routingNumber })
+    return response.data
+  },
+
+  createACHTransfer: async (data: any) => {
+    const response = await api.post('/banking/transfers/ach/', data)
+    return response.data
+  },
+
+  createWireTransfer: async (data: any) => {
+    const response = await api.post('/banking/transfers/wire/', data)
+    return response.data
+  },
+
+  createInternationalWireTransfer: async (data: any) => {
+    const response = await api.post('/banking/transfers/international/', data)
+    return response.data
+  },
+
+  // External bank accounts
+  getExternalAccounts: async () => {
+    const response = await api.get('/banking/external-accounts/')
+    return response.data
+  },
+
+  createExternalAccount: async (data: any) => {
+    const response = await api.post('/banking/external-accounts/', data)
+    return response.data
+  },
+
+  // Saved beneficiaries
+  getSavedBeneficiaries: async () => {
+    const response = await api.get('/banking/saved-beneficiaries/')
+    return response.data
+  },
+
+  createSavedBeneficiary: async (data: any) => {
+    const response = await api.post('/banking/saved-beneficiaries/', data)
+    return response.data
+  },
 }
 
 // Transactions API

@@ -1,15 +1,18 @@
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.viewsets import ModelViewSet
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
-from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication
+from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication, ExternalBankAccount, SavedBeneficiary
 from .serializers import (
     VirtualCardSerializer, VirtualCardCreateSerializer, TransferSerializer,
-    BankAccountSerializer, DirectDepositSerializer, CardApplicationSerializer, CardApplicationCreateSerializer
+    BankAccountSerializer, DirectDepositSerializer, CardApplicationSerializer, CardApplicationCreateSerializer,
+    ExternalBankAccountSerializer, SavedBeneficiarySerializer, ACHTransferSerializer,
+    WireTransferSerializer, InternationalWireTransferSerializer, BankLookupSerializer
 )
+from .transfer_services import BankLookupService, ACHTransferService, WireTransferService
 
 
 class CardApplicationViewSet(ModelViewSet):
@@ -249,3 +252,160 @@ class DirectDepositDetailView(generics.RetrieveUpdateDestroyAPIView):
     
     def get_queryset(self):
         return DirectDeposit.objects.filter(user=self.request.user)
+
+
+# New Transfer Endpoints
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def validate_routing_number(request):
+    """
+    Validate routing number format and checksum.
+    Returns validation result. User must provide bank name manually.
+    """
+    serializer = BankLookupSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    routing_number = serializer.validated_data['routing_number']
+    
+    # Validate routing number format and checksum
+    validation_result = BankLookupService.validate_routing_number(routing_number)
+    
+    if not validation_result['is_valid']:
+        return Response({
+            'is_valid': False,
+            'message': validation_result['message']
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Return success - user will enter bank name manually
+    return Response({
+        'is_valid': True,
+        'message': validation_result['message'],
+        'routing_number': routing_number,
+        'note': 'Please enter your bank name manually'
+    }, status=status.HTTP_200_OK)
+
+
+class ExternalBankAccountViewSet(ModelViewSet):
+    """ViewSet for managing external bank accounts."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ExternalBankAccountSerializer
+    
+    def get_queryset(self):
+        return ExternalBankAccount.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class SavedBeneficiaryViewSet(ModelViewSet):
+    """ViewSet for managing saved beneficiaries."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = SavedBeneficiarySerializer
+    
+    def get_queryset(self):
+        return SavedBeneficiary.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_ach_transfer(request):
+    """Create an ACH transfer."""
+    serializer = ACHTransferSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        transfer = ACHTransferService.create_transfer(
+            user=request.user,
+            data=serializer.validated_data
+        )
+        
+        return Response({
+            'message': 'ACH transfer created successfully',
+            'transfer_id': transfer.id,
+            'reference_number': transfer.reference_number,
+            'status': transfer.status,
+            'scheduled_completion_time': transfer.scheduled_completion_time
+        }, status=status.HTTP_201_CREATED)
+        
+    except ValueError as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({
+            'error': 'Failed to create transfer'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_wire_transfer(request):
+    """Create a domestic wire transfer."""
+    serializer = WireTransferSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        transfer = WireTransferService.create_transfer(
+            user=request.user,
+            data=serializer.validated_data,
+            is_international=False
+        )
+        
+        return Response({
+            'message': 'Wire transfer created successfully',
+            'transfer_id': transfer.id,
+            'reference_number': transfer.reference_number,
+            'status': transfer.status,
+            'scheduled_completion_time': transfer.scheduled_completion_time
+        }, status=status.HTTP_201_CREATED)
+        
+    except ValueError as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({
+            'error': 'Failed to create transfer'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_international_wire_transfer(request):
+    """Create an international wire transfer."""
+    serializer = InternationalWireTransferSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        transfer = WireTransferService.create_transfer(
+            user=request.user,
+            data=serializer.validated_data,
+            is_international=True
+        )
+        
+        return Response({
+            'message': 'International wire transfer created successfully',
+            'transfer_id': transfer.id,
+            'reference_number': transfer.reference_number,
+            'status': transfer.status,
+            'scheduled_completion_time': transfer.scheduled_completion_time
+        }, status=status.HTTP_201_CREATED)
+        
+    except ValueError as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({
+            'error': 'Failed to create transfer'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

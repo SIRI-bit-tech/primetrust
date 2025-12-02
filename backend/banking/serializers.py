@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication
+from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication, ExternalBankAccount, SavedBeneficiary
 
 
 class VirtualCardSerializer(serializers.ModelSerializer):
@@ -147,4 +147,88 @@ class DirectDepositCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = DirectDeposit
-        fields = ['employer_name', 'account_number', 'routing_number', 'amount', 'frequency'] 
+        fields = ['employer_name', 'account_number', 'routing_number', 'amount', 'frequency']
+
+
+class ExternalBankAccountSerializer(serializers.ModelSerializer):
+    """Serializer for ExternalBankAccount model."""
+    
+    account_number_display = serializers.CharField(source='mask_account_number', read_only=True)
+    
+    class Meta:
+        model = ExternalBankAccount
+        fields = [
+            'id', 'user', 'account_holder_name', 'account_number', 'account_number_display',
+            'routing_number', 'account_type', 'bank_name', 'bank_address', 'nickname',
+            'is_verified', 'is_default', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['user', 'is_verified', 'created_at', 'updated_at']
+
+
+class SavedBeneficiarySerializer(serializers.ModelSerializer):
+    """Serializer for SavedBeneficiary model."""
+    
+    class Meta:
+        model = SavedBeneficiary
+        fields = [
+            'id', 'user', 'nickname', 'transfer_type', 'recipient_name',
+            'account_number', 'routing_number', 'account_type',
+            'iban', 'swift_code', 'bank_name', 'bank_address',
+            'last_used', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['user', 'last_used', 'created_at', 'updated_at']
+
+
+class ACHTransferSerializer(serializers.Serializer):
+    """Serializer for ACH transfer requests."""
+    
+    recipient_account_id = serializers.IntegerField(required=False, allow_null=True)
+    recipient_name = serializers.CharField(max_length=200)
+    account_number = serializers.CharField(max_length=20)
+    routing_number = serializers.CharField(max_length=9)
+    bank_name = serializers.CharField(max_length=200)
+    account_type = serializers.ChoiceField(choices=['checking', 'savings'])
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2, min_value=0.01, max_value=50000)
+    description = serializers.CharField(max_length=200)
+    save_recipient = serializers.BooleanField(default=False)
+    recipient_nickname = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+
+class WireTransferSerializer(serializers.Serializer):
+    """Serializer for wire transfer requests."""
+    
+    recipient_name = serializers.CharField(max_length=200)
+    account_number = serializers.CharField(max_length=20)
+    routing_number = serializers.CharField(max_length=9)
+    bank_name = serializers.CharField(max_length=200)
+    bank_address = serializers.CharField(max_length=500)
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2, min_value=0.01, max_value=100000)
+    description = serializers.CharField(max_length=200)
+    reference = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    save_recipient = serializers.BooleanField(default=False)
+    recipient_nickname = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+
+class InternationalWireTransferSerializer(serializers.Serializer):
+    """Serializer for international wire transfer requests."""
+    
+    recipient_name = serializers.CharField(max_length=200)
+    recipient_address = serializers.CharField(max_length=500)
+    recipient_city = serializers.CharField(max_length=100)
+    recipient_country = serializers.CharField(max_length=100)
+    iban = serializers.CharField(max_length=34, required=False, allow_blank=True)
+    swift_code = serializers.CharField(max_length=11)
+    bank_name = serializers.CharField(max_length=200)
+    bank_address = serializers.CharField(max_length=500)
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2, min_value=0.01, max_value=250000)
+    currency = serializers.CharField(max_length=3, default='USD')
+    description = serializers.CharField(max_length=200)
+    purpose = serializers.CharField(max_length=200)
+    save_recipient = serializers.BooleanField(default=False)
+    recipient_nickname = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+
+class BankLookupSerializer(serializers.Serializer):
+    """Serializer for bank routing number lookup."""
+    
+    routing_number = serializers.CharField(max_length=9, min_length=9) 
