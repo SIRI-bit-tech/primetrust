@@ -469,6 +469,9 @@ export interface AccountLockStatus {
 // Transfer types
 export type TransferType = 'internal' | 'ach' | 'wire_domestic' | 'wire_international'
 
+// Beneficiary transfer types (excludes 'internal' as beneficiaries are only for external transfers)
+export type BeneficiaryTransferType = 'ach' | 'wire_domestic' | 'wire_international'
+
 // External bank account
 export interface ExternalBankAccount {
   id: number
@@ -554,7 +557,7 @@ export interface SavedBeneficiary {
   id: number
   user: number
   nickname: string
-  transfer_type: TransferType
+  transfer_type: BeneficiaryTransferType
   recipient_name: string
   account_number?: string
   routing_number?: string

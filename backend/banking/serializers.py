@@ -147,7 +147,7 @@ class DirectDepositCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = DirectDeposit
-        fields = ['employer_name', 'account_number', 'routing_number', 'amount', 'frequency']
+        fields = ['employer_name', 'account_number', 'routing_number', 'deposit_amount', 'frequency']
 
 
 class ExternalBankAccountSerializer(serializers.ModelSerializer):

@@ -5,6 +5,8 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.viewsets import ModelViewSet
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+import logging
+import traceback
 from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication, ExternalBankAccount, SavedBeneficiary
 from .serializers import (
     VirtualCardSerializer, VirtualCardCreateSerializer, TransferSerializer,
@@ -13,6 +15,8 @@ from .serializers import (
     WireTransferSerializer, InternationalWireTransferSerializer, BankLookupSerializer
 )
 from .transfer_services import BankLookupService, ACHTransferService, WireTransferService
+
+logger = logging.getLogger(__name__)
 
 
 class CardApplicationViewSet(ModelViewSet):
@@ -336,10 +340,15 @@ def create_ach_transfer(request):
         }, status=status.HTTP_201_CREATED)
         
     except ValueError as e:
+        logger.warning(f"ACH transfer validation error for user {request.user.id}: {str(e)}")
         return Response({
             'error': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
+        logger.error(
+            f"Failed to create ACH transfer for user {request.user.id}: {str(e)}\n"
+            f"Stack trace: {traceback.format_exc()}"
+        )
         return Response({
             'error': 'Failed to create transfer'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -369,10 +378,15 @@ def create_wire_transfer(request):
         }, status=status.HTTP_201_CREATED)
         
     except ValueError as e:
+        logger.warning(f"Wire transfer validation error for user {request.user.id}: {str(e)}")
         return Response({
             'error': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
+        logger.error(
+            f"Failed to create wire transfer for user {request.user.id}: {str(e)}\n"
+            f"Stack trace: {traceback.format_exc()}"
+        )
         return Response({
             'error': 'Failed to create transfer'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -402,10 +416,15 @@ def create_international_wire_transfer(request):
         }, status=status.HTTP_201_CREATED)
         
     except ValueError as e:
+        logger.warning(f"International wire transfer validation error for user {request.user.id}: {str(e)}")
         return Response({
             'error': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
+        logger.error(
+            f"Failed to create international wire transfer for user {request.user.id}: {str(e)}\n"
+            f"Stack trace: {traceback.format_exc()}"
+        )
         return Response({
             'error': 'Failed to create transfer'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

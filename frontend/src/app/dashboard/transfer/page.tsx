@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -110,6 +110,9 @@ export default function TransferPage() {
     }
   }
 
+  // Get current schema for the active transfer type
+  const currentSchema = getSchema()
+
   const {
     register,
     handleSubmit,
@@ -118,8 +121,17 @@ export default function TransferPage() {
     watch,
     setValue,
   } = useForm({
-    resolver: zodResolver(getSchema()),
+    resolver: zodResolver(currentSchema),
   })
+
+  // Reset form when transfer type changes to apply new schema
+  useEffect(() => {
+    reset()
+    // Initialize account_type in form when transfer type changes
+    if (transferType === 'ach') {
+      setValue('account_type', accountType)
+    }
+  }, [transferType, reset, setValue, accountType])
 
   const amount = watch('amount', 0)
 
@@ -158,6 +170,8 @@ export default function TransferPage() {
         transfer_type: transferType,
         fee: feeInfo.fee,
         total_amount: feeInfo.totalAmount,
+        save_recipient: saveRecipient,
+        recipient_nickname: saveRecipient ? (data.recipient_nickname || data.recipient_name) : undefined,
       }
       
       // Store pending transfer and show PIN modal
@@ -378,7 +392,10 @@ export default function TransferPage() {
                       setBankInfo(info)
                     }}
                     accountType={accountType}
-                    onAccountTypeChange={setAccountType}
+                    onAccountTypeChange={(type) => {
+                      setAccountType(type)
+                      setValue('account_type', type)
+                    }}
                     showAccountType={transferType === 'ach'}
                     errors={{
                       routingNumber: errors.routing_number?.message as string,
@@ -528,18 +545,38 @@ export default function TransferPage() {
 
               {/* Save Recipient */}
               {transferType !== 'internal' && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="save_recipient"
-                    checked={saveRecipient}
-                    onChange={(e) => setSaveRecipient(e.target.checked)}
-                    className="w-4 h-4 text-primary-dark focus:ring-primary-dark border-gray-300 rounded"
-                  />
-                  <label htmlFor="save_recipient" className="text-sm text-gray-700 dark:text-gray-300">
-                    Save this recipient for future transfers
-                  </label>
-                </div>
+                <>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="save_recipient"
+                      checked={saveRecipient}
+                      onChange={(e) => setSaveRecipient(e.target.checked)}
+                      className="w-4 h-4 text-primary-dark focus:ring-primary-dark border-gray-300 rounded"
+                    />
+                    <label htmlFor="save_recipient" className="text-sm text-gray-700 dark:text-gray-300">
+                      Save this recipient for future transfers
+                    </label>
+                  </div>
+
+                  {/* Recipient Nickname (shown when save is checked) */}
+                  {saveRecipient && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Recipient Nickname (Optional)
+                      </label>
+                      <input
+                        {...register('recipient_nickname')}
+                        type="text"
+                        placeholder="e.g., Mom, John's Business Account"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        If not provided, recipient name will be used
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Fee Display */}

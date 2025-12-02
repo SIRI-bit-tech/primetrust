@@ -120,7 +120,8 @@ class ACHTransferService:
         # Create transfer record
         transfer = Transfer.objects.create(
             sender=user,
-            recipient_email=data.get('recipient_name', ''),
+            recipient_email=data.get('recipient_email', ''),
+            recipient_name=data.get('recipient_name', ''),
             amount=amount,
             currency='USD',
             transfer_type='ach',
@@ -164,7 +165,8 @@ class WireTransferService:
         # Create transfer record
         transfer = Transfer.objects.create(
             sender=user,
-            recipient_email=data.get('recipient_name', ''),
+            recipient_email=data.get('recipient_email', ''),
+            recipient_name=data.get('recipient_name', ''),
             amount=amount,
             currency=data.get('currency', 'USD'),
             transfer_type=transfer_type,
