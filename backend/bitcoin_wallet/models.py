@@ -128,7 +128,7 @@ class OutgoingBitcoinTransaction(models.Model):
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Amount in USD (if paid from fiat)")
     bitcoin_price_at_time = models.DecimalField(max_digits=12, decimal_places=2, help_text="Bitcoin price at transaction time")
     transaction_fee = models.DecimalField(max_digits=18, decimal_places=8, default=0.00001, help_text="Network transaction fee in BTC")
-    transaction_hash = models.CharField(max_length=100, unique=True, blank=True, help_text="Bitcoin transaction hash")
+    transaction_hash = models.CharField(max_length=100, unique=True, blank=False, null=False, help_text="Bitcoin transaction hash")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -154,48 +154,67 @@ class OutgoingBitcoinTransaction(models.Model):
     def generate_transaction_hash(self):
         """Generate a unique transaction hash"""
         import hashlib
-        import time
-        data = f"{self.user.id}{self.recipient_wallet_address}{self.amount_btc}{time.time()}"
+        import uuid
+        unique_id = uuid.uuid4()
+        data = f"{self.user.id}{self.recipient_wallet_address}{self.amount_btc}{unique_id}"
         return hashlib.sha256(data.encode()).hexdigest()
 
     def process_transaction(self):
         """Process the outgoing Bitcoin transaction"""
         from django.utils import timezone
+        from django.db import transaction
+        from django.contrib.auth import get_user_model
+        
+        User = get_user_model()
         
         try:
-            self.status = 'processing'
-            self.save()
-            
-            if self.balance_source == 'fiat':
-                # Deduct USD from user's account
-                if self.user.balance < self.amount_usd:
-                    self.status = 'failed'
-                    self.admin_notes = 'Insufficient fiat balance'
-                    self.save()
-                    return False
+            with transaction.atomic():
+                # Lock the user row to prevent concurrent balance modifications
+                user = User.objects.select_for_update().get(pk=self.user.pk)
                 
-                self.user.balance -= self.amount_usd
-                self.user.save()
+                # Update status to processing
+                self.status = 'processing'
+                self.save()
                 
-            elif self.balance_source == 'bitcoin':
-                # Deduct Bitcoin from user's balance
-                current_btc_balance = self.user.bitcoin_balance or 0
-                total_btc_needed = self.amount_btc + self.transaction_fee
+                if self.balance_source == 'fiat':
+                    # Check if amount_usd is None
+                    if self.amount_usd is None:
+                        self.status = 'failed'
+                        self.admin_notes = 'Missing amount_usd for fiat withdrawal'
+                        self.save()
+                        return False
+                    
+                    # Re-check balance after acquiring lock
+                    if user.balance < self.amount_usd:
+                        self.status = 'failed'
+                        self.admin_notes = 'Insufficient fiat balance'
+                        self.save()
+                        return False
+                    
+                    # Deduct USD from user's account
+                    user.balance -= self.amount_usd
+                    user.save(update_fields=['balance'])
+                    
+                elif self.balance_source == 'bitcoin':
+                    # Re-check Bitcoin balance after acquiring lock
+                    current_btc_balance = user.bitcoin_balance or 0
+                    total_btc_needed = self.amount_btc + self.transaction_fee
+                    
+                    if current_btc_balance < total_btc_needed:
+                        self.status = 'failed'
+                        self.admin_notes = 'Insufficient Bitcoin balance'
+                        self.save()
+                        return False
+                    
+                    # Deduct Bitcoin from user's balance
+                    user.bitcoin_balance = current_btc_balance - total_btc_needed
+                    user.save(update_fields=['bitcoin_balance'])
                 
-                if current_btc_balance < total_btc_needed:
-                    self.status = 'failed'
-                    self.admin_notes = 'Insufficient Bitcoin balance'
-                    self.save()
-                    return False
-                
-                self.user.bitcoin_balance = current_btc_balance - total_btc_needed
-                self.user.save()
-            
-            # Mark as completed
-            self.status = 'completed'
-            self.completed_at = timezone.now()
-            self.save()
-            return True
+                # Mark as completed
+                self.status = 'completed'
+                self.completed_at = timezone.now()
+                self.save()
+                return True
             
         except Exception as e:
             self.status = 'failed'

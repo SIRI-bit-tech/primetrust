@@ -243,7 +243,7 @@ export default function TransferPage() {
           hour: 'numeric',
           minute: 'numeric'
         }),
-        referenceId: response.reference_number || generateReferenceId(),
+        referenceId: response.reference_number || generateReferenceId(storedTransferType),
       }
       
       setReceiptData(receipt)
@@ -273,7 +273,7 @@ export default function TransferPage() {
           hour: 'numeric',
           minute: 'numeric'
         }),
-        referenceId: generateReferenceId(),
+        referenceId: generateReferenceId(storedTransferType),
       }
       
       setReceiptData(receipt)
@@ -295,8 +295,8 @@ export default function TransferPage() {
     return labels[type]
   }
 
-  const generateReferenceId = (): string => {
-    const prefix = transferType === 'ach' ? 'AC' : transferType === 'wire_domestic' ? 'WD' : transferType === 'wire_international' ? 'WI' : 'IT'
+  const generateReferenceId = (type: string): string => {
+    const prefix = type === 'ach' ? 'AC' : type === 'wire_domestic' ? 'WD' : type === 'wire_international' ? 'WI' : 'IT'
     const random = Math.floor(Math.random() * 10000000).toString().padStart(7, '0')
     return `${prefix}${random}`
   }
