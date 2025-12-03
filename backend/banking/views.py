@@ -208,6 +208,44 @@ class TransferListView(generics.ListCreateAPIView):
         return Transfer.objects.filter(
             Q(sender=self.request.user) | Q(recipient=self.request.user)
         )
+    
+    def perform_create(self, serializer):
+        """Create internal transfer and debit sender immediately."""
+        from decimal import Decimal
+        from django.contrib.auth import get_user_model
+        
+        User = get_user_model()
+        sender = self.request.user
+        amount = Decimal(str(serializer.validated_data['amount']))
+        
+        # Check balance
+        if sender.balance < amount:
+            raise ValueError('Insufficient funds')
+        
+        # Debit sender immediately
+        sender.balance -= amount
+        sender.save()
+        
+        # Find recipient by email
+        recipient_email = serializer.validated_data.get('recipient_email')
+        recipient = None
+        if recipient_email:
+            try:
+                recipient = User.objects.get(email=recipient_email)
+            except User.DoesNotExist:
+                # Refund sender if recipient not found
+                sender.balance += amount
+                sender.save()
+                raise ValueError(f'Recipient with email {recipient_email} not found')
+        
+        # Create transfer
+        serializer.save(
+            sender=sender,
+            recipient=recipient,
+            transfer_type='internal',
+            status='pending',
+            requires_admin_approval=True
+        )
 
 
 class TransferDetailView(generics.RetrieveAPIView):
@@ -321,8 +359,10 @@ class SavedBeneficiaryViewSet(ModelViewSet):
 @permission_classes([permissions.IsAuthenticated])
 def create_ach_transfer(request):
     """Create an ACH transfer."""
+    logger.info(f"ACH transfer request data: {request.data}")
     serializer = ACHTransferSerializer(data=request.data)
     if not serializer.is_valid():
+        logger.error(f"ACH transfer validation errors: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     try:

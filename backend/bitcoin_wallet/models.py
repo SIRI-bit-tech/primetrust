@@ -107,6 +107,103 @@ class IncomingBitcoinTransaction(models.Model):
             return True
         return False
 
+class OutgoingBitcoinTransaction(models.Model):
+    """Model for tracking outgoing Bitcoin transactions (sending Bitcoin)"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+
+    BALANCE_SOURCE_CHOICES = [
+        ('fiat', 'Fiat Balance'),
+        ('bitcoin', 'Bitcoin Balance'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='outgoing_bitcoin_transactions')
+    balance_source = models.CharField(max_length=10, choices=BALANCE_SOURCE_CHOICES, default='fiat', help_text="Source of funds")
+    recipient_wallet_address = models.CharField(max_length=100, help_text="Recipient's Bitcoin address")
+    amount_btc = models.DecimalField(max_digits=18, decimal_places=8, help_text="Amount in Bitcoin")
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Amount in USD (if paid from fiat)")
+    bitcoin_price_at_time = models.DecimalField(max_digits=12, decimal_places=2, help_text="Bitcoin price at transaction time")
+    transaction_fee = models.DecimalField(max_digits=18, decimal_places=8, default=0.00001, help_text="Network transaction fee in BTC")
+    transaction_hash = models.CharField(max_length=100, unique=True, blank=True, help_text="Bitcoin transaction hash")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Admin notes
+    admin_notes = models.TextField(blank=True, help_text="Admin notes about this transaction")
+
+    class Meta:
+        verbose_name = "Outgoing Bitcoin Transaction"
+        verbose_name_plural = "Outgoing Bitcoin Transactions"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} -> {self.recipient_wallet_address[:10]}... - {self.amount_btc} BTC - {self.status}"
+
+    def save(self, *args, **kwargs):
+        # Generate transaction hash if not exists
+        if not self.transaction_hash:
+            self.transaction_hash = self.generate_transaction_hash()
+        super().save(*args, **kwargs)
+
+    def generate_transaction_hash(self):
+        """Generate a unique transaction hash"""
+        import hashlib
+        import time
+        data = f"{self.user.id}{self.recipient_wallet_address}{self.amount_btc}{time.time()}"
+        return hashlib.sha256(data.encode()).hexdigest()
+
+    def process_transaction(self):
+        """Process the outgoing Bitcoin transaction"""
+        from django.utils import timezone
+        
+        try:
+            self.status = 'processing'
+            self.save()
+            
+            if self.balance_source == 'fiat':
+                # Deduct USD from user's account
+                if self.user.balance < self.amount_usd:
+                    self.status = 'failed'
+                    self.admin_notes = 'Insufficient fiat balance'
+                    self.save()
+                    return False
+                
+                self.user.balance -= self.amount_usd
+                self.user.save()
+                
+            elif self.balance_source == 'bitcoin':
+                # Deduct Bitcoin from user's balance
+                current_btc_balance = self.user.bitcoin_balance or 0
+                total_btc_needed = self.amount_btc + self.transaction_fee
+                
+                if current_btc_balance < total_btc_needed:
+                    self.status = 'failed'
+                    self.admin_notes = 'Insufficient Bitcoin balance'
+                    self.save()
+                    return False
+                
+                self.user.bitcoin_balance = current_btc_balance - total_btc_needed
+                self.user.save()
+            
+            # Mark as completed
+            self.status = 'completed'
+            self.completed_at = timezone.now()
+            self.save()
+            return True
+            
+        except Exception as e:
+            self.status = 'failed'
+            self.admin_notes = str(e)
+            self.save()
+            return False
+
+
 class CurrencySwap(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),

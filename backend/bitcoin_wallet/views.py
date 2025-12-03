@@ -8,11 +8,12 @@ from django.core.cache import cache
 import requests
 import threading
 import time
-from .models import BitcoinWallet, IncomingBitcoinTransaction, CurrencySwap
+from .models import BitcoinWallet, IncomingBitcoinTransaction, OutgoingBitcoinTransaction, CurrencySwap
 from .serializers import (
     BitcoinWalletSerializer, BitcoinWalletCreateSerializer,
     IncomingBitcoinTransactionSerializer, IncomingBitcoinTransactionCreateSerializer,
-    IncomingBitcoinTransactionUpdateSerializer, CurrencySwapSerializer, CurrencySwapCreateSerializer
+    IncomingBitcoinTransactionUpdateSerializer, OutgoingBitcoinTransactionSerializer,
+    OutgoingBitcoinTransactionCreateSerializer, CurrencySwapSerializer, CurrencySwapCreateSerializer
 )
 
 class BitcoinWalletViewSet(viewsets.ReadOnlyModelViewSet):
@@ -52,6 +53,46 @@ class IncomingBitcoinTransactionViewSet(viewsets.ReadOnlyModelViewSet):
         transactions = self.get_queryset()
         serializer = self.get_serializer(transactions, many=True)
         return Response(serializer.data)
+
+class OutgoingBitcoinTransactionViewSet(viewsets.ModelViewSet):
+    """ViewSet for sending Bitcoin"""
+    queryset = OutgoingBitcoinTransaction.objects.all()
+    serializer_class = OutgoingBitcoinTransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'send_bitcoin']:
+            return OutgoingBitcoinTransactionCreateSerializer
+        return OutgoingBitcoinTransactionSerializer
+
+    @action(detail=False, methods=['post'], url_path='send')
+    def send_bitcoin(self, request):
+        """Send Bitcoin to a recipient address"""
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            transaction = serializer.save()
+            
+            # Process the transaction
+            if transaction.process_transaction():
+                response_serializer = OutgoingBitcoinTransactionSerializer(transaction)
+                return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(
+                    {'error': 'Transaction failed', 'details': transaction.admin_notes},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'], url_path='my_transactions')
+    def my_transactions(self, request):
+        """Get all outgoing transactions for the current user"""
+        transactions = self.get_queryset()
+        serializer = self.get_serializer(transactions, many=True)
+        return Response(serializer.data)
+
 
 class CurrencySwapViewSet(viewsets.ModelViewSet):
     queryset = CurrencySwap.objects.all()

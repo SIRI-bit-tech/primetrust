@@ -117,6 +117,10 @@ class ACHTransferService:
         if user.balance < total_amount:
             raise ValueError('Insufficient funds')
         
+        # Debit user immediately
+        user.balance -= total_amount
+        user.save()
+        
         # Create transfer record
         transfer = Transfer.objects.create(
             sender=user,
@@ -161,6 +165,10 @@ class WireTransferService:
         # Check user balance
         if user.balance < total_amount:
             raise ValueError('Insufficient funds')
+        
+        # Debit user immediately
+        user.balance -= total_amount
+        user.save()
         
         # Create transfer record
         transfer = Transfer.objects.create(

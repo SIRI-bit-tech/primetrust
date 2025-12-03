@@ -14,8 +14,9 @@ import TransferTypeSelector from '@/components/transfer/TransferTypeSelector'
 import BankAccountInput from '@/components/transfer/BankAccountInput'
 import TransferFeeDisplay from '@/components/transfer/TransferFeeDisplay'
 import SavedBeneficiarySelector from '@/components/transfer/SavedBeneficiarySelector'
+import TransferReceipt from '@/components/receipt/TransferReceipt'
 import { bankingAPI } from '@/lib/api'
-import { TransferData, TransferType, BankLookupResponse, SavedBeneficiary } from '@/types'
+import { TransferData, TransferType, BankLookupResponse, SavedBeneficiary, ReceiptData } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -32,6 +33,7 @@ const achTransferSchema = z.object({
   recipient_name: z.string().min(2, 'Recipient name is required'),
   routing_number: z.string().length(9, 'Routing number must be 9 digits'),
   account_number: z.string().min(4, 'Account number is required'),
+  bank_name: z.string().min(2, 'Bank name is required'),
   account_type: z.enum(['checking', 'savings']),
   amount: z.number().min(0.01, 'Amount must be at least $0.01').max(50000, 'Maximum ACH transfer is $50,000'),
   description: z.string().min(1, 'Description is required').max(100, 'Description must be less than 100 characters'),
@@ -91,6 +93,8 @@ export default function TransferPage() {
   const [savedBeneficiaries] = useState<SavedBeneficiary[]>([]) // TODO: Fetch from API
   const [accountType, setAccountType] = useState<'checking' | 'savings'>('checking')
   const [saveRecipient, setSaveRecipient] = useState(false)
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null)
+  const [showReceipt, setShowReceipt] = useState(false)
   
   const isAccountLocked = user?.is_account_locked || false
 
@@ -167,15 +171,16 @@ export default function TransferPage() {
     setError('')
 
     try {
-      // Add transfer type and fee info to data
-      const transferData = {
+      // Prepare transfer data based on transfer type
+      let transferData: any = {
         ...data,
-        transfer_type: transferType,
-        fee: feeInfo.fee,
-        total_amount: feeInfo.totalAmount,
         save_recipient: saveRecipient,
         recipient_nickname: saveRecipient ? (data.recipient_nickname || data.recipient_name) : undefined,
       }
+      
+      // Store fee info separately for receipt (not sent to backend)
+      transferData._feeInfo = feeInfo
+      transferData._transferType = transferType
       
       // Store pending transfer and show PIN modal
       setPendingTransfer(transferData)
@@ -195,39 +200,111 @@ export default function TransferPage() {
     setError('')
 
     try {
+      let response: any
+      
+      // Extract stored values
+      const storedTransferType = pendingTransfer._transferType || transferType
+      const storedFeeInfo = pendingTransfer._feeInfo || feeInfo
+      
+      // Remove internal fields before sending to API
+      const { _feeInfo, _transferType, ...apiData } = pendingTransfer
+      
       // Call appropriate API based on transfer type
-      switch (transferType) {
+      switch (storedTransferType) {
         case 'internal':
-          await bankingAPI.initiateTransfer(pendingTransfer)
+          response = await bankingAPI.initiateTransfer(apiData)
           break
         case 'ach':
-          await bankingAPI.createACHTransfer(pendingTransfer)
+          response = await bankingAPI.createACHTransfer(apiData)
           break
         case 'wire_domestic':
-          await bankingAPI.createWireTransfer(pendingTransfer)
+          response = await bankingAPI.createWireTransfer(apiData)
           break
         case 'wire_international':
-          await bankingAPI.createInternationalWireTransfer(pendingTransfer)
+          response = await bankingAPI.createInternationalWireTransfer(apiData)
           break
         default:
           throw new Error('Invalid transfer type')
       }
       
-      setSuccess(true)
+      // Prepare receipt data - show as pending since it needs admin approval
+      const receipt: ReceiptData = {
+        type: 'transfer',
+        status: response.status === 'completed' ? 'completed' : 'pending',
+        amount: pendingTransfer.amount,
+        currency: pendingTransfer.currency || 'USD',
+        sender: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.email || 'You',
+        recipient: pendingTransfer.recipient_name || pendingTransfer.recipient_email,
+        transferType: getTransferTypeLabel(storedTransferType),
+        date: new Date().toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric'
+        }),
+        referenceId: response.reference_number || generateReferenceId(),
+      }
+      
+      setReceiptData(receipt)
       setShowPinModal(false)
+      setShowReceipt(true)
       setPendingTransfer(null)
       reset()
-      
-      // Redirect to transactions page after 2 seconds
-      setTimeout(() => {
-        router.push('/dashboard/transactions')
-      }, 2000)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string; error?: string } } }
+      
+      // Extract stored values for failed receipt
+      const storedTransferType = pendingTransfer._transferType || transferType
+      
+      // Show failed receipt
+      const receipt: ReceiptData = {
+        type: 'transfer',
+        status: 'failed',
+        amount: pendingTransfer.amount,
+        currency: pendingTransfer.currency || 'USD',
+        sender: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.email || 'You',
+        recipient: pendingTransfer.recipient_name || pendingTransfer.recipient_email,
+        transferType: getTransferTypeLabel(storedTransferType),
+        date: new Date().toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric'
+        }),
+        referenceId: generateReferenceId(),
+      }
+      
+      setReceiptData(receipt)
+      setShowPinModal(false)
+      setShowReceipt(true)
       setError(error.response?.data?.message || error.response?.data?.error || 'Transfer failed. Please try again.')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const getTransferTypeLabel = (type: TransferType): string => {
+    const labels = {
+      internal: 'Internal Transfer',
+      ach: 'ACH Transfer',
+      wire_domestic: 'Wire Transfer',
+      wire_international: 'International Wire',
+    }
+    return labels[type]
+  }
+
+  const generateReferenceId = (): string => {
+    const prefix = transferType === 'ach' ? 'AC' : transferType === 'wire_domestic' ? 'WD' : transferType === 'wire_international' ? 'WI' : 'IT'
+    const random = Math.floor(Math.random() * 10000000).toString().padStart(7, '0')
+    return `${prefix}${random}`
+  }
+
+  const handleCloseReceipt = () => {
+    setShowReceipt(false)
+    setReceiptData(null)
+    router.push('/dashboard/transactions')
   }
 
   const handleBeneficiarySelect = (beneficiary: SavedBeneficiary) => {
@@ -714,6 +791,14 @@ export default function TransferPage() {
           onVerify={handlePinVerification}
           amount={pendingTransfer.amount}
           recipient={pendingTransfer.recipient_email}
+        />
+      )}
+
+      {/* Transfer Receipt */}
+      {showReceipt && receiptData && (
+        <TransferReceipt
+          {...receiptData}
+          onClose={handleCloseReceipt}
         />
       )}
     </DashboardLayout>

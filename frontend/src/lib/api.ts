@@ -287,6 +287,11 @@ export const transactionsAPI = {
     const response = await api.get(`/transactions/${id}/`)
     return response.data
   },
+
+  getTransfers: async (): Promise<any[]> => {
+    const response = await api.get('/banking/transfers/')
+    return response.data
+  },
 }
 
 // Admin API
@@ -642,6 +647,25 @@ export const bitcoinAPI = {
 
   getMySwaps: async (): Promise<CurrencySwap[]> => {
     const response = await api.get('/bitcoin-wallet/swaps/my_swaps/')
+    return response.data
+  },
+
+  // Send Bitcoin
+  sendBitcoin: async (data: {
+    balance_source: 'fiat' | 'bitcoin'
+    recipient_wallet_address: string
+    amount_btc: number
+    amount_usd?: number
+    bitcoin_price_at_time: number
+    transaction_fee?: number
+  }): Promise<{
+    id: number
+    transaction_hash: string
+    status: string
+    amount_btc: number
+    recipient_wallet_address: string
+  }> => {
+    const response = await api.post('/bitcoin-wallet/send/send/', data)
     return response.data
   },
 }

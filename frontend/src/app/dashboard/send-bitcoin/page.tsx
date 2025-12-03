@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { bitcoinAPI } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
-import { BitcoinBalance, BitcoinPrice } from '@/types'
+import { BitcoinBalance, BitcoinPrice, ReceiptData } from '@/types'
 import DashboardLayout from '@/components/DashboardLayout'
 import TransferPinModal from '@/components/TransferPinModal'
+import TransferReceipt from '@/components/receipt/TransferReceipt'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,16 +37,33 @@ export default function SendBitcoinPage() {
   const [recipientAddress, setRecipientAddress] = useState('')
   const [showPinModal, setShowPinModal] = useState(false)
   const [pendingBitcoinTransfer, setPendingBitcoinTransfer] = useState<any>(null)
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null)
+  const [showReceipt, setShowReceipt] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [balanceResponse, priceResponse] = await Promise.all([
-          bitcoinAPI.getBalance(),
-          bitcoinAPI.getPrice()
+        const [walletResponse, exchangeRateResponse] = await Promise.all([
+          bitcoinAPI.getWallet(),
+          bitcoinAPI.getExchangeRate()
         ])
-        setBitcoinData(balanceResponse)
-        setPriceData(priceResponse)
+        
+        // Set Bitcoin data from wallet
+        setBitcoinData({
+          id: walletResponse.id,
+          user: parseInt(walletResponse.user),
+          balance: '0', // Not used
+          created_at: walletResponse.created_at,
+          updated_at: walletResponse.updated_at,
+        })
+        
+        // Set price data from exchange rate
+        setPriceData({
+          price_usd: exchangeRateResponse.exchange_rate,
+          price_change_24h: 0,
+          price_change_percentage_24h: 0,
+          last_updated: new Date().toISOString(),
+        })
       } catch (error) {
         console.error('Error fetching Bitcoin data:', error)
       }
@@ -103,16 +121,80 @@ export default function SendBitcoinPage() {
     setIsLoading(true)
     try {
       const response = await bitcoinAPI.sendBitcoin(pendingBitcoinTransfer)
-      alert('Bitcoin transaction initiated successfully!')
+      
+      // Prepare receipt data
+      const receipt: ReceiptData = {
+        type: 'bitcoin',
+        status: 'completed',
+        amount: parseFloat(amountBtc) || 0,
+        btcAmount: parseFloat(amountBtc) || 0,
+        usdAmount: parseFloat(amountUsd) || 0,
+        sender: 'My Bitcoin Wallet',
+        senderWallet: 'bc1q...u9w8',
+        recipient: 'Recipient Wallet',
+        recipientWallet: recipientAddress.length > 12 ? recipientAddress.substring(0, 12) + '...' : recipientAddress,
+        date: new Date().toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric'
+        }),
+        referenceId: response.id?.toString() || generateBitcoinReferenceId(),
+        networkFee: 0.00001,
+        transactionHash: response.transaction_hash?.substring(0, 12) + '...' || 'f418...b7a5',
+      }
+      
+      setReceiptData(receipt)
       setShowPinModal(false)
+      setShowReceipt(true)
       setPendingBitcoinTransfer(null)
-      router.push('/dashboard')
+      
+      // Reset form
+      setAmountUsd('')
+      setAmountBtc('')
+      setRecipientAddress('')
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send Bitcoin'
-      alert(errorMessage)
+      
+      // Show failed receipt
+      const receipt: ReceiptData = {
+        type: 'bitcoin',
+        status: 'failed',
+        amount: parseFloat(amountBtc) || 0,
+        btcAmount: parseFloat(amountBtc) || 0,
+        usdAmount: parseFloat(amountUsd) || 0,
+        sender: 'My Bitcoin Wallet',
+        senderWallet: 'bc1q...u9w8',
+        recipient: 'Recipient Wallet',
+        recipientWallet: recipientAddress.length > 12 ? recipientAddress.substring(0, 12) + '...' : recipientAddress,
+        date: new Date().toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric'
+        }),
+        referenceId: generateBitcoinReferenceId(),
+      }
+      
+      setReceiptData(receipt)
+      setShowPinModal(false)
+      setShowReceipt(true)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const generateBitcoinReferenceId = (): string => {
+    const random = Math.floor(Math.random() * 10000000).toString().padStart(7, '0')
+    return `BTC${random}`
+  }
+
+  const handleCloseReceipt = () => {
+    setShowReceipt(false)
+    setReceiptData(null)
+    router.push('/dashboard')
   }
 
   return (
@@ -190,9 +272,9 @@ export default function SendBitcoinPage() {
                   </div>
                   <div>
                     <p className="font-medium">Bitcoin Balance</p>
-                    <p className="text-2xl font-bold">{bitcoinData?.bitcoin_balance || '0.00000000'} BTC</p>
+                    <p className="text-2xl font-bold">{user?.bitcoin_balance || '0.00000000'} BTC</p>
                     <p className="text-sm text-muted-foreground">
-                      ~{formatCurrency(bitcoinData?.bitcoin_balance_usd || 0)}
+                      ~{formatCurrency((parseFloat(user?.bitcoin_balance?.toString() || '0') * (priceData?.price_usd || 0)))}
                     </p>
                   </div>
                 </div>
@@ -284,7 +366,7 @@ export default function SendBitcoinPage() {
                   if (balanceSource === 'fiat') {
                     setAmountUsd((user?.balance || 0).toString())
                   } else {
-                    setAmountBtc(bitcoinData?.bitcoin_balance || '0')
+                    setAmountBtc(user?.bitcoin_balance?.toString() || '0')
                   }
                 }}
               >
@@ -344,6 +426,14 @@ export default function SendBitcoinPage() {
           onVerify={handlePinVerification}
           amount={pendingBitcoinTransfer.amount_usd || (pendingBitcoinTransfer.amount_btc || 0) * (priceData?.price_usd || 0)}
           recipient={pendingBitcoinTransfer.recipient_wallet_address}
+        />
+      )}
+
+      {/* Bitcoin Receipt */}
+      {showReceipt && receiptData && (
+        <TransferReceipt
+          {...receiptData}
+          onClose={handleCloseReceipt}
         />
       )}
     </DashboardLayout>

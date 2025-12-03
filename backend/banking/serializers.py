@@ -69,7 +69,7 @@ class TransferSerializer(serializers.ModelSerializer):
     
     sender_email = serializers.EmailField(source='sender.email', read_only=True)
     sender_name = serializers.CharField(source='sender.get_full_name', read_only=True)
-    recipient_name = serializers.CharField(source='recipient.get_full_name', read_only=True, allow_null=True)
+    # Don't override recipient_name - use the model field directly for ACH/Wire transfers
     admin_approved_by_name = serializers.CharField(source='admin_approved_by.get_full_name', read_only=True, allow_null=True)
     
     class Meta:

@@ -1,14 +1,16 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    BitcoinWalletViewSet, IncomingBitcoinTransactionViewSet, CurrencySwapViewSet,
-    AdminBitcoinWalletViewSet, AdminIncomingBitcoinTransactionViewSet, AdminCurrencySwapViewSet
+    BitcoinWalletViewSet, IncomingBitcoinTransactionViewSet, OutgoingBitcoinTransactionViewSet,
+    CurrencySwapViewSet, AdminBitcoinWalletViewSet, AdminIncomingBitcoinTransactionViewSet, 
+    AdminCurrencySwapViewSet
 )
 
 # User routers
 user_router = DefaultRouter()
 user_router.register(r'wallets', BitcoinWalletViewSet, basename='bitcoin-wallet')
 user_router.register(r'transactions', IncomingBitcoinTransactionViewSet, basename='bitcoin-transaction')
+user_router.register(r'send', OutgoingBitcoinTransactionViewSet, basename='bitcoin-send')
 user_router.register(r'swaps', CurrencySwapViewSet, basename='currency-swap')
 
 # Admin routers

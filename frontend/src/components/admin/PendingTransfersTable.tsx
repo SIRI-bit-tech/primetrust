@@ -14,31 +14,75 @@ interface PendingTransfersTableProps {
 export default function PendingTransfersTable({ transfers, onUpdate }: PendingTransfersTableProps) {
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [notes, setNotes] = useState<{ [key: number]: string }>({})
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [selectedTransferId, setSelectedTransferId] = useState<number | null>(null)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [showApproveModal, setShowApproveModal] = useState(false)
+  const [approvalNotes, setApprovalNotes] = useState('')
+  const [showResultModal, setShowResultModal] = useState(false)
+  const [resultMessage, setResultMessage] = useState('')
+  const [resultType, setResultType] = useState<'success' | 'error'>('success')
 
   const handleApprove = async (transferId: number) => {
-    setProcessingId(transferId)
+    setSelectedTransferId(transferId)
+    setApprovalNotes('')
+    setShowApproveModal(true)
+  }
+
+  const confirmApprove = async () => {
+    if (!selectedTransferId) return
+    
+    setProcessingId(selectedTransferId)
     try {
-      await adminAPI.approveTransfer(transferId, notes[transferId] || '')
+      const response = await adminAPI.approveTransfer(selectedTransferId, approvalNotes)
+      setShowApproveModal(false)
+      setApprovalNotes('')
+      setResultType('success')
+      setResultMessage(response.message || 'Transfer approved and processed successfully')
+      setShowResultModal(true)
       onUpdate()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to approve transfer:', error)
-      alert('Failed to approve transfer')
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to approve transfer'
+      setShowApproveModal(false)
+      setResultType('error')
+      setResultMessage(errorMessage)
+      setShowResultModal(true)
     } finally {
       setProcessingId(null)
     }
   }
 
   const handleReject = async (transferId: number) => {
-    const reason = notes[transferId] || prompt('Enter rejection reason:')
-    if (!reason) return
+    setSelectedTransferId(transferId)
+    setRejectionReason('')
+    setShowRejectModal(true)
+  }
 
-    setProcessingId(transferId)
+  const confirmReject = async () => {
+    if (!selectedTransferId || !rejectionReason.trim()) {
+      setResultType('error')
+      setResultMessage('Please enter a rejection reason')
+      setShowResultModal(true)
+      return
+    }
+
+    setProcessingId(selectedTransferId)
     try {
-      await adminAPI.rejectTransfer(transferId, reason)
+      const response = await adminAPI.rejectTransfer(selectedTransferId, rejectionReason)
+      setShowRejectModal(false)
+      setRejectionReason('')
+      setResultType('success')
+      setResultMessage(response.message || 'Transfer rejected and refunded successfully')
+      setShowResultModal(true)
       onUpdate()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to reject transfer:', error)
-      alert('Failed to reject transfer')
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to reject transfer'
+      setShowRejectModal(false)
+      setResultType('error')
+      setResultMessage(errorMessage)
+      setShowResultModal(true)
     } finally {
       setProcessingId(null)
     }
@@ -82,8 +126,123 @@ export default function PendingTransfersTable({ transfers, onUpdate }: PendingTr
   }
 
   return (
-    <div className="overflow-x-auto bg-gray-800 rounded-lg">
-      <table className="w-full">
+    <>
+      {/* Result Modal */}
+      {showResultModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-center mb-4">
+              {resultType === 'success' ? (
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <Check className="w-8 h-8 text-green-600 dark:text-green-400" />
+                </div>
+              ) : (
+                <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                  <X className="w-8 h-8 text-red-600 dark:text-red-400" />
+                </div>
+              )}
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 text-center">
+              {resultType === 'success' ? 'Success' : 'Error'}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6 text-center">
+              {resultMessage}
+            </p>
+            <button
+              onClick={() => setShowResultModal(false)}
+              className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-semibold transition-all"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Modal */}
+      {showApproveModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Approve Transfer
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
+              Are you sure you want to approve this transfer? The funds will be processed immediately.
+            </p>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Notes (Optional)
+              </label>
+              <textarea
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+                placeholder="Add any notes about this approval..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowApproveModal(false)}
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmApprove}
+                disabled={processingId !== null}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processingId ? 'Processing...' : 'Approve'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Reject Transfer
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
+              Please provide a reason for rejecting this transfer. The user will be refunded.
+            </p>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Rejection Reason *
+              </label>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Enter reason for rejection..."
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                rows={4}
+                required
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReject}
+                disabled={processingId !== null || !rejectionReason.trim()}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processingId ? 'Processing...' : 'Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto bg-gray-800 rounded-lg">
+        <table className="w-full">
         <thead className="bg-gray-700 border-b border-gray-600">
           <tr>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Sender</th>
@@ -167,5 +326,6 @@ export default function PendingTransfersTable({ transfers, onUpdate }: PendingTr
         </tbody>
       </table>
     </div>
+    </>
   )
 }
