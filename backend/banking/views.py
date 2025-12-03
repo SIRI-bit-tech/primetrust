@@ -5,6 +5,8 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.viewsets import ModelViewSet
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.db import transaction
+from rest_framework import serializers
 import logging
 import traceback
 from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication, ExternalBankAccount, SavedBeneficiary
@@ -218,34 +220,34 @@ class TransferListView(generics.ListCreateAPIView):
         sender = self.request.user
         amount = Decimal(str(serializer.validated_data['amount']))
         
-        # Check balance
-        if sender.balance < amount:
-            raise ValueError('Insufficient funds')
-        
-        # Debit sender immediately
-        sender.balance -= amount
-        sender.save()
-        
-        # Find recipient by email
-        recipient_email = serializer.validated_data.get('recipient_email')
-        recipient = None
-        if recipient_email:
-            try:
-                recipient = User.objects.get(email=recipient_email)
-            except User.DoesNotExist:
-                # Refund sender if recipient not found
-                sender.balance += amount
-                sender.save()
-                raise ValueError(f'Recipient with email {recipient_email} not found')
-        
-        # Create transfer
-        serializer.save(
-            sender=sender,
-            recipient=recipient,
-            transfer_type='internal',
-            status='pending',
-            requires_admin_approval=True
-        )
+        with transaction.atomic():
+            # Lock sender row
+            sender = User.objects.select_for_update().get(pk=sender.pk)
+            
+            if sender.balance < amount:
+                raise serializers.ValidationError({'amount': ['Insufficient funds']})
+            
+            sender.balance -= amount
+            sender.save(update_fields=['balance'])
+            
+            recipient = None
+            recipient_email = serializer.validated_data.get('recipient_email')
+            if recipient_email:
+                try:
+                    recipient = User.objects.get(email=recipient_email)
+                except User.DoesNotExist as exc:
+                    # Undo debit within the same transaction and return 400
+                    raise serializers.ValidationError(
+                        {'recipient_email': [f'Recipient with email {recipient_email} not found']}
+                    ) from exc
+            
+            serializer.save(
+                sender=sender,
+                recipient=recipient,
+                transfer_type='internal',
+                status='pending',
+                requires_admin_approval=True,
+            )
 
 
 class TransferDetailView(generics.RetrieveAPIView):
@@ -359,10 +361,17 @@ class SavedBeneficiaryViewSet(ModelViewSet):
 @permission_classes([permissions.IsAuthenticated])
 def create_ach_transfer(request):
     """Create an ACH transfer."""
-    logger.info(f"ACH transfer request data: {request.data}")
+    # Log only non-sensitive metadata
+    logger.info(
+        f"ACH transfer request from user {request.user.id}, "
+        f"amount: {request.data.get('amount', 'N/A')}, "
+        f"transfer_type: ACH"
+    )
     serializer = ACHTransferSerializer(data=request.data)
     if not serializer.is_valid():
-        logger.error(f"ACH transfer validation errors: {serializer.errors}")
+        # Log only error field names, not values
+        error_fields = list(serializer.errors.keys())
+        logger.warning(f"ACH transfer validation failed for user {request.user.id}, fields: {error_fields}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     try:
@@ -398,8 +407,17 @@ def create_ach_transfer(request):
 @permission_classes([permissions.IsAuthenticated])
 def create_wire_transfer(request):
     """Create a domestic wire transfer."""
+    # Log only non-sensitive metadata
+    logger.info(
+        f"Wire transfer request from user {request.user.id}, "
+        f"amount: {request.data.get('amount', 'N/A')}, "
+        f"transfer_type: domestic_wire"
+    )
     serializer = WireTransferSerializer(data=request.data)
     if not serializer.is_valid():
+        # Log only error field names, not values
+        error_fields = list(serializer.errors.keys())
+        logger.warning(f"Wire transfer validation failed for user {request.user.id}, fields: {error_fields}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     try:
@@ -436,8 +454,17 @@ def create_wire_transfer(request):
 @permission_classes([permissions.IsAuthenticated])
 def create_international_wire_transfer(request):
     """Create an international wire transfer."""
+    # Log only non-sensitive metadata
+    logger.info(
+        f"International wire transfer request from user {request.user.id}, "
+        f"amount: {request.data.get('amount', 'N/A')}, "
+        f"transfer_type: international_wire"
+    )
     serializer = InternationalWireTransferSerializer(data=request.data)
     if not serializer.is_valid():
+        # Log only error field names, not values
+        error_fields = list(serializer.errors.keys())
+        logger.warning(f"International wire transfer validation failed for user {request.user.id}, fields: {error_fields}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     try:

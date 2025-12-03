@@ -29,6 +29,7 @@ export default function SendBitcoinPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [bitcoinData, setBitcoinData] = useState<BitcoinBalance | null>(null)
   const [priceData, setPriceData] = useState<BitcoinPrice | null>(null)
+  const [userWalletAddress, setUserWalletAddress] = useState<string>('')
   
   // Form state
   const [balanceSource, setBalanceSource] = useState<'fiat' | 'bitcoin'>('fiat')
@@ -56,6 +57,9 @@ export default function SendBitcoinPage() {
           created_at: walletResponse.created_at,
           updated_at: walletResponse.updated_at,
         })
+        
+        // Store user's wallet address
+        setUserWalletAddress(walletResponse.wallet_address || '')
         
         // Set price data from exchange rate
         setPriceData({
@@ -130,7 +134,7 @@ export default function SendBitcoinPage() {
         btcAmount: parseFloat(amountBtc) || 0,
         usdAmount: parseFloat(amountUsd) || 0,
         sender: 'My Bitcoin Wallet',
-        senderWallet: 'bc1q...u9w8',
+        senderWallet: userWalletAddress.length > 12 ? userWalletAddress.substring(0, 12) + '...' : userWalletAddress,
         recipient: 'Recipient Wallet',
         recipientWallet: recipientAddress.length > 12 ? recipientAddress.substring(0, 12) + '...' : recipientAddress,
         date: new Date().toLocaleDateString('en-US', { 
@@ -141,8 +145,8 @@ export default function SendBitcoinPage() {
           minute: 'numeric'
         }),
         referenceId: response.id?.toString() || generateBitcoinReferenceId(),
-        networkFee: 0.00001,
-        transactionHash: response.transaction_hash?.substring(0, 12) + '...' || 'f418...b7a5',
+        networkFee: response.transaction_fee ? parseFloat(response.transaction_fee) : 0,
+        transactionHash: response.transaction_hash ? (response.transaction_hash.length > 12 ? response.transaction_hash.substring(0, 12) + '...' : response.transaction_hash) : '',
       }
       
       setReceiptData(receipt)

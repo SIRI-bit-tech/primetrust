@@ -106,11 +106,19 @@ class OutgoingBitcoinTransactionCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, data):
+        from decimal import Decimal
+        
         user = self.context['request'].user
         balance_source = data.get('balance_source')
         amount_btc = data.get('amount_btc')
         amount_usd = data.get('amount_usd')
-        transaction_fee = data.get('transaction_fee', 0.00001)
+        
+        # Get transaction_fee as Decimal to avoid type mismatch
+        if 'transaction_fee' not in data or data['transaction_fee'] is None:
+            default_fee = OutgoingBitcoinTransaction._meta.get_field('transaction_fee').default
+            transaction_fee = default_fee if default_fee is not None else Decimal('0.00001')
+        else:
+            transaction_fee = data['transaction_fee']
         
         # Validate amount is positive
         if amount_btc <= 0:
@@ -123,7 +131,7 @@ class OutgoingBitcoinTransactionCreateSerializer(serializers.ModelSerializer):
             if user.balance < amount_usd:
                 raise serializers.ValidationError("Insufficient fiat balance")
         elif balance_source == 'bitcoin':
-            bitcoin_balance = user.bitcoin_balance or 0
+            bitcoin_balance = user.bitcoin_balance or Decimal('0')
             total_btc_needed = amount_btc + transaction_fee
             if bitcoin_balance < total_btc_needed:
                 raise serializers.ValidationError(f"Insufficient Bitcoin balance. Need {total_btc_needed} BTC (including fee)")
