@@ -45,7 +45,11 @@ def authenticate_socket(token):
         
         # Convert string to int if needed
         if isinstance(user_id, str):
-            user_id = int(user_id)
+            try:
+                user_id = int(user_id)
+            except ValueError:
+                logger.error(f"Invalid user_id format in token: '{user_id}' - cannot convert to integer")
+                return None
         
         # Return user_id and username from token (avoid DB call in async context)
         # We'll fetch the full user object in the async handler
