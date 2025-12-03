@@ -100,6 +100,14 @@ class AdminUserBalanceView(APIView):
         balance = request.data.get('balance')
         action = request.data.get('action', 'add')  # 'add', 'subtract', 'set'
         
+        # Validate action
+        allowed_actions = {'add', 'subtract', 'set'}
+        if action not in allowed_actions:
+            return Response({
+                'error': f'Invalid action: {action}',
+                'allowed_actions': list(allowed_actions)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         if balance is not None:
             try:
                 balance = float(balance)
@@ -110,10 +118,15 @@ class AdminUserBalanceView(APIView):
                     action_text = f'added ${balance:.2f}'
                 elif action == 'subtract':
                     if current_balance < balance:
-                        return Response({'error': 'Insufficient balance'}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response({
+                            'error': 'Insufficient balance',
+                            'current_balance': f'${current_balance:.2f}',
+                            'attempted_subtraction': f'${balance:.2f}',
+                            'shortfall': f'${balance - current_balance:.2f}'
+                        }, status=status.HTTP_400_BAD_REQUEST)
                     user.balance = current_balance - balance
                     action_text = f'subtracted ${balance:.2f}'
-                else:  # 'set'
+                elif action == 'set':
                     user.balance = balance
                     action_text = f'set to ${balance:.2f}'
                 
@@ -150,6 +163,14 @@ class AdminUserBitcoinBalanceView(APIView):
         bitcoin_balance = request.data.get('bitcoin_balance')
         action = request.data.get('action', 'set')  # 'set', 'add', 'subtract'
         
+        # Validate action
+        allowed_actions = {'add', 'subtract', 'set'}
+        if action not in allowed_actions:
+            return Response({
+                'error': f'Invalid action: {action}',
+                'allowed_actions': list(allowed_actions)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         if bitcoin_balance is not None:
             try:
                 bitcoin_balance = float(bitcoin_balance)
@@ -157,12 +178,20 @@ class AdminUserBitcoinBalanceView(APIView):
                 
                 if action == 'add':
                     user.bitcoin_balance = current_balance + bitcoin_balance
+                    action_text = f'added {bitcoin_balance:.8f} BTC'
                 elif action == 'subtract':
                     if current_balance < bitcoin_balance:
-                        return Response({'error': 'Insufficient Bitcoin balance'}, status=status.HTTP_400_BAD_REQUEST)
+                        return Response({
+                            'error': 'Insufficient Bitcoin balance',
+                            'current_balance': f'{current_balance:.8f} BTC',
+                            'attempted_subtraction': f'{bitcoin_balance:.8f} BTC',
+                            'shortfall': f'{bitcoin_balance - current_balance:.8f} BTC'
+                        }, status=status.HTTP_400_BAD_REQUEST)
                     user.bitcoin_balance = current_balance - bitcoin_balance
-                else:  # 'set'
+                    action_text = f'subtracted {bitcoin_balance:.8f} BTC'
+                elif action == 'set':
                     user.bitcoin_balance = bitcoin_balance
+                    action_text = f'set to {bitcoin_balance:.8f} BTC'
                 
                 user.save()
                 
@@ -171,12 +200,12 @@ class AdminUserBitcoinBalanceView(APIView):
                 send_notification(
                     user.id,
                     'Bitcoin Balance Updated',
-                    f'Your Bitcoin balance has been updated to {user.bitcoin_balance:.8f} BTC',
+                    f'Your Bitcoin balance has been {action_text}. New balance: {user.bitcoin_balance:.8f} BTC',
                     'info'
                 )
                 
                 return Response({
-                    'message': f'Bitcoin balance {action} successfully',
+                    'message': f'Bitcoin balance {action_text} successfully',
                     'bitcoin_balance': str(user.bitcoin_balance),
                     'action': action
                 }, status=status.HTTP_200_OK)

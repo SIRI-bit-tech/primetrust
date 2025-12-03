@@ -17,7 +17,6 @@ from .serializers import (
     WireTransferSerializer, InternationalWireTransferSerializer, BankLookupSerializer
 )
 from .transfer_services import BankLookupService, ACHTransferService, WireTransferService
-from socketio_app.utils import notify_transfer_update, notify_balance_update, notify_card_update, send_notification
 
 logger = logging.getLogger(__name__)
 
