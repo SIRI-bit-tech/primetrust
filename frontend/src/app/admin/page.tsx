@@ -77,7 +77,9 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUser, setSelectedUser] = useState<number | null>(null)
   const [balanceAmount, setBalanceAmount] = useState('')
+  const [balanceAction, setBalanceAction] = useState<'add' | 'subtract' | 'set'>('add')
   const [bitcoinAmount, setBitcoinAmount] = useState('')
+  const [bitcoinAction, setBitcoinAction] = useState<'add' | 'subtract' | 'set'>('add')
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -106,6 +108,9 @@ export default function AdminPage() {
         case 'dashboard':
           const dashboard = await adminAPI.getAdminDashboard()
           setDashboardData(dashboard)
+          // Also load users for Balance Management section
+          const dashboardUsers = await adminAPI.getAllUsers()
+          setUsers(dashboardUsers)
           break
         case 'users':
           const usersData = await adminAPI.getAllUsers()
@@ -180,7 +185,7 @@ export default function AdminPage() {
     if (!selectedUser || !balanceAmount) return
     
     try {
-      await adminAPI.updateUserBalance(selectedUser, parseFloat(balanceAmount))
+      await adminAPI.updateUserBalance(selectedUser, parseFloat(balanceAmount), balanceAction)
       setBalanceAmount('')
       loadData()
     } catch (err: unknown) {
@@ -193,7 +198,7 @@ export default function AdminPage() {
     if (!selectedUser || !bitcoinAmount) return
     
     try {
-      await adminAPI.updateUserBitcoinBalance(selectedUser, parseFloat(bitcoinAmount))
+      await adminAPI.updateUserBitcoinBalance(selectedUser, parseFloat(bitcoinAmount), bitcoinAction)
       setBitcoinAmount('')
       loadData()
     } catch (err: unknown) {
@@ -957,13 +962,14 @@ export default function AdminPage() {
                  Balance Management
                </h3>
                
-               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+               <div className="space-y-4">
+                 {/* User Selection */}
                  <div>
                    <label className="block text-sm font-medium text-gray-300 mb-2">Select User</label>
                    <select
                      value={selectedUser || ''}
                      onChange={(e) => setSelectedUser(Number(e.target.value) || null)}
-                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2"
+                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
                    >
                      <option value="">Choose a user</option>
                      {users.map((user) => (
@@ -974,38 +980,58 @@ export default function AdminPage() {
                    </select>
                  </div>
 
+                 {/* USD Balance */}
                  <div>
                    <label className="block text-sm font-medium text-gray-300 mb-2">USD Balance</label>
-                   <div className="flex">
+                   <div className="flex gap-1">
+                     <select
+                       value={balanceAction}
+                       onChange={(e) => setBalanceAction(e.target.value as 'add' | 'subtract' | 'set')}
+                       className="w-20 bg-gray-700 border border-gray-600 text-white rounded px-2 py-2 text-sm"
+                     >
+                       <option value="add">Add</option>
+                       <option value="subtract">Sub</option>
+                       <option value="set">Set</option>
+                     </select>
                      <input
                        type="number"
                        value={balanceAmount}
                        onChange={(e) => setBalanceAmount(e.target.value)}
-                       placeholder="Enter amount"
-                       className="flex-1 bg-gray-700 border border-gray-600 text-white rounded-l px-3 py-2"
+                       placeholder="Amount"
+                       className="flex-1 bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
                      />
                      <button
                        onClick={handleUpdateBalance}
-                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r"
+                       className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
                      >
                        Update
                      </button>
                    </div>
                  </div>
 
+                 {/* Bitcoin Balance */}
                  <div>
                    <label className="block text-sm font-medium text-gray-300 mb-2">Bitcoin Balance</label>
-                   <div className="flex">
+                   <div className="flex gap-1">
+                     <select
+                       value={bitcoinAction}
+                       onChange={(e) => setBitcoinAction(e.target.value as 'add' | 'subtract' | 'set')}
+                       className="w-20 bg-gray-700 border border-gray-600 text-white rounded px-2 py-2 text-sm"
+                     >
+                       <option value="add">Add</option>
+                       <option value="subtract">Sub</option>
+                       <option value="set">Set</option>
+                     </select>
                      <input
                        type="number"
                        value={bitcoinAmount}
                        onChange={(e) => setBitcoinAmount(e.target.value)}
-                       placeholder="BTC amount"
-                       className="flex-1 bg-gray-700 border border-gray-600 text-white rounded-l px-3 py-2"
+                       placeholder="BTC"
+                       className="flex-1 bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
                      />
                      <button
                        onClick={handleUpdateBitcoinBalance}
-                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r"
+                       className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
                      >
                        Update
                      </button>

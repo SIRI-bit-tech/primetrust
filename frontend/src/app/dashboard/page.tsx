@@ -142,6 +142,50 @@ export default function DashboardPage() {
     fetchData()
   }, [fetchData])
 
+  // Listen for real-time balance updates
+  useEffect(() => {
+    const handleBalanceUpdate = (event: CustomEvent) => {
+      const { balance } = event.detail
+      if (account) {
+        setAccount({ ...account, balance: balance.toString() })
+      }
+    }
+
+    const handleTransferUpdate = () => {
+      // Refresh transactions when transfer status changes
+      fetchData()
+    }
+
+    const handleCardUpdate = () => {
+      // Refresh cards when card status changes
+      fetchData()
+    }
+
+    const handleLoanUpdate = () => {
+      // Refresh data when loan status changes
+      fetchData()
+    }
+
+    const handleBitcoinTransactionUpdate = () => {
+      // Refresh Bitcoin balance when transaction completes
+      fetchData()
+    }
+
+    window.addEventListener('balance-updated', handleBalanceUpdate as EventListener)
+    window.addEventListener('transfer-updated', handleTransferUpdate as EventListener)
+    window.addEventListener('card-updated', handleCardUpdate as EventListener)
+    window.addEventListener('loan-updated', handleLoanUpdate as EventListener)
+    window.addEventListener('bitcoin-transaction-updated', handleBitcoinTransactionUpdate as EventListener)
+
+    return () => {
+      window.removeEventListener('balance-updated', handleBalanceUpdate as EventListener)
+      window.removeEventListener('transfer-updated', handleTransferUpdate as EventListener)
+      window.removeEventListener('card-updated', handleCardUpdate as EventListener)
+      window.removeEventListener('loan-updated', handleLoanUpdate as EventListener)
+      window.removeEventListener('bitcoin-transaction-updated', handleBitcoinTransactionUpdate as EventListener)
+    }
+  }, [account, fetchData])
+
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'transfer':
