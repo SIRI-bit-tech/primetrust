@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BitcoinWallet, IncomingBitcoinTransaction, CurrencySwap
+from .models import BitcoinWallet, IncomingBitcoinTransaction, OutgoingBitcoinTransaction, CurrencySwap
 
 
 class BitcoinWalletSerializer(serializers.ModelSerializer):
@@ -73,6 +73,72 @@ class IncomingBitcoinTransactionUpdateSerializer(serializers.ModelSerializer):
             'status', 'confirmation_count', 'block_height',
             'admin_notes', 'is_manually_approved'
         ]
+
+class OutgoingBitcoinTransactionSerializer(serializers.ModelSerializer):
+    """Serializer for outgoing Bitcoin transactions"""
+    user = serializers.ReadOnlyField(source='user.username')
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    balance_source_display = serializers.CharField(source='get_balance_source_display', read_only=True)
+    
+    class Meta:
+        model = OutgoingBitcoinTransaction
+        fields = [
+            'id', 'user', 'balance_source', 'balance_source_display',
+            'recipient_wallet_address', 'amount_btc', 'amount_usd',
+            'bitcoin_price_at_time', 'transaction_fee', 'transaction_hash',
+            'status', 'status_display', 'created_at', 'updated_at',
+            'completed_at', 'admin_notes'
+        ]
+        read_only_fields = [
+            'id', 'user', 'transaction_hash', 'status', 'created_at',
+            'updated_at', 'completed_at', 'admin_notes'
+        ]
+
+
+class OutgoingBitcoinTransactionCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating outgoing Bitcoin transactions"""
+    
+    class Meta:
+        model = OutgoingBitcoinTransaction
+        fields = [
+            'balance_source', 'recipient_wallet_address', 'amount_btc',
+            'amount_usd', 'bitcoin_price_at_time', 'transaction_fee'
+        ]
+
+    def validate(self, data):
+        user = self.context['request'].user
+        balance_source = data.get('balance_source')
+        amount_btc = data.get('amount_btc')
+        amount_usd = data.get('amount_usd')
+        transaction_fee = data.get('transaction_fee', 0.00001)
+        
+        # Validate amount is positive
+        if amount_btc <= 0:
+            raise serializers.ValidationError("Bitcoin amount must be greater than zero")
+        
+        # Validate user has sufficient balance
+        if balance_source == 'fiat':
+            if not amount_usd or amount_usd <= 0:
+                raise serializers.ValidationError("USD amount is required when paying from fiat balance")
+            if user.balance < amount_usd:
+                raise serializers.ValidationError("Insufficient fiat balance")
+        elif balance_source == 'bitcoin':
+            bitcoin_balance = user.bitcoin_balance or 0
+            total_btc_needed = amount_btc + transaction_fee
+            if bitcoin_balance < total_btc_needed:
+                raise serializers.ValidationError(f"Insufficient Bitcoin balance. Need {total_btc_needed} BTC (including fee)")
+        
+        # Validate recipient address
+        recipient_address = data.get('recipient_wallet_address', '')
+        if len(recipient_address) < 26 or len(recipient_address) > 62:
+            raise serializers.ValidationError("Invalid Bitcoin address format")
+        
+        return data
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+
 
 class CurrencySwapSerializer(serializers.ModelSerializer):
     swap_type_display = serializers.CharField(source='get_swap_type_display', read_only=True)

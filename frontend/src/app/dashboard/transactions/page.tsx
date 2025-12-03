@@ -36,8 +36,32 @@ export default function TransactionsPage() {
 
   const loadTransactions = async () => {
     try {
-      const transactionsData = await transactionsAPI.getTransactions()
-      setTransactions(transactionsData)
+      // Fetch both transactions and transfers
+      const [transactionsData, transfersData] = await Promise.all([
+        transactionsAPI.getTransactions().catch((err) => {
+          console.error('Error fetching transactions:', err)
+          return []
+        }),
+        transactionsAPI.getTransfers().catch((err) => {
+          console.error('Error fetching transfers:', err)
+          return []
+        })
+      ])
+      
+      // Extract arrays from responses
+      const transactionsArray = Array.isArray(transactionsData) 
+        ? transactionsData 
+        : ((transactionsData as any)?.results || [])
+      
+      const transfersArray = Array.isArray(transfersData) 
+        ? transfersData 
+        : ((transfersData as any)?.results || [])
+      
+      // Combine and sort by date
+      const combined = [...transactionsArray, ...transfersArray]
+      combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      
+      setTransactions(combined)
     } catch (error) {
       console.error('Error loading transactions:', error)
     } finally {
@@ -50,11 +74,14 @@ export default function TransactionsPage() {
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(transaction =>
-        transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.sender.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.recipient.full_name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      filtered = filtered.filter(transaction => {
+        const desc = transaction.description?.toLowerCase() || ''
+        const senderName = (transaction as any).sender_name?.toLowerCase() || (transaction as any).sender?.full_name?.toLowerCase() || ''
+        const recipientName = (transaction as any).recipient_name?.toLowerCase() || (transaction as any).recipient?.full_name?.toLowerCase() || ''
+        return desc.includes(searchTerm.toLowerCase()) || 
+               senderName.includes(searchTerm.toLowerCase()) || 
+               recipientName.includes(searchTerm.toLowerCase())
+      })
     }
 
     // Status filter
@@ -64,7 +91,11 @@ export default function TransactionsPage() {
 
     // Type filter
     if (typeFilter !== 'all') {
-      filtered = filtered.filter(transaction => transaction.transaction_type === typeFilter)
+      // Map transfer_type to transaction_type for transfers
+      filtered = filtered.filter(transaction => {
+        const type = transaction.transaction_type || (transaction as any).transfer_type
+        return type === typeFilter
+      })
     }
 
     setFilteredTransactions(filtered)
@@ -73,6 +104,10 @@ export default function TransactionsPage() {
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'transfer':
+      case 'internal':
+      case 'ach':
+      case 'wire_domestic':
+      case 'wire_international':
         return <Send className="w-5 h-5" />
       case 'deposit':
         return <TrendingUp className="w-5 h-5 text-green-500" />
@@ -94,18 +129,49 @@ export default function TransactionsPage() {
     }
   }
 
+  const getTransactionType = (transaction: Transaction | any) => {
+    return transaction.transaction_type || (transaction as any).transfer_type || 'transfer'
+  }
+
+  const getTransactionDescription = (transaction: Transaction | any) => {
+    const type = getTransactionType(transaction)
+    const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name || ''
+    const description = transaction.description || ''
+    
+    // If we have a recipient name, use it
+    if (recipientName) {
+      if (type === 'internal') return `Internal Transfer to ${recipientName}`
+      if (type === 'ach') return `ACH Transfer to ${recipientName}`
+      if (type === 'wire_domestic') return `Wire Transfer to ${recipientName}`
+      if (type === 'wire_international') return `International Wire to ${recipientName}`
+    }
+    
+    // Fallback to description or type
+    if (description) return description
+    
+    // Last resort - just show the type
+    if (type === 'internal') return 'Internal Transfer'
+    if (type === 'ach') return 'ACH Transfer'
+    if (type === 'wire_domestic') return 'Wire Transfer'
+    if (type === 'wire_international') return 'International Wire Transfer'
+    
+    return type
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
       case 'approved':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+      case 'failed':
       case 'declined':
-        return 'bg-red-100 text-red-800'
+      case 'cancelled':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
     }
   }
 
@@ -114,12 +180,12 @@ export default function TransactionsPage() {
       ['Date', 'Type', 'Description', 'Amount', 'Status', 'Sender', 'Recipient'].join(','),
       ...filteredTransactions.map(transaction => [
         formatDate(transaction.created_at),
-        transaction.transaction_type,
-        transaction.description,
+        getTransactionType(transaction),
+        getTransactionDescription(transaction),
         transaction.amount,
         transaction.status,
-        transaction.sender.full_name,
-        transaction.recipient.full_name
+        (transaction as any).sender_name || (transaction as any).sender?.full_name || 'You',
+        (transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'Unknown'
       ].join(','))
     ].join('\n')
 
@@ -204,7 +270,10 @@ export default function TransactionsPage() {
               className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-dark focus:border-transparent"
             >
               <option value="all">All Types</option>
-              <option value="transfer">Transfer</option>
+              <option value="internal">Internal Transfer</option>
+              <option value="ach">ACH Transfer</option>
+              <option value="wire_domestic">Wire Transfer</option>
+              <option value="wire_international">International Wire</option>
               <option value="deposit">Deposit</option>
               <option value="withdrawal">Withdrawal</option>
             </select>
@@ -248,51 +317,67 @@ export default function TransactionsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3">
-                            {getTransactionIcon(transaction.transaction_type)}
+                  {filteredTransactions.map((transaction) => {
+                    const type = getTransactionType(transaction)
+                    const senderName = (transaction as any).sender_name || (transaction as any).sender?.full_name || 'You'
+                    // Get recipient name
+                    const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'External Account'
+                    const fee = (transaction as any).fee || 0
+                    const refNumber = (transaction as any).reference_number
+                    
+                    return (
+                      <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3">
+                              {getTransactionIcon(type)}
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {getTransactionDescription(transaction)}
+                              </div>
+                              <div className="text-sm text-gray-500 capitalize">
+                                {type.replace('_', ' ')}
+                              </div>
+                            </div>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className={`text-sm font-semibold ${getTransactionColor(type)}`}>
+                            {type === 'withdrawal' ? '-' : ''}
+                            {formatCurrency(transaction.amount)}
+                          </div>
+                          {fee > 0 && (
+                            <div className="text-xs text-gray-500">
+                              Fee: {formatCurrency(fee)}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
+                            {transaction.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            {formatDate(transaction.created_at)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {transaction.transaction_type === 'transfer' 
-                                ? `Transfer to ${transaction.recipient.full_name}`
-                                : transaction.description || transaction.transaction_type
-                              }
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {transaction.transaction_type}
-                            </div>
+                            <div>From: {senderName}</div>
+                            <div>To: {recipientName}</div>
+                            {refNumber && (
+                              <div className="text-xs text-gray-400 mt-1">
+                                Ref: {refNumber}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className={`text-sm font-semibold ${getTransactionColor(transaction.transaction_type)}`}>
-                          {transaction.transaction_type === 'withdrawal' ? '-' : '+'}
-                          {formatCurrency(transaction.amount)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
-                          {transaction.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex items-center">
-                          <Calendar className="w-4 h-4 mr-1" />
-                          {formatDate(transaction.created_at)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div>
-                          <div>From: {transaction.sender.full_name}</div>
-                          <div>To: {transaction.recipient.full_name}</div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

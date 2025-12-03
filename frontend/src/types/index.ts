@@ -568,3 +568,22 @@ export interface SavedBeneficiary {
   created_at: string
   last_used: string | null
 }
+
+// Receipt data
+export interface ReceiptData {
+  type: 'transfer' | 'bitcoin'
+  status: 'completed' | 'pending' | 'failed'
+  amount: number
+  currency?: string
+  btcAmount?: number
+  usdAmount?: number
+  sender: string
+  recipient: string
+  recipientWallet?: string
+  senderWallet?: string
+  transferType?: string
+  date: string
+  referenceId: string
+  networkFee?: number
+  transactionHash?: string
+}

@@ -308,10 +308,10 @@ class Transfer(models.Model):
         if not self.reference_number:
             self.reference_number = self.generate_reference_number()
         
-        # Set scheduled completion time (15-30 minutes from now) if not set
+        # Set scheduled completion time (3-5 minutes from now) if not set
         if not self.scheduled_completion_time and self.status == 'pending':
             import random
-            delay_minutes = random.randint(15, 30)
+            delay_minutes = random.randint(3, 5)
             self.scheduled_completion_time = timezone.now() + timezone.timedelta(minutes=delay_minutes)
         
         super().save(*args, **kwargs)
@@ -324,28 +324,11 @@ class Transfer(models.Model):
                 return ref_number
     
     def process_transfer(self):
-        """Process the transfer."""
-        if self.status != 'pending':
-            return False, "Transfer is not in pending status"
-        
-        # Check sender balance
-        if self.sender.balance < self.amount:
-            self.status = 'failed'
-            self.save()
-            return False, "Insufficient funds"
-        
-        # Check transfer limits
-        can_transfer, message = self.sender.can_transfer(self.amount)
-        if not can_transfer:
-            self.status = 'failed'
-            self.save()
-            return False, message
+        """Process the transfer - balance already deducted, just complete it."""
+        if self.status not in ['pending', 'processing']:
+            return False, f"Transfer cannot be processed from {self.status} status"
         
         try:
-            # Deduct from sender
-            self.sender.balance -= self.amount
-            self.sender.save()
-            
             # Add to recipient (if internal transfer)
             if self.recipient and self.transfer_type == 'internal':
                 self.recipient.balance += self.amount
@@ -377,11 +360,17 @@ class Transfer(models.Model):
         if self.status not in ['pending', 'processing']:
             return False, "Only pending or processing transfers can be approved"
         
+        # Mark as admin approved but keep status as pending for process_transfer
         self.admin_approved = True
         self.admin_approved_by = admin_user
         self.admin_approved_at = timezone.now()
         self.admin_notes = notes
-        self.status = 'processing'
+        
+        # If status is 'processing', change it back to 'pending' temporarily for process_transfer
+        original_status = self.status
+        if self.status == 'processing':
+            self.status = 'pending'
+        
         self.save()
         
         # Process the transfer immediately
@@ -390,20 +379,20 @@ class Transfer(models.Model):
         return success, message
     
     def admin_reject_transfer(self, admin_user, notes=""):
-        """Admin rejects the transfer."""
+        """Admin rejects the transfer and refunds the sender."""
         if self.status not in ['pending', 'processing']:
             return False, "Only pending or processing transfers can be rejected"
         
-        # Refund sender if amount was already deducted
-        if self.status == 'processing':
-            self.sender.balance += self.amount
-            self.sender.save()
+        # Refund sender (amount + fee was already deducted)
+        total_amount = self.amount + self.fee
+        self.sender.balance += total_amount
+        self.sender.save()
         
         self.status = 'failed'
         self.admin_notes = notes
         self.save()
         
-        return True, "Transfer rejected successfully"
+        return True, "Transfer rejected and refunded successfully"
     
     def auto_process_if_ready(self):
         """Auto-process transfer if scheduled time has passed and admin approval not required."""

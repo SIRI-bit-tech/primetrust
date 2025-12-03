@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import BitcoinWallet, IncomingBitcoinTransaction, CurrencySwap
+from .models import BitcoinWallet, IncomingBitcoinTransaction, OutgoingBitcoinTransaction, CurrencySwap
 
 
 @admin.register(BitcoinWallet)
@@ -106,6 +106,50 @@ class IncomingBitcoinTransactionAdmin(admin.ModelAdmin):
                 obj.confirmation_count = obj.required_confirmations
         
         super().save_model(request, obj, form, change)
+
+
+@admin.register(OutgoingBitcoinTransaction)
+class OutgoingBitcoinTransactionAdmin(admin.ModelAdmin):
+    list_display = [
+        'user', 'recipient_address_short', 'amount_btc', 'amount_usd',
+        'balance_source', 'status', 'transaction_hash_short', 'created_at'
+    ]
+    list_filter = ['status', 'balance_source', 'created_at', 'completed_at']
+    search_fields = ['user__username', 'recipient_wallet_address', 'transaction_hash']
+    readonly_fields = ['transaction_hash', 'created_at', 'updated_at', 'completed_at']
+    
+    fieldsets = (
+        ('Transaction Information', {
+            'fields': ('user', 'balance_source', 'recipient_wallet_address', 'amount_btc', 'amount_usd')
+        }),
+        ('Bitcoin Details', {
+            'fields': ('bitcoin_price_at_time', 'transaction_fee', 'transaction_hash')
+        }),
+        ('Status Information', {
+            'fields': ('status', 'admin_notes')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'completed_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def recipient_address_short(self, obj):
+        """Display shortened recipient address"""
+        if len(obj.recipient_wallet_address) > 20:
+            return f"{obj.recipient_wallet_address[:10]}...{obj.recipient_wallet_address[-10:]}"
+        return obj.recipient_wallet_address
+    recipient_address_short.short_description = "Recipient Address"
+
+    def transaction_hash_short(self, obj):
+        """Display shortened transaction hash"""
+        if obj.transaction_hash and len(obj.transaction_hash) > 20:
+            return f"{obj.transaction_hash[:10]}...{obj.transaction_hash[-10:]}"
+        return obj.transaction_hash or "N/A"
+    transaction_hash_short.short_description = "Transaction Hash"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')
 
 
 @admin.register(CurrencySwap)
