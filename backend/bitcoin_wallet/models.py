@@ -104,6 +104,16 @@ class IncomingBitcoinTransaction(models.Model):
                     balance=self.amount_btc
                 )
             
+            # Send real-time notification
+            from socketio_app.utils import notify_bitcoin_transaction, send_notification
+            notify_bitcoin_transaction(self.user.id, self.id, self.status, 'incoming')
+            send_notification(
+                self.user.id,
+                'Bitcoin Received',
+                f'Received {self.amount_btc} BTC (${self.amount_usd}) from {self.sender_address[:12]}...',
+                'success'
+            )
+            
             return True
         return False
 
@@ -214,6 +224,17 @@ class OutgoingBitcoinTransaction(models.Model):
                 self.status = 'completed'
                 self.completed_at = timezone.now()
                 self.save()
+                
+                # Send real-time notification
+                from socketio_app.utils import notify_bitcoin_transaction, send_notification
+                notify_bitcoin_transaction(user.id, self.id, self.status, 'outgoing')
+                send_notification(
+                    user.id,
+                    'Bitcoin Sent',
+                    f'Successfully sent {self.amount_btc} BTC to {self.recipient_wallet_address[:12]}...',
+                    'success'
+                )
+                
                 return True
             
         except Exception as e:

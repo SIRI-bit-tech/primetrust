@@ -311,12 +311,12 @@ export const adminAPI = {
     return response.data
   },
 
-  updateUserBalance: async (userId: number, balance: number): Promise<Account> => {
-    const response = await api.put(`/admin/users/${userId}/balance/`, { balance })
+  updateUserBalance: async (userId: number, balance: number, action: 'add' | 'subtract' | 'set' = 'add'): Promise<Account> => {
+    const response = await api.put(`/admin/users/${userId}/balance/`, { balance, action })
     return response.data
   },
 
-  updateUserBitcoinBalance: async (userId: number, bitcoinBalance: number, action: 'set' | 'add' | 'subtract' = 'set'): Promise<{ message: string; bitcoin_balance: string; action: string }> => {
+  updateUserBitcoinBalance: async (userId: number, bitcoinBalance: number, action: 'set' | 'add' | 'subtract' = 'add'): Promise<{ message: string; bitcoin_balance: string; action: string }> => {
     const response = await api.put(`/admin/users/${userId}/bitcoin-balance/`, { 
       bitcoin_balance: bitcoinBalance,
       action: action

@@ -68,6 +68,16 @@ class CardApplication(models.Model):
         # Send notification
         from .services import CardApplicationNotificationService
         CardApplicationNotificationService.send_application_approved_notification(self)
+        
+        # Send real-time notification
+        from socketio_app.utils import notify_card_update, send_notification
+        notify_card_update(self.user.id, self.id, self.status, 'approved')
+        send_notification(
+            self.user.id,
+            'Card Application Approved',
+            f'Your {self.get_card_type_display()} card application has been approved and is being processed.',
+            'success'
+        )
     
     def reject(self, admin_user, notes=""):
         """Reject the application."""
@@ -80,6 +90,16 @@ class CardApplication(models.Model):
         # Send notification
         from .services import CardApplicationNotificationService
         CardApplicationNotificationService.send_application_rejected_notification(self)
+        
+        # Send real-time notification
+        from socketio_app.utils import notify_card_update, send_notification
+        notify_card_update(self.user.id, self.id, self.status, 'rejected')
+        send_notification(
+            self.user.id,
+            'Card Application Rejected',
+            f'Your {self.get_card_type_display()} card application has been rejected. {notes}',
+            'error'
+        )
     
     def complete(self, admin_user, notes=""):
         """Mark application as completed (card created)."""
@@ -97,6 +117,16 @@ class CardApplication(models.Model):
         if created_card:
             card_number = created_card.card_number
         CardApplicationNotificationService.send_application_completed_notification(self, card_number)
+        
+        # Send real-time notification
+        from socketio_app.utils import notify_card_update, send_notification
+        notify_card_update(self.user.id, self.id, self.status, 'completed')
+        send_notification(
+            self.user.id,
+            'Card Ready!',
+            f'Your {self.get_card_type_display()} card has been created and is ready to use!',
+            'success'
+        )
     
     def get_estimated_completion_days(self):
         """Get estimated completion time in days."""
@@ -376,6 +406,28 @@ class Transfer(models.Model):
         # Process the transfer immediately
         success, message = self.process_transfer()
         
+        # Send real-time notification to user
+        if success:
+            from socketio_app.utils import notify_transfer_update, notify_balance_update, send_notification
+            notify_transfer_update(self.sender.id, self.id, self.status, self.transfer_type)
+            notify_balance_update(self.sender.id, self.sender.balance)
+            send_notification(
+                self.sender.id,
+                'Transfer Approved',
+                f'Your {self.get_transfer_type_display()} transfer of ${self.amount} has been approved and processed.',
+                'success'
+            )
+            
+            # Notify recipient if internal transfer
+            if self.recipient:
+                notify_balance_update(self.recipient.id, self.recipient.balance)
+                send_notification(
+                    self.recipient.id,
+                    'Money Received',
+                    f'You received ${self.amount} from {self.sender.get_full_name() or self.sender.email}.',
+                    'success'
+                )
+        
         return success, message
     
     def admin_reject_transfer(self, admin_user, notes=""):
@@ -391,6 +443,17 @@ class Transfer(models.Model):
         self.status = 'failed'
         self.admin_notes = notes
         self.save()
+        
+        # Send real-time notification to user
+        from socketio_app.utils import notify_transfer_update, notify_balance_update, send_notification
+        notify_transfer_update(self.sender.id, self.id, self.status, self.transfer_type)
+        notify_balance_update(self.sender.id, self.sender.balance)
+        send_notification(
+            self.sender.id,
+            'Transfer Rejected',
+            f'Your {self.get_transfer_type_display()} transfer of ${self.amount} has been rejected. Your balance has been refunded.',
+            'error'
+        )
         
         return True, "Transfer rejected and refunded successfully"
     

@@ -4,6 +4,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SocketProvider } from "@/contexts/SocketContext";
+import { Toaster } from "sonner";
 import GlobalAccountLockModal from "@/components/GlobalAccountLockModal";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -48,8 +50,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            {children}
-            <GlobalAccountLockModal />
+            <SocketProvider>
+              {children}
+              <GlobalAccountLockModal />
+              <Toaster position="top-right" richColors />
+            </SocketProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

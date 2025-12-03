@@ -34,6 +34,25 @@ export default function TransactionsPage() {
     filterTransactions()
   }, [transactions, searchTerm, statusFilter, typeFilter])
 
+  // Listen for real-time transaction updates
+  useEffect(() => {
+    const handleTransferUpdate = () => {
+      loadTransactions()
+    }
+
+    const handleBitcoinTransactionUpdate = () => {
+      loadTransactions()
+    }
+
+    window.addEventListener('transfer-updated', handleTransferUpdate as EventListener)
+    window.addEventListener('bitcoin-transaction-updated', handleBitcoinTransactionUpdate as EventListener)
+
+    return () => {
+      window.removeEventListener('transfer-updated', handleTransferUpdate as EventListener)
+      window.removeEventListener('bitcoin-transaction-updated', handleBitcoinTransactionUpdate as EventListener)
+    }
+  }, [])
+
   const loadTransactions = async () => {
     try {
       // Fetch both transactions and transfers

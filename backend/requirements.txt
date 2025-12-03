@@ -11,3 +11,8 @@ plaid-python
 bitcoin
 blockcypher
 pycoin
+python-socketio
+aiohttp
+python-engineio
+aioredis
+redis

@@ -98,15 +98,41 @@ class AdminUserBalanceView(APIView):
     def put(self, request, user_id):  # Changed from 'pk' to 'user_id'
         user = get_object_or_404(User, pk=user_id)
         balance = request.data.get('balance')
+        action = request.data.get('action', 'add')  # 'add', 'subtract', 'set'
         
         if balance is not None:
             try:
                 balance = float(balance)
-                user.balance = balance
+                current_balance = float(user.balance or 0)
+                
+                if action == 'add':
+                    user.balance = current_balance + balance
+                    action_text = f'added ${balance:.2f}'
+                elif action == 'subtract':
+                    if current_balance < balance:
+                        return Response({'error': 'Insufficient balance'}, status=status.HTTP_400_BAD_REQUEST)
+                    user.balance = current_balance - balance
+                    action_text = f'subtracted ${balance:.2f}'
+                else:  # 'set'
+                    user.balance = balance
+                    action_text = f'set to ${balance:.2f}'
+                
                 user.save()
+                
+                # Send real-time notification to user
+                from socketio_app.utils import notify_balance_update, send_notification
+                notify_balance_update(user.id, user.balance)
+                send_notification(
+                    user.id,
+                    'Balance Updated',
+                    f'Your account balance has been {action_text}. New balance: ${user.balance:.2f}',
+                    'info'
+                )
+                
                 return Response({
-                    'message': 'Balance updated successfully',
-                    'balance': str(user.balance)
+                    'message': f'Balance {action_text} successfully',
+                    'balance': str(user.balance),
+                    'action': action
                 }, status=status.HTTP_200_OK)
             except ValueError:
                 return Response({'error': 'Invalid balance amount'}, status=status.HTTP_400_BAD_REQUEST)
@@ -139,6 +165,16 @@ class AdminUserBitcoinBalanceView(APIView):
                     user.bitcoin_balance = bitcoin_balance
                 
                 user.save()
+                
+                # Send real-time notification to user
+                from socketio_app.utils import send_notification
+                send_notification(
+                    user.id,
+                    'Bitcoin Balance Updated',
+                    f'Your Bitcoin balance has been updated to {user.bitcoin_balance:.8f} BTC',
+                    'info'
+                )
+                
                 return Response({
                     'message': f'Bitcoin balance {action} successfully',
                     'bitcoin_balance': str(user.bitcoin_balance),
@@ -764,6 +800,32 @@ class AdminLoanStatusView(APIView):
                 if new_status == 'approved':
                     loan.approved_at = timezone.now()
                 loan.save()
+                
+                # Send real-time notification
+                from socketio_app.utils import notify_loan_update, send_notification
+                notify_loan_update(loan.user.id, loan.id, loan.status)
+                
+                status_messages = {
+                    'approved': f'Your loan application for ${loan.amount} has been approved!',
+                    'rejected': 'Your loan application has been rejected.',
+                    'active': 'Your loan is now active.',
+                    'completed': 'Your loan has been completed.'
+                }
+                
+                notification_types = {
+                    'approved': 'success',
+                    'rejected': 'error',
+                    'active': 'info',
+                    'completed': 'success'
+                }
+                
+                send_notification(
+                    loan.user.id,
+                    'Loan Status Update',
+                    status_messages.get(new_status, 'Your loan status has been updated.'),
+                    notification_types.get(new_status, 'info')
+                )
+                
                 return Response({'message': 'Loan status updated successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
@@ -899,6 +961,15 @@ class AdminLockUserAccountView(APIView):
             }
         )
         
+        # Send real-time notification
+        from socketio_app.utils import send_notification
+        send_notification(
+            user.id,
+            'Account Locked',
+            f'Your account has been locked. Reason: {reason}',
+            'error'
+        )
+        
         return Response({
             'message': 'User account locked successfully',
             'user_id': user.id,
@@ -950,6 +1021,15 @@ class AdminUnlockUserAccountView(APIView):
             title='Account Unlocked',
             message=f'Your account has been unlocked by an administrator. You can now access all features.',
             priority='high'
+        )
+        
+        # Send real-time notification
+        from socketio_app.utils import send_notification
+        send_notification(
+            user.id,
+            'Account Unlocked',
+            'Your account has been unlocked. You can now access all features.',
+            'success'
         )
         
         return Response({

@@ -26,6 +26,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth()
   }, [])
 
+  // Listen for WebSocket events to refresh user data
+  useEffect(() => {
+    const handleRefreshUser = () => {
+      refreshUser()
+    }
+
+    window.addEventListener('refresh-user-data', handleRefreshUser)
+
+    return () => {
+      window.removeEventListener('refresh-user-data', handleRefreshUser)
+    }
+  }, [])
+
   // Polling disabled - causes page reloads
   // User can manually refresh or lock status will update on next login
   // useEffect(() => {
