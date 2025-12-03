@@ -231,7 +231,7 @@ export default function TransactionsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <Link
               href="/dashboard"
@@ -240,14 +240,14 @@ export default function TransactionsPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900">Transaction History</h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transaction History</h1>
+            <p className="text-gray-600 mt-2 text-sm sm:text-base">
               View and manage all your banking transactions.
             </p>
           </div>
           <button
             onClick={exportTransactions}
-            className="bg-gradient-to-r from-primary-dark to-primary-navy text-white px-4 py-2 rounded-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center"
+            className="bg-gradient-to-r from-primary-dark to-primary-navy text-white px-4 py-2 rounded-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center sm:justify-start whitespace-nowrap"
           >
             <Download className="w-4 h-4 mr-2" />
             Export CSV
@@ -314,92 +314,170 @@ export default function TransactionsPage() {
         {/* Transactions List */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {filteredTransactions.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Transaction
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Details
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredTransactions.map((transaction) => {
-                    const type = getTransactionType(transaction)
-                    const senderName = (transaction as any).sender_name || (transaction as any).sender?.full_name || 'You'
-                    // Get recipient name
-                    const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'External Account'
-                    const fee = (transaction as any).fee || 0
-                    const refNumber = (transaction as any).reference_number
-                    
-                    return (
-                      <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3">
-                              {getTransactionIcon(type)}
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Transaction
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Details
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredTransactions.map((transaction) => {
+                      const type = getTransactionType(transaction)
+                      const senderName = (transaction as any).sender_name || (transaction as any).sender?.full_name || 'You'
+                      const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'External Account'
+                      const fee = (transaction as any).fee || 0
+                      const refNumber = (transaction as any).reference_number
+                      
+                      return (
+                        <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3">
+                                {getTransactionIcon(type)}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {getTransactionDescription(transaction)}
+                                </div>
+                                <div className="text-sm text-gray-500 capitalize">
+                                  {type.replace('_', ' ')}
+                                </div>
+                              </div>
                             </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className={`text-sm font-semibold ${getTransactionColor(type)}`}>
+                              {type === 'withdrawal' ? '-' : ''}
+                              {formatCurrency(transaction.amount)}
+                            </div>
+                            {fee > 0 && (
+                              <div className="text-xs text-gray-500">
+                                Fee: {formatCurrency(fee)}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
+                              {transaction.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <div className="flex items-center">
+                              <Calendar className="w-4 h-4 mr-1" />
+                              {formatDate(transaction.created_at)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {getTransactionDescription(transaction)}
-                              </div>
-                              <div className="text-sm text-gray-500 capitalize">
-                                {type.replace('_', ' ')}
-                              </div>
+                              <div>From: {senderName}</div>
+                              <div>To: {recipientName}</div>
+                              {refNumber && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Ref: {refNumber}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="lg:hidden divide-y divide-gray-200">
+                {filteredTransactions.map((transaction) => {
+                  const type = getTransactionType(transaction)
+                  const senderName = (transaction as any).sender_name || (transaction as any).sender?.full_name || 'You'
+                  const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'External Account'
+                  const fee = (transaction as any).fee || 0
+                  const refNumber = (transaction as any).reference_number
+                  
+                  return (
+                    <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center flex-1 min-w-0">
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                            {getTransactionIcon(type)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-gray-900 truncate">
+                              {getTransactionDescription(transaction)}
+                            </div>
+                            <div className="text-xs text-gray-500 capitalize">
+                              {type.replace('_', ' ')}
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-sm font-semibold ${getTransactionColor(type)}`}>
-                            {type === 'withdrawal' ? '-' : ''}
-                            {formatCurrency(transaction.amount)}
-                          </div>
-                          {fee > 0 && (
-                            <div className="text-xs text-gray-500">
-                              Fee: {formatCurrency(fee)}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        </div>
+                        <div className={`text-sm font-semibold ${getTransactionColor(type)} ml-2 flex-shrink-0`}>
+                          {type === 'withdrawal' ? '-' : ''}
+                          {formatCurrency(transaction.amount)}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Status:</span>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
                             {transaction.status}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <Calendar className="w-4 h-4 mr-1" />
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Date:</span>
+                          <span className="text-gray-900 flex items-center">
+                            <Calendar className="w-3 h-3 mr-1" />
                             {formatDate(transaction.created_at)}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">From:</span>
+                          <span className="text-gray-900 truncate ml-2">{senderName}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">To:</span>
+                          <span className="text-gray-900 truncate ml-2">{recipientName}</span>
+                        </div>
+                        
+                        {fee > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500">Fee:</span>
+                            <span className="text-gray-900">{formatCurrency(fee)}</span>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div>
-                            <div>From: {senderName}</div>
-                            <div>To: {recipientName}</div>
-                            {refNumber && (
-                              <div className="text-xs text-gray-400 mt-1">
-                                Ref: {refNumber}
-                              </div>
-                            )}
+                        )}
+                        
+                        {refNumber && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500">Ref:</span>
+                            <span className="text-xs text-gray-400">{refNumber}</span>
                           </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           ) : (
             <div className="text-center py-12">
               <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -427,26 +505,26 @@ export default function TransactionsPage() {
 
         {/* Summary */}
         {filteredTransactions.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Transaction Summary</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">
+          <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Transaction Summary</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              <div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-green-600">
                   {filteredTransactions.filter(t => t.transaction_type === 'deposit').length}
                 </div>
-                <div className="text-sm text-green-600">Deposits</div>
+                <div className="text-xs sm:text-sm text-green-600">Deposits</div>
               </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg">
-                <div className="text-2xl font-bold text-red-600">
+              <div className="text-center p-3 sm:p-4 bg-red-50 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-red-600">
                   {filteredTransactions.filter(t => t.transaction_type === 'withdrawal').length}
                 </div>
-                <div className="text-sm text-red-600">Withdrawals</div>
+                <div className="text-xs sm:text-sm text-red-600">Withdrawals</div>
               </div>
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">
+              <div className="text-center p-3 sm:p-4 bg-blue-50 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">
                   {filteredTransactions.filter(t => t.transaction_type === 'transfer').length}
                 </div>
-                <div className="text-sm text-blue-600">Transfers</div>
+                <div className="text-xs sm:text-sm text-blue-600">Transfers</div>
               </div>
             </div>
           </div>
