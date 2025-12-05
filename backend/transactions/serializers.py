@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Transaction, Bill, Investment
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -76,15 +76,28 @@ class InvestmentPurchaseSerializer(serializers.ModelSerializer):
         amount = data.pop('amount', None)
         quantity = data.get('quantity', 1)
         
+        # Validate amount
         if not amount:
             raise serializers.ValidationError("Amount is required")
         
         if amount < 100:
             raise serializers.ValidationError("Minimum investment amount is $100")
         
-        # Calculate price per unit
+        # Validate quantity
+        if quantity is None:
+            raise serializers.ValidationError("Quantity is required")
+        
+        try:
+            quantity_decimal = Decimal(str(quantity))
+        except (ValueError, TypeError, InvalidOperation):
+            raise serializers.ValidationError("Quantity must be a valid number")
+        
+        if quantity_decimal <= 0:
+            raise serializers.ValidationError("Quantity must be greater than zero")
+        
+        # Calculate price per unit using safe Decimal arithmetic
         data['amount_invested'] = amount
-        data['price_per_unit'] = amount / Decimal(str(quantity))
+        data['price_per_unit'] = Decimal(str(amount)) / quantity_decimal
         
         return data
     
