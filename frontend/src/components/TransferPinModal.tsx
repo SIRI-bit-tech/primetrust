@@ -29,6 +29,7 @@ interface TransferPinModalProps {
   onVerify: () => void
   amount: number
   recipient: string
+  bankName?: string
 }
 
 export default function TransferPinModal({ 
@@ -36,7 +37,8 @@ export default function TransferPinModal({
   onClose, 
   onVerify, 
   amount, 
-  recipient 
+  recipient,
+  bankName
 }: TransferPinModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -111,6 +113,12 @@ export default function TransferPinModal({
                 <span className="text-gray-600">Recipient:</span>
                 <span className="font-medium text-gray-900">{recipient}</span>
               </div>
+              {bankName && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Bank:</span>
+                  <span className="font-medium text-gray-900">{bankName}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

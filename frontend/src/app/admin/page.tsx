@@ -487,14 +487,18 @@ export default function AdminPage() {
           </>
         )
       case 'transactions':
-        const transactionItem = item as Transaction
+        const transactionItem = item as any // Can be Transaction or Transfer
+        // Handle both Transaction and Transfer types
+        const userName = transactionItem.user_name || transactionItem.sender_name || 'N/A'
+        const transactionType = transactionItem.transaction_type || transactionItem.transfer_type || 'N/A'
+        
         return (
           <>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-              {transactionItem.user_name}
+              {userName}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {transactionItem.transaction_type}
+              {transactionType}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
               {formatCurrency(transactionItem.amount)}
@@ -508,15 +512,22 @@ export default function AdminPage() {
               {formatDate(transactionItem.created_at)}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              <select
-                value={transactionItem.status}
-                onChange={(e) => handleUpdateTransactionStatus(transactionItem.id, e.target.value)}
-                className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
-              >
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-              </select>
+              {transactionItem.status === 'pending' || transactionItem.status === 'processing' ? (
+                <select
+                  value={transactionItem.status}
+                  onChange={(e) => handleUpdateTransactionStatus(transactionItem.id, e.target.value)}
+                  className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="processing">Processing</option>
+                  <option value="completed">Completed</option>
+                  <option value="failed">Failed</option>
+                </select>
+              ) : (
+                <span className="text-gray-500 text-xs">
+                  {transactionItem.status === 'completed' ? '✓ Completed' : '✗ ' + transactionItem.status}
+                </span>
+              )}
             </td>
           </>
         )
