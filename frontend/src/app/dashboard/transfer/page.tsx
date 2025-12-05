@@ -47,7 +47,7 @@ const wireTransferSchema = z.object({
   routing_number: z.string().length(9, 'Routing number must be 9 digits'),
   account_number: z.string().min(4, 'Account number is required'),
   bank_name: z.string().min(2, 'Bank name is required'),
-  bank_address: z.string().min(5, 'Bank address is required'),
+  bank_address: z.string().optional(),
   amount: z.number().min(0.01, 'Amount must be at least $0.01').max(100000, 'Maximum wire transfer is $100,000'),
   description: z.string().min(1, 'Description is required').max(100, 'Description must be less than 100 characters'),
   reference: z.string().optional(),
@@ -790,7 +790,8 @@ export default function TransferPage() {
           }}
           onVerify={handlePinVerification}
           amount={pendingTransfer.amount}
-          recipient={pendingTransfer.recipient_email}
+          recipient={pendingTransfer.recipient_email || pendingTransfer.recipient_name}
+          bankName={pendingTransfer.bank_name}
         />
       )}
 

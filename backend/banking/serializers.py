@@ -201,7 +201,7 @@ class WireTransferSerializer(serializers.Serializer):
     account_number = serializers.CharField(max_length=20)
     routing_number = serializers.CharField(max_length=9)
     bank_name = serializers.CharField(max_length=200)
-    bank_address = serializers.CharField(max_length=500)
+    bank_address = serializers.CharField(max_length=500, required=False, allow_blank=True)
     amount = serializers.DecimalField(max_digits=15, decimal_places=2, min_value=0.01, max_value=100000)
     description = serializers.CharField(max_length=200)
     reference = serializers.CharField(max_length=100, required=False, allow_blank=True)

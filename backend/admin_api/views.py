@@ -215,31 +215,46 @@ class AdminUserBitcoinBalanceView(APIView):
         return Response({'error': 'Bitcoin balance is required'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class AdminTransactionListView(generics.ListAPIView):
-    """List all transactions (admin only)."""
+class AdminTransactionListView(APIView):
+    """List all transactions and transfers combined (admin only)."""
     
     permission_classes = [permissions.IsAdminUser]
-    serializer_class = TransactionSerializer
     
-    def get_queryset(self):
-        queryset = Transaction.objects.all()
+    def get(self, request):
+        from banking.serializers import TransferSerializer
         
-        # Filter by user
-        user_id = self.request.query_params.get('user')
+        # Get query parameters
+        user_id = request.query_params.get('user')
+        status_filter = request.query_params.get('status')
+        transaction_type = request.query_params.get('type')
+        
+        # Fetch transactions
+        transactions_queryset = Transaction.objects.all()
         if user_id:
-            queryset = queryset.filter(user_id=user_id)
-        
-        # Filter by status
-        status_filter = self.request.query_params.get('status')
+            transactions_queryset = transactions_queryset.filter(user_id=user_id)
         if status_filter:
-            queryset = queryset.filter(status=status_filter)
-        
-        # Filter by type
-        transaction_type = self.request.query_params.get('type')
+            transactions_queryset = transactions_queryset.filter(status=status_filter)
         if transaction_type:
-            queryset = queryset.filter(transaction_type=transaction_type)
+            transactions_queryset = transactions_queryset.filter(transaction_type=transaction_type)
         
-        return queryset.order_by('-created_at')
+        # Fetch transfers
+        transfers_queryset = Transfer.objects.all().select_related('sender', 'recipient')
+        if user_id:
+            transfers_queryset = transfers_queryset.filter(Q(sender_id=user_id) | Q(recipient_id=user_id))
+        if status_filter:
+            transfers_queryset = transfers_queryset.filter(status=status_filter)
+        if transaction_type:
+            transfers_queryset = transfers_queryset.filter(transfer_type=transaction_type)
+        
+        # Serialize both
+        transactions_data = TransactionSerializer(transactions_queryset, many=True).data
+        transfers_data = TransferSerializer(transfers_queryset, many=True).data
+        
+        # Combine and sort by created_at
+        combined_data = list(transactions_data) + list(transfers_data)
+        combined_data.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        return Response(combined_data, status=status.HTTP_200_OK)
 
 
 class AdminTransactionDetailView(generics.RetrieveUpdateAPIView):
