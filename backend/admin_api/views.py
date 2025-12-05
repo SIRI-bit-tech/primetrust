@@ -227,9 +227,11 @@ class AdminTransactionListView(APIView):
         user_id = request.query_params.get('user')
         status_filter = request.query_params.get('status')
         transaction_type = request.query_params.get('type')
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 50))
         
-        # Fetch transactions
-        transactions_queryset = Transaction.objects.all()
+        # Fetch transactions with optimized query
+        transactions_queryset = Transaction.objects.select_related('user').all()
         if user_id:
             transactions_queryset = transactions_queryset.filter(user_id=user_id)
         if status_filter:
@@ -237,7 +239,7 @@ class AdminTransactionListView(APIView):
         if transaction_type:
             transactions_queryset = transactions_queryset.filter(transaction_type=transaction_type)
         
-        # Fetch transfers
+        # Fetch transfers with optimized query
         transfers_queryset = Transfer.objects.all().select_related('sender', 'recipient')
         if user_id:
             transfers_queryset = transfers_queryset.filter(Q(sender_id=user_id) | Q(recipient_id=user_id))
@@ -250,11 +252,27 @@ class AdminTransactionListView(APIView):
         transactions_data = TransactionSerializer(transactions_queryset, many=True).data
         transfers_data = TransferSerializer(transfers_queryset, many=True).data
         
+        # Add type discriminator to each item
+        for item in transactions_data:
+            item['type'] = 'transaction'
+        for item in transfers_data:
+            item['type'] = 'transfer'
+        
         # Combine and sort by created_at
         combined_data = list(transactions_data) + list(transfers_data)
         combined_data.sort(key=lambda x: x['created_at'], reverse=True)
         
-        return Response(combined_data, status=status.HTTP_200_OK)
+        # Paginate
+        start = (page - 1) * page_size
+        end = start + page_size
+        paginated_data = combined_data[start:end]
+        
+        return Response({
+            'results': paginated_data,
+            'count': len(combined_data),
+            'page': page,
+            'page_size': page_size
+        }, status=status.HTTP_200_OK)
 
 
 class AdminTransactionDetailView(generics.RetrieveUpdateAPIView):
@@ -282,6 +300,32 @@ class AdminTransactionStatusView(APIView):
             return Response({
                 'message': 'Transaction status updated successfully',
                 'status': transaction.status
+            }, status=status.HTTP_200_OK)
+        
+        return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminTransferStatusView(APIView):
+    """Update transfer status (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def put(self, request, pk):
+        transfer = get_object_or_404(Transfer, pk=pk)
+        new_status = request.data.get('status')
+        
+        # Valid transfer statuses
+        valid_statuses = ['pending', 'processing', 'completed', 'failed', 'cancelled']
+        
+        if new_status in valid_statuses:
+            transfer.status = new_status
+            if new_status == 'completed':
+                transfer.completed_at = timezone.now()
+            transfer.save()
+            
+            return Response({
+                'message': 'Transfer status updated successfully',
+                'status': transfer.status
             }, status=status.HTTP_200_OK)
         
         return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
