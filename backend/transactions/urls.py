@@ -19,7 +19,7 @@ urlpatterns = [
     
     # Investments
     path('investments/', views.InvestmentListView.as_view(), name='investment-list'),
-    path('investments/create/', views.InvestmentCreateView.as_view(), name='investment-create'),
+    path('investments/purchase/', views.InvestmentPurchaseView.as_view(), name='investment-purchase'),
     path('investments/<int:pk>/', views.InvestmentDetailView.as_view(), name='investment-detail'),
     path('investments/<int:pk>/sell/', views.InvestmentSellView.as_view(), name='investment-sell'),
     

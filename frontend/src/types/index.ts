@@ -169,20 +169,23 @@ export interface Loan {
 
 export interface Investment {
   id: number
-  user: User
+  user?: User
   user_name?: string
-  investment_type: 'stocks' | 'bonds' | 'mutual_funds' | 'etfs' | 'crypto' | string
+  investment_type: 'stocks' | 'bonds' | 'mutual_funds' | 'etfs' | 'crypto'
   name: string
   symbol?: string
+  balance_source: 'fiat' | 'bitcoin'
+  quantity: number
+  price_per_unit: number
   amount_invested: number
-  amount?: number
+  current_price_per_unit: number
   current_value: number
   profit_loss: number
   profit_loss_percentage: number
-  return_rate?: number
-  status: 'active' | 'sold' | 'pending' | 'completed' | 'cancelled'
+  status: 'active' | 'sold' | 'pending' | 'cancelled'
   created_at: string
   last_updated: string
+  sold_at?: string | null
 }
 
 export interface Bill {
@@ -216,6 +219,7 @@ export interface InvestmentPurchase {
   investment_type: 'stocks' | 'bonds' | 'mutual_funds' | 'etfs' | 'crypto'
   name: string
   symbol?: string
+  balance_source: 'fiat' | 'bitcoin'
   amount: number
   quantity?: number
 }
