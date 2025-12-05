@@ -210,19 +210,41 @@ def trigger_loan_notification(user, loan, action_type):
         priority=priority
     )
 
-def trigger_investment_notification(user, investment):
-    """Trigger notification for investment creation."""
+def trigger_investment_notification(user, investment, action='created'):
+    """
+    Trigger notification for investment actions.
+    
+    Args:
+        user: User instance
+        investment: Investment instance
+        action: Action type ('created', 'purchased', 'sold', 'updated')
+    """
     try:
+        # Customize title and message based on action
+        if action == 'purchased':
+            title = "Investment Purchased"
+            message = f"Your investment of ${investment.amount_invested} in {investment.name} has been purchased successfully."
+        elif action == 'sold':
+            title = "Investment Sold"
+            message = f"Your investment in {investment.name} has been sold successfully."
+        elif action == 'updated':
+            title = "Investment Updated"
+            message = f"Your investment in {investment.name} has been updated."
+        else:  # 'created' or default
+            title = "Investment Created"
+            message = f"Your investment of ${investment.amount_invested} has been created successfully."
+        
         notification = Notification.objects.create(
             user=user,
-            title="Investment Created",
-            message=f"Your investment of ${investment.amount} has been created successfully.",
+            title=title,
+            message=message,
             notification_type="investment",
             data={
                 'investment_id': investment.id,
-                'amount': str(investment.amount),
+                'amount_invested': str(investment.amount_invested),
                 'investment_type': investment.investment_type,
-                'status': investment.status
+                'status': investment.status,
+                'action': action
             }
         )
         return notification
