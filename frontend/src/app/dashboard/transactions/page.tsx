@@ -6,11 +6,12 @@ import {
   TrendingDown, 
   Send, 
   Download, 
-  Filter, 
   Search,
   ArrowLeft,
   Calendar,
-  DollarSign
+  DollarSign,
+  Clock,
+  XCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -25,10 +26,28 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null)
 
   useEffect(() => {
     loadTransactions()
+    loadCurrentUser()
   }, [])
+
+  const loadCurrentUser = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/auth/me/`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      })
+      if (response.ok) {
+        const userData = await response.json()
+        setCurrentUserId(userData.id)
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error)
+    }
+  }
 
   useEffect(() => {
     filterTransactions()
@@ -120,21 +139,63 @@ export default function TransactionsPage() {
     setFilteredTransactions(filtered)
   }
 
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'transfer':
-      case 'internal':
-      case 'ach':
-      case 'wire_domestic':
-      case 'wire_international':
-        return <Send className="w-5 h-5" />
-      case 'deposit':
-        return <TrendingUp className="w-5 h-5 text-green-500" />
-      case 'withdrawal':
-        return <TrendingDown className="w-5 h-5 text-red-500" />
-      default:
-        return <DollarSign className="w-5 h-5" />
+  const getTransactionIcon = (transaction: Transaction | any) => {
+    const type = transaction.transaction_type || transaction.transfer_type
+    const status = transaction.status
+    const isSender = currentUserId && transaction.sender === currentUserId
+    const isReceiver = currentUserId && transaction.recipient === currentUserId
+    
+    // Status-based icons (override type-based icons)
+    if (status === 'failed' || status === 'cancelled' || status === 'declined') {
+      return <XCircle className="w-5 h-5 text-red-500" />
     }
+    if (status === 'pending' || status === 'processing') {
+      return <Clock className="w-5 h-5 text-yellow-500" />
+    }
+    if (status === 'completed' || status === 'approved') {
+      // Type-based icons for completed transactions
+      if (type === 'deposit') {
+        return <TrendingUp className="w-5 h-5 text-green-500" />
+      }
+      if (type === 'withdrawal') {
+        return <TrendingDown className="w-5 h-5 text-red-500" />
+      }
+      // For transfers, use TrendingUp/TrendingDown based on direction
+      if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
+        if (isReceiver && !isSender) {
+          return <TrendingDown className="w-5 h-5 text-green-500" />
+        }
+        return <TrendingUp className="w-5 h-5 text-red-500" />
+      }
+    }
+    
+    // Default
+    return <DollarSign className="w-5 h-5 text-gray-500" />
+  }
+
+  const getTransactionIconBgColor = (transaction: Transaction | any) => {
+    const status = transaction.status
+    
+    if (status === 'failed' || status === 'cancelled' || status === 'declined') {
+      return 'bg-red-100'
+    }
+    if (status === 'pending' || status === 'processing') {
+      return 'bg-yellow-100'
+    }
+    if (status === 'completed' || status === 'approved') {
+      const type = transaction.transaction_type || transaction.transfer_type
+      const isReceiver = currentUserId && transaction.recipient === currentUserId
+      
+      if (type === 'deposit' || (isReceiver && !transaction.sender)) {
+        return 'bg-green-100'
+      }
+      if (type === 'withdrawal') {
+        return 'bg-red-100'
+      }
+      return 'bg-blue-100'
+    }
+    
+    return 'bg-gray-100'
   }
 
   const getTransactionColor = (type: string) => {
@@ -235,13 +296,13 @@ export default function TransactionsPage() {
           <div>
             <Link
               href="/dashboard"
-              className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+              className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-4"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Link>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transaction History</h1>
-            <p className="text-gray-600 mt-2 text-sm sm:text-base">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Transaction History</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm sm:text-base">
               View and manage all your banking transactions.
             </p>
           </div>
@@ -255,17 +316,17 @@ export default function TransactionsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Search transactions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-dark focus:border-transparent"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-primary-dark focus:border-transparent"
               />
             </div>
 
@@ -273,7 +334,7 @@ export default function TransactionsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-dark focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-primary-dark focus:border-transparent"
             >
               <option value="all">All Status</option>
               <option value="completed">Completed</option>
@@ -286,7 +347,7 @@ export default function TransactionsPage() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-dark focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:ring-2 focus:ring-primary-dark focus:border-transparent"
             >
               <option value="all">All Types</option>
               <option value="internal">Internal Transfer</option>
@@ -304,7 +365,7 @@ export default function TransactionsPage() {
                 setStatusFilter('all')
                 setTypeFilter('all')
               }}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Clear Filters
             </button>
@@ -312,32 +373,32 @@ export default function TransactionsPage() {
         </div>
 
         {/* Transactions List */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
           {filteredTransactions.length > 0 ? (
             <>
               {/* Desktop Table View */}
               <div className="hidden lg:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Transaction
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Amount
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Details
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredTransactions.map((transaction) => {
                       const type = getTransactionType(transaction)
                       const senderName = (transaction as any).sender_name || (transaction as any).sender?.full_name || 'You'
@@ -346,17 +407,17 @@ export default function TransactionsPage() {
                       const refNumber = (transaction as any).reference_number
                       
                       return (
-                        <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
+                        <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3">
-                                {getTransactionIcon(type)}
+                              <div className={`w-10 h-10 ${getTransactionIconBgColor(transaction)} rounded-full flex items-center justify-center mr-3`}>
+                                {getTransactionIcon(transaction)}
                               </div>
                               <div>
-                                <div className="text-sm font-medium text-gray-900">
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">
                                   {getTransactionDescription(transaction)}
                                 </div>
-                                <div className="text-sm text-gray-500 capitalize">
+                                <div className="text-sm text-gray-500 dark:text-gray-400 capitalize">
                                   {type.replace('_', ' ')}
                                 </div>
                               </div>
@@ -368,7 +429,7 @@ export default function TransactionsPage() {
                               {formatCurrency(transaction.amount)}
                             </div>
                             {fee > 0 && (
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 Fee: {formatCurrency(fee)}
                               </div>
                             )}
@@ -378,18 +439,18 @@ export default function TransactionsPage() {
                               {transaction.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             <div className="flex items-center">
                               <Calendar className="w-4 h-4 mr-1" />
                               {formatDate(transaction.created_at)}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             <div>
                               <div>From: {senderName}</div>
                               <div>To: {recipientName}</div>
                               {refNumber && (
-                                <div className="text-xs text-gray-400 mt-1">
+                                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                                   Ref: {refNumber}
                                 </div>
                               )}
@@ -403,7 +464,7 @@ export default function TransactionsPage() {
               </div>
 
               {/* Mobile Card View */}
-              <div className="lg:hidden divide-y divide-gray-200">
+              <div className="lg:hidden divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredTransactions.map((transaction) => {
                   const type = getTransactionType(transaction)
                   const senderName = (transaction as any).sender_name || (transaction as any).sender?.full_name || 'You'
@@ -412,17 +473,17 @@ export default function TransactionsPage() {
                   const refNumber = (transaction as any).reference_number
                   
                   return (
-                    <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
+                    <div key={transaction.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center flex-1 min-w-0">
-                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                            {getTransactionIcon(type)}
+                          <div className={`w-10 h-10 ${getTransactionIconBgColor(transaction)} rounded-full flex items-center justify-center mr-3 flex-shrink-0`}>
+                            {getTransactionIcon(transaction)}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium text-gray-900 truncate">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
                               {getTransactionDescription(transaction)}
                             </div>
-                            <div className="text-xs text-gray-500 capitalize">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                               {type.replace('_', ' ')}
                             </div>
                           </div>
@@ -435,41 +496,41 @@ export default function TransactionsPage() {
                       
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-500">Status:</span>
+                          <span className="text-gray-500 dark:text-gray-400">Status:</span>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
                             {transaction.status}
                           </span>
                         </div>
                         
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-500">Date:</span>
-                          <span className="text-gray-900 flex items-center">
+                          <span className="text-gray-500 dark:text-gray-400">Date:</span>
+                          <span className="text-gray-900 dark:text-white flex items-center">
                             <Calendar className="w-3 h-3 mr-1" />
                             {formatDate(transaction.created_at)}
                           </span>
                         </div>
                         
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-500">From:</span>
-                          <span className="text-gray-900 truncate ml-2">{senderName}</span>
+                          <span className="text-gray-500 dark:text-gray-400">From:</span>
+                          <span className="text-gray-900 dark:text-white truncate ml-2">{senderName}</span>
                         </div>
                         
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-500">To:</span>
-                          <span className="text-gray-900 truncate ml-2">{recipientName}</span>
+                          <span className="text-gray-500 dark:text-gray-400">To:</span>
+                          <span className="text-gray-900 dark:text-white truncate ml-2">{recipientName}</span>
                         </div>
                         
                         {fee > 0 && (
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-500">Fee:</span>
-                            <span className="text-gray-900">{formatCurrency(fee)}</span>
+                            <span className="text-gray-500 dark:text-gray-400">Fee:</span>
+                            <span className="text-gray-900 dark:text-white">{formatCurrency(fee)}</span>
                           </div>
                         )}
                         
                         {refNumber && (
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-500">Ref:</span>
-                            <span className="text-xs text-gray-400">{refNumber}</span>
+                            <span className="text-gray-500 dark:text-gray-400">Ref:</span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{refNumber}</span>
                           </div>
                         )}
                       </div>
@@ -480,11 +541,11 @@ export default function TransactionsPage() {
             </>
           ) : (
             <div className="text-center py-12">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <TrendingUp className="w-12 h-12 text-gray-400" />
+              <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
+                <TrendingUp className="w-12 h-12 text-gray-400 dark:text-gray-500" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No Transactions Found</h3>
-              <p className="text-gray-600 mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Transactions Found</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 {transactions.length === 0 
                   ? "You haven't made any transactions yet."
                   : "No transactions match your current filters."
@@ -505,26 +566,54 @@ export default function TransactionsPage() {
 
         {/* Summary */}
         {filteredTransactions.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Transaction Summary</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">Transaction Summary</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              <div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg">
-                <div className="text-xl sm:text-2xl font-bold text-green-600">
-                  {filteredTransactions.filter(t => t.transaction_type === 'deposit').length}
+              <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
+                  {filteredTransactions.filter(t => {
+                    // Only count completed deposits
+                    return t.transaction_type === 'deposit' && t.status === 'completed'
+                  }).length}
                 </div>
-                <div className="text-xs sm:text-sm text-green-600">Deposits</div>
+                <div className="text-xs sm:text-sm text-green-600 dark:text-green-400">Deposits</div>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-red-50 rounded-lg">
-                <div className="text-xl sm:text-2xl font-bold text-red-600">
-                  {filteredTransactions.filter(t => t.transaction_type === 'withdrawal').length}
+              <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-red-600 dark:text-red-400">
+                  {filteredTransactions.filter(t => {
+                    // Only count completed/approved transactions
+                    if (t.status !== 'completed' && t.status !== 'approved') return false
+                    
+                    // Count withdrawals and outgoing transfers (where current user is sender)
+                    if (t.transaction_type === 'withdrawal') return true
+                    
+                    // For transfers, check if current user is the sender
+                    const transfer = t as any
+                    if (transfer.transfer_type) {
+                      // Check if sender ID matches current user (or if currentUserId not loaded yet, assume all are sent)
+                      return !currentUserId || transfer.sender === currentUserId
+                    }
+                    return false
+                  }).length}
                 </div>
-                <div className="text-xs sm:text-sm text-red-600">Withdrawals</div>
+                <div className="text-xs sm:text-sm text-red-600 dark:text-red-400">Sent</div>
               </div>
-              <div className="text-center p-3 sm:p-4 bg-blue-50 rounded-lg">
-                <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                  {filteredTransactions.filter(t => t.transaction_type === 'transfer').length}
+              <div className="text-center p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {filteredTransactions.filter(t => {
+                    // Only count completed/approved transactions
+                    if (t.status !== 'completed' && t.status !== 'approved') return false
+                    
+                    // Count incoming transfers (where current user is recipient)
+                    const transfer = t as any
+                    if (transfer.transfer_type && currentUserId && transfer.recipient) {
+                      // Check if recipient ID matches current user
+                      return transfer.recipient === currentUserId
+                    }
+                    return false
+                  }).length}
                 </div>
-                <div className="text-xs sm:text-sm text-blue-600">Transfers</div>
+                <div className="text-xs sm:text-sm text-blue-600 dark:text-blue-400">Received</div>
               </div>
             </div>
           </div>

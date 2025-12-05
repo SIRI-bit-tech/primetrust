@@ -13,14 +13,12 @@ import {
   ArrowUpRight,
   Calendar,
   Clock,
-  ShoppingCart,
-  Coffee,
-  Car,
   Copy,
   Check,
   Bitcoin,
   ArrowUpDown,
-  ArrowDownUp
+  ArrowDownUp,
+  XCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -49,6 +47,7 @@ export default function DashboardPage() {
   const [bitcoinBalance, setBitcoinBalance] = useState<number>(0)
   const [exchangeRate, setExchangeRate] = useState<number | null>(null)
   const [toasts, setToasts] = useState<{ id: number; title: string; description: string; variant?: 'default' | 'destructive' }[]>([])
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null)
   
   // Check if account is locked
   const isAccountLocked = user?.is_account_locked || false
@@ -72,14 +71,28 @@ export default function DashboardPage() {
     try {
       setIsLoading(true)
       
+      // Fetch current user ID if not already loaded
+      if (!currentUserId && user?.id) {
+        setCurrentUserId(user.id)
+      }
+      
       // Fetch account information
       const accountData = await bankingAPI.getAccountInfo()
       setAccount(accountData)
       
-      // Fetch recent transactions
-      const transactionsData = await transactionsAPI.getTransactions()
-      const transactionsArray = Array.isArray(transactionsData) ? transactionsData : transactionsData.results || []
-      setTransactions(transactionsArray.slice(0, 5))
+      // Fetch recent transactions and transfers
+      const [transactionsData, transfersData] = await Promise.all([
+        transactionsAPI.getTransactions().catch(() => []),
+        transactionsAPI.getTransfers().catch(() => [])
+      ])
+      
+      const transactionsArray = Array.isArray(transactionsData) ? transactionsData : (transactionsData as any)?.results || []
+      const transfersArray = Array.isArray(transfersData) ? transfersData : (transfersData as any)?.results || []
+      
+      // Combine and sort by date, then take the 5 most recent
+      const combined = [...transactionsArray, ...transfersArray]
+      combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      setTransactions(combined.slice(0, 5))
       
       // Fetch virtual cards
       const cardsData = await virtualCardAPI.getCards()
@@ -186,33 +199,133 @@ export default function DashboardPage() {
     }
   }, [account, fetchData])
 
-  const getTransactionIcon = (type: string) => {
+  const getTransactionIcon = (transaction: any) => {
+    const type = transaction.transaction_type || transaction.transfer_type
+    const status = transaction.status
+    const isSender = currentUserId && (transaction as any).sender === currentUserId
+    const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
+    
+    // Status-based icons (override type-based icons)
+    if (status === 'failed' || status === 'cancelled' || status === 'declined') {
+      return <XCircle className="w-5 h-5 text-red-500" />
+    }
+    if (status === 'pending' || status === 'processing') {
+      return <Clock className="w-5 h-5 text-yellow-500" />
+    }
+    if (status === 'completed' || status === 'approved') {
+      // Type-based icons for completed transactions
+      if (type === 'deposit') {
+        return <TrendingUp className="w-5 h-5 text-green-500" />
+      }
+      if (type === 'withdrawal') {
+        return <TrendingDown className="w-5 h-5 text-red-500" />
+      }
+      // For transfers, use TrendingUp/TrendingDown based on direction
+      if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
+        if (isReceiver && !isSender) {
+          return <TrendingDown className="w-5 h-5 text-green-500" />
+        }
+        return <TrendingUp className="w-5 h-5 text-red-500" />
+      }
+    }
+    
+    // Default
+    return <DollarSign className="w-5 h-5 text-gray-500" />
+  }
+
+  const getTransactionIconBgColor = (transaction: any) => {
+    const status = transaction.status
+    
+    if (status === 'failed' || status === 'cancelled' || status === 'declined') {
+      return 'bg-red-100 dark:bg-red-900/20'
+    }
+    if (status === 'pending' || status === 'processing') {
+      return 'bg-yellow-100 dark:bg-yellow-900/20'
+    }
+    if (status === 'completed' || status === 'approved') {
+      const type = transaction.transaction_type || transaction.transfer_type
+      const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
+      
+      if (type === 'deposit' || (isReceiver && !(transaction as any).sender)) {
+        return 'bg-green-100 dark:bg-green-900/20'
+      }
+      if (type === 'withdrawal') {
+        return 'bg-red-100 dark:bg-red-900/20'
+      }
+      return 'bg-blue-100 dark:bg-blue-900/20'
+    }
+    
+    return 'bg-gray-100 dark:bg-gray-700'
+  }
+
+  const getTransactionColor = (transaction: any) => {
+    const type = transaction.transaction_type || transaction.transfer_type
+    const isSender = currentUserId && (transaction as any).sender === currentUserId
+    const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
+    
+    // For transfers, color based on direction
+    if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
+      if (isReceiver && !isSender) {
+        return 'text-green-600 dark:text-green-400'
+      }
+      return 'text-red-600 dark:text-red-400'
+    }
+    
     switch (type) {
-      case 'transfer':
-        return <Send className="w-4 h-4" />
       case 'deposit':
-        return <TrendingUp className="w-4 h-4 text-green-500" />
+        return 'text-green-600 dark:text-green-400'
       case 'withdrawal':
-        return <TrendingDown className="w-4 h-4 text-red-500" />
-      case 'shopping':
-        return <ShoppingCart className="w-4 h-4" />
-      case 'food':
-        return <Coffee className="w-4 h-4" />
-      case 'transport':
-        return <Car className="w-4 h-4" />
+        return 'text-red-600 dark:text-red-400'
       default:
-        return <DollarSign className="w-4 h-4" />
+        return 'text-gray-600 dark:text-gray-400'
     }
   }
 
-  const getTransactionColor = (type: string) => {
-    switch (type) {
-      case 'deposit':
-        return 'text-green-600'
-      case 'withdrawal':
-        return 'text-red-600'
+  const getTransactionDescription = (transaction: any) => {
+    const type = transaction.transaction_type || transaction.transfer_type
+    const recipientName = transaction.recipient_name || transaction.recipient?.full_name || ''
+    const description = transaction.description || ''
+    
+    // If we have a recipient name, use it
+    if (recipientName) {
+      if (type === 'internal') return `Internal Transfer to ${recipientName}`
+      if (type === 'ach') return `ACH Transfer to ${recipientName}`
+      if (type === 'wire_domestic') return `Wire Transfer to ${recipientName}`
+      if (type === 'wire_international') return `International Wire to ${recipientName}`
+    }
+    
+    // Fallback to description or type
+    if (description) return description
+    
+    // Last resort - just show the type
+    if (type === 'internal') return 'Internal Transfer'
+    if (type === 'ach') return 'ACH Transfer'
+    if (type === 'wire_domestic') return 'Wire Transfer'
+    if (type === 'wire_international') return 'International Wire Transfer'
+    
+    return type || 'Transaction'
+  }
+
+  const getTransactionType = (transaction: any) => {
+    return transaction.transaction_type || transaction.transfer_type || 'transfer'
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+      case 'approved':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+      case 'processing':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+      case 'failed':
+      case 'declined':
+      case 'cancelled':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
       default:
-        return 'text-gray-600'
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
     }
   }
 
@@ -500,31 +613,52 @@ export default function DashboardPage() {
           <CardContent>
             {transactions.length > 0 ? (
               <div className="space-y-4">
-                {transactions.map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-4 rounded-lg border bg-card">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        {getTransactionIcon(transaction.transaction_type)}
-                      </div>
-                      <div>
-                        <p className="font-medium">{transaction.description}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          {new Date(transaction.created_at).toLocaleDateString()}
+                {transactions.map((transaction) => {
+                  const type = getTransactionType(transaction)
+                  const isSender = currentUserId && (transaction as any).sender === currentUserId
+                  const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
+                  
+                  // Determine if this is a debit (money out) or credit (money in)
+                  let isDebit = false
+                  if (type === 'withdrawal') {
+                    isDebit = true
+                  } else if (type === 'deposit') {
+                    isDebit = false
+                  } else if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
+                    // For transfers, it's a debit if user is the sender
+                    isDebit = !!(isSender && !isReceiver)
+                  }
+                  
+                  return (
+                    <div key={transaction.id} className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 ${getTransactionIconBgColor(transaction)} rounded-full flex items-center justify-center`}>
+                          {getTransactionIcon(transaction)}
+                        </div>
+                        <div>
+                          <p className="font-medium">{getTransactionDescription(transaction)}</p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            {new Date(transaction.created_at).toLocaleDateString()}
+                            <span className="text-xs">•</span>
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
+                              {transaction.status}
+                            </span>
+                          </div>
                         </div>
                       </div>
+                      <div className="text-right">
+                        <p className={`font-semibold ${getTransactionColor(transaction)}`}>
+                          {isDebit ? '-' : ''}
+                          {formatCurrency(transaction.amount)}
+                        </p>
+                        <Badge variant="secondary" className="text-xs capitalize mt-1">
+                          {type.replace('_', ' ')}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`font-semibold ${getTransactionColor(transaction.transaction_type)}`}>
-                        {transaction.transaction_type === 'withdrawal' ? '-' : '+'}
-                        {formatCurrency(transaction.amount)}
-                      </p>
-                      <Badge variant="secondary" className="text-xs">
-                        {transaction.transaction_type}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div className="text-center py-8">
