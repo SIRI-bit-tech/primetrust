@@ -8,6 +8,7 @@ import {
   Transaction, 
   VirtualCard, 
   TransferData,
+  Transfer,
   Loan,
   LoanApplication,
   Investment,
@@ -331,6 +332,11 @@ export const adminAPI = {
 
   updateTransactionStatus: async (transactionId: number, status: string): Promise<Transaction> => {
     const response = await api.put(`/admin/transactions/${transactionId}/status/`, { status })
+    return response.data
+  },
+
+  updateTransferStatus: async (transferId: number, status: string): Promise<Transfer> => {
+    const response = await api.put(`/admin/transfers/${transferId}/status/`, { status })
     return response.data
   },
 

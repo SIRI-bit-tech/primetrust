@@ -264,13 +264,17 @@ export default function AdminPage() {
     }
   }
 
-  const handleUpdateTransactionStatus = async (transactionId: number, status: string) => {
+  const handleUpdateTransactionStatus = async (transactionId: number, status: string, itemType?: string) => {
     try {
-      await adminAPI.updateTransactionStatus(transactionId, status)
+      if (itemType === 'transfer') {
+        await adminAPI.updateTransferStatus(transactionId, status)
+      } else {
+        await adminAPI.updateTransactionStatus(transactionId, status)
+      }
       loadData()
     } catch (err: unknown) {
       const error = err as AxiosError<{ error?: string }>
-      setError(error.response?.data?.error || 'Failed to update transaction status')
+      setError(error.response?.data?.error || 'Failed to update status')
     }
   }
 
@@ -491,6 +495,7 @@ export default function AdminPage() {
         // Handle both Transaction and Transfer types
         const userName = transactionItem.user_name || transactionItem.sender_name || 'N/A'
         const transactionType = transactionItem.transaction_type || transactionItem.transfer_type || 'N/A'
+        const itemType = transactionItem.type // 'transaction' or 'transfer'
         
         return (
           <>
@@ -515,7 +520,7 @@ export default function AdminPage() {
               {transactionItem.status === 'pending' || transactionItem.status === 'processing' ? (
                 <select
                   value={transactionItem.status}
-                  onChange={(e) => handleUpdateTransactionStatus(transactionItem.id, e.target.value)}
+                  onChange={(e) => handleUpdateTransactionStatus(transactionItem.id, e.target.value, itemType)}
                   className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
                 >
                   <option value="pending">Pending</option>
