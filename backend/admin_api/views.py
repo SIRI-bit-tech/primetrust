@@ -484,14 +484,18 @@ class AdminDashboardView(APIView):
         active_users = User.objects.filter(is_active=True).count()
         new_users_today = User.objects.filter(date_joined__date=timezone.now().date()).count()
         
-        # Transaction statistics
-        total_transactions = Transaction.objects.count()
-        total_transaction_amount = Transaction.objects.aggregate(total=Sum('amount'))['total'] or 0
-        pending_transactions = Transaction.objects.filter(status='pending').count()
+        # Transaction statistics (includes both Transaction and Transfer objects)
+        transaction_count = Transaction.objects.count()
+        transfer_count = Transfer.objects.count()
+        total_transactions = transaction_count + transfer_count
         
-        # Transfer statistics
-        total_transfers = Transfer.objects.count()
+        transaction_amount = Transaction.objects.aggregate(total=Sum('amount'))['total'] or 0
+        transfer_amount = Transfer.objects.aggregate(total=Sum('amount'))['total'] or 0
+        total_transaction_amount = transaction_amount + transfer_amount
+        
+        pending_transactions = Transaction.objects.filter(status='pending').count()
         pending_transfers = Transfer.objects.filter(status='pending').count()
+        total_pending = pending_transactions + pending_transfers
         
         # Loan statistics
         total_loans = Loan.objects.count()
@@ -519,10 +523,12 @@ class AdminDashboardView(APIView):
             'transactions': {
                 'total': total_transactions,
                 'total_amount': str(total_transaction_amount),
-                'pending': pending_transactions
+                'pending': total_pending,
+                'transaction_count': transaction_count,
+                'transfer_count': transfer_count
             },
             'transfers': {
-                'total': total_transfers,
+                'total': transfer_count,
                 'pending': pending_transfers
             },
             'loans': {
