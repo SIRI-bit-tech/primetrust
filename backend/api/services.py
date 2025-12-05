@@ -217,8 +217,18 @@ def trigger_investment_notification(user, investment, action='created'):
     Args:
         user: User instance
         investment: Investment instance
-        action: Action type ('created', 'purchased', 'sold', 'updated')
+        action: Action type - must be one of: 'created', 'purchased', 'sold', 'updated'
+    
+    Raises:
+        ValueError: If action is not in the allowed set of values
     """
+    # Validate action parameter
+    ALLOWED_ACTIONS = {'created', 'purchased', 'sold', 'updated'}
+    if action not in ALLOWED_ACTIONS:
+        raise ValueError(
+            f"Invalid action '{action}'. Allowed values are: {', '.join(sorted(ALLOWED_ACTIONS))}"
+        )
+    
     try:
         # Customize title and message based on action
         if action == 'purchased':
@@ -230,7 +240,7 @@ def trigger_investment_notification(user, investment, action='created'):
         elif action == 'updated':
             title = "Investment Updated"
             message = f"Your investment in {investment.name} has been updated."
-        else:  # 'created' or default
+        else:  # 'created'
             title = "Investment Created"
             message = f"Your investment of ${investment.amount_invested} has been created successfully."
         
