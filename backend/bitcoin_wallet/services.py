@@ -29,6 +29,8 @@ def get_bitcoin_price():
         
         # Cache for 1 minute
         cache.set('bitcoin_price_usd', price, 60)
+        # Also set backup cache with no expiration for fallback
+        cache.set('bitcoin_price_usd_backup', price, None)
         
         return Decimal(str(price))
     except Exception:
@@ -44,6 +46,8 @@ def get_bitcoin_price():
             
             # Cache for 1 minute
             cache.set('bitcoin_price_usd', price, 60)
+            # Also set backup cache with no expiration for fallback
+            cache.set('bitcoin_price_usd_backup', price, None)
             
             return Decimal(str(price))
         except Exception:

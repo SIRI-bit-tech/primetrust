@@ -44,8 +44,7 @@ export default function PortfolioSummary({
     {
       label: 'P&L %',
       value: `${totalProfitLossPercent.toFixed(2)}%`,
-      icon: TrendingUp,
-      iconColor: 'text-primary-dark dark:text-primary-navy',
+      icon: () => getProfitLossIcon(totalProfitLoss),
       valueColor: getProfitLossColor(totalProfitLoss)
     }
   ]

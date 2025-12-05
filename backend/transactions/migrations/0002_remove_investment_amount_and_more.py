@@ -3,6 +3,30 @@
 from django.db import migrations, models
 
 
+def copy_amount_to_amount_invested(apps, schema_editor):
+    """
+    Copy existing 'amount' values to 'amount_invested' before removing the old field.
+    This preserves existing investment data.
+    """
+    Investment = apps.get_model('transactions', 'Investment')
+    for investment in Investment.objects.all():
+        # Copy amount to amount_invested if amount exists
+        if hasattr(investment, 'amount') and investment.amount is not None:
+            investment.amount_invested = investment.amount
+            investment.save(update_fields=['amount_invested'])
+
+
+def reverse_copy_amount(apps, schema_editor):
+    """
+    Reverse migration: copy amount_invested back to amount.
+    """
+    Investment = apps.get_model('transactions', 'Investment')
+    for investment in Investment.objects.all():
+        if hasattr(investment, 'amount_invested') and investment.amount_invested is not None:
+            investment.amount = investment.amount_invested
+            investment.save(update_fields=['amount'])
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,6 +34,21 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Step 1: Add new field with null=True to allow existing rows
+        migrations.AddField(
+            model_name='investment',
+            name='amount_invested',
+            field=models.DecimalField(decimal_places=2, null=True, blank=True, help_text='Total amount invested in USD', max_digits=15),
+        ),
+        # Step 2: Copy data from old field to new field
+        migrations.RunPython(copy_amount_to_amount_invested, reverse_copy_amount),
+        # Step 3: Set default value and make non-nullable
+        migrations.AlterField(
+            model_name='investment',
+            name='amount_invested',
+            field=models.DecimalField(decimal_places=2, default=0, help_text='Total amount invested in USD', max_digits=15),
+        ),
+        # Step 4: Now safe to remove old fields
         migrations.RemoveField(
             model_name='investment',
             name='amount',
@@ -17,11 +56,6 @@ class Migration(migrations.Migration):
         migrations.RemoveField(
             model_name='investment',
             name='return_rate',
-        ),
-        migrations.AddField(
-            model_name='investment',
-            name='amount_invested',
-            field=models.DecimalField(decimal_places=2, default=0, help_text='Total amount invested in USD', max_digits=15),
         ),
         migrations.AddField(
             model_name='investment',

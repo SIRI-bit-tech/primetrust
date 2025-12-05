@@ -262,26 +262,12 @@ class InvestmentPurchaseView(generics.CreateAPIView):
     serializer_class = InvestmentPurchaseSerializer
     
     def perform_create(self, serializer):
+        from .notifications import send_investment_notifications
+        
         investment = serializer.save(user=self.request.user)
         
-        # Trigger notification for investment purchase
-        try:
-            trigger_investment_notification(self.request.user, investment, 'purchased')
-        except:
-            pass  # Don't fail if notification fails
-        
-        # Send real-time notification via WebSocket
-        try:
-            from socketio_app.utils import send_notification, notify_balance_update
-            send_notification(
-                self.request.user.id,
-                'Investment Purchased',
-                f'Successfully purchased {investment.name} ({investment.symbol}) for ${investment.amount_invested}',
-                'success'
-            )
-            notify_balance_update(self.request.user.id, self.request.user.balance)
-        except:
-            pass
+        # Send notifications (handles errors internally with logging)
+        send_investment_notifications(self.request.user, investment, 'purchased')
 
 
 class InvestmentDetailView(generics.RetrieveAPIView):
@@ -344,24 +330,10 @@ class InvestmentSellView(APIView):
         success, message = investment.sell_investment(quantity)
         
         if success:
-            # Trigger notification
-            try:
-                trigger_investment_notification(request.user, investment, 'sold')
-            except:
-                pass
+            from .notifications import send_investment_notifications
             
-            # Send real-time notification via WebSocket
-            try:
-                from socketio_app.utils import send_notification, notify_balance_update
-                send_notification(
-                    request.user.id,
-                    'Investment Sold',
-                    f'Successfully sold {investment.name} ({investment.symbol})',
-                    'success'
-                )
-                notify_balance_update(request.user.id, request.user.balance)
-            except:
-                pass
+            # Send notifications (handles errors internally with logging)
+            send_investment_notifications(request.user, investment, 'sold')
             
             # Return updated investment
             serializer = InvestmentSerializer(investment)
