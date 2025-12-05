@@ -35,10 +35,9 @@ urlpatterns = [
     path('api/admin/', include('admin_api.urls')),
     path('api/bitcoin-wallet/', include('bitcoin_wallet.urls')),
     
-    # URL redirects to fix frontend mismatches (using different namespaces)
-    path('api/investments/', include('transactions.urls', namespace='investments')),
-    path('api/bills/', include('transactions.urls', namespace='bills')),
-    path('api/users/profile/', include('accounts.urls', namespace='users_profile')),
+    # Direct investment and bill endpoints (no namespace to avoid conflicts)
+    path('api/investments/', include(('transactions.urls', 'transactions'), namespace='investments_api')),
+    path('api/bills/', include(('transactions.urls', 'transactions'), namespace='bills_api')),
     
     # JWT token refresh
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

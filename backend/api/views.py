@@ -27,15 +27,11 @@ class MarketDataView(APIView):
     
     def get(self, request):
         try:
-            # Get market data from database
-            stocks = MarketData.objects.filter(data_type='stock')[:10]
-            crypto = MarketData.objects.filter(data_type='crypto')[:10]
+            from .market_services import get_market_data
             
-            data = {
-                'stocks': MarketDataSerializer(stocks, many=True).data,
-                'crypto': MarketDataSerializer(crypto, many=True).data,
-                'last_updated': timezone.now()
-            }
+            # Get real-time market data
+            data = get_market_data()
+            data['last_updated'] = timezone.now()
             
             return Response(data, status=status.HTTP_200_OK)
         except Exception as e:
@@ -66,6 +62,23 @@ class CryptoDataView(APIView):
             crypto = MarketData.objects.filter(data_type='crypto')
             serializer = MarketDataSerializer(crypto, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AvailableInvestmentsView(APIView):
+    """Get available investments by type with current prices."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            from .market_services import get_available_investments
+            
+            investment_type = request.query_params.get('type', 'stocks')
+            data = get_available_investments(investment_type)
+            
+            return Response(data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

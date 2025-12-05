@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Transaction, Bill, Investment
+from decimal import Decimal
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -46,19 +47,60 @@ class InvestmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Investment
         fields = [
-            'id', 'investment_type', 'action', 'symbol', 'company_name',
-            'quantity', 'price_per_share', 'total_amount', 'currency',
-            'status', 'created_at', 'completed_at', 'updated_at'
+            'id', 'investment_type', 'name', 'symbol', 'balance_source',
+            'quantity', 'price_per_unit', 'amount_invested', 'current_price_per_unit',
+            'current_value', 'profit_loss', 'profit_loss_percentage',
+            'status', 'created_at', 'last_updated', 'sold_at'
         ]
-        read_only_fields = ['id', 'created_at', 'completed_at', 'updated_at']
+        read_only_fields = [
+            'id', 'current_price_per_unit', 'current_value', 'profit_loss',
+            'profit_loss_percentage', 'created_at', 'last_updated', 'sold_at'
+        ]
 
 
-class InvestmentCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating investments."""
+class InvestmentPurchaseSerializer(serializers.ModelSerializer):
+    """Serializer for purchasing investments."""
+    
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2, write_only=True, required=False)
     
     class Meta:
         model = Investment
         fields = [
-            'investment_type', 'action', 'symbol', 'company_name',
-            'quantity', 'price_per_share', 'total_amount', 'currency'
-        ] 
+            'investment_type', 'name', 'symbol', 'balance_source',
+            'amount', 'quantity'
+        ]
+    
+    def validate(self, data):
+        """Validate investment purchase data."""
+        # Calculate amount_invested and price_per_unit
+        amount = data.pop('amount', None)
+        quantity = data.get('quantity', 1)
+        
+        if not amount:
+            raise serializers.ValidationError("Amount is required")
+        
+        if amount < 100:
+            raise serializers.ValidationError("Minimum investment amount is $100")
+        
+        # Calculate price per unit
+        data['amount_invested'] = amount
+        data['price_per_unit'] = amount / Decimal(str(quantity))
+        
+        return data
+    
+    def create(self, validated_data):
+        """Create investment and process purchase."""
+        investment = Investment.objects.create(**validated_data, status='pending')
+        success, message = investment.purchase_investment()
+        
+        if not success:
+            investment.delete()
+            raise serializers.ValidationError(message)
+        
+        return investment
+
+
+class InvestmentSellSerializer(serializers.Serializer):
+    """Serializer for selling investments."""
+    
+    quantity = serializers.DecimalField(max_digits=15, decimal_places=8, required=False, allow_null=True) 

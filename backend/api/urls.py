@@ -8,6 +8,7 @@ urlpatterns = [
     path('market-data/', views.MarketDataView.as_view(), name='market-data'),
     path('market-data/stocks/', views.StockDataView.as_view(), name='stock-data'),
     path('market-data/crypto/', views.CryptoDataView.as_view(), name='crypto-data'),
+    path('available-investments/', views.AvailableInvestmentsView.as_view(), name='available-investments'),
     
     # Notifications
     path('notifications/', views.NotificationListView.as_view(), name='notification-list'),

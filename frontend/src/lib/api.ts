@@ -511,23 +511,39 @@ export const loansAPI = {
 // Investments API
 export const investmentsAPI = {
   getInvestments: async (): Promise<Investment[]> => {
-    const response = await api.get('/investments/')
-    return response.data?.results || response.data || []
+    try {
+      const response = await api.get('/transactions/investments/')
+      return response.data?.results || response.data || []
+    } catch (error) {
+      console.debug('Failed to fetch investments:', error)
+      return []
+    }
   },
 
   getInvestment: async (id: number): Promise<Investment> => {
-    const response = await api.get(`/investments/${id}/`)
+    const response = await api.get(`/transactions/investments/${id}/`)
     return response.data
   },
 
   purchaseInvestment: async (data: InvestmentPurchase): Promise<Investment> => {
-    const response = await api.post('/investments/purchase/', data)
-    return response.data
+    try {
+      const response = await api.post('/transactions/investments/purchase/', data)
+      return response.data
+    } catch (error: any) {
+      // Suppress console errors but throw for UI handling
+      console.debug('Purchase failed:', error?.response?.data || error.message)
+      throw error
+    }
   },
 
   sellInvestment: async (id: number, quantity?: number): Promise<Investment> => {
-    const response = await api.post(`/investments/${id}/sell/`, { quantity })
-    return response.data
+    try {
+      const response = await api.post(`/transactions/investments/${id}/sell/`, { quantity })
+      return response.data
+    } catch (error: any) {
+      console.debug('Sell failed:', error?.response?.data || error.message)
+      throw error
+    }
   },
 
   getMarketData: async (): Promise<{
@@ -546,8 +562,30 @@ export const investmentsAPI = {
       changePercent: number
     }>
   }> => {
-    const response = await api.get('/investments/market-data/')
-    return response.data
+    try {
+      const response = await api.get('/market-data/')
+      return response.data
+    } catch (error) {
+      console.debug('Failed to fetch market data:', error)
+      return { stocks: [], crypto: [] }
+    }
+  },
+
+  getAvailableInvestments: async (type: string): Promise<Array<{
+    symbol: string
+    name: string
+    price: number
+    type: string
+  }>> => {
+    try {
+      const response = await api.get('/available-investments/', {
+        params: { type }
+      })
+      return response.data || []
+    } catch (error) {
+      console.debug('Failed to fetch available investments:', error)
+      return []
+    }
   },
 }
 

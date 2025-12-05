@@ -256,25 +256,184 @@ class Investment(models.Model):
     
     STATUS_CHOICES = [
         ('active', 'Active'),
-        ('completed', 'Completed'),
+        ('sold', 'Sold'),
+        ('pending', 'Pending'),
         ('cancelled', 'Cancelled'),
+    ]
+    
+    BALANCE_SOURCE_CHOICES = [
+        ('fiat', 'Fiat Balance'),
+        ('bitcoin', 'Bitcoin Balance'),
     ]
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='investments')
     investment_type = models.CharField(max_length=20, choices=INVESTMENT_TYPES)
-    amount = models.DecimalField(max_digits=15, decimal_places=2)
-    return_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    name = models.CharField(max_length=200, default='Unknown Investment', help_text="Investment name (e.g., Apple Inc.)")
+    symbol = models.CharField(max_length=20, blank=True, default='', help_text="Stock/Crypto symbol (e.g., AAPL)")
+    
+    # Purchase details
+    balance_source = models.CharField(max_length=10, choices=BALANCE_SOURCE_CHOICES, default='fiat')
+    quantity = models.DecimalField(max_digits=15, decimal_places=8, default=1, help_text="Number of shares/units")
+    price_per_unit = models.DecimalField(max_digits=15, decimal_places=8, default=0, help_text="Price per share/unit at purchase")
+    amount_invested = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text="Total amount invested in USD")
+    
+    # Current value tracking
+    current_price_per_unit = models.DecimalField(max_digits=15, decimal_places=8, default=0)
+    current_value = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text="Current total value in USD")
+    profit_loss = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text="Profit or loss amount")
+    profit_loss_percentage = models.DecimalField(max_digits=10, decimal_places=4, default=0, help_text="Profit or loss percentage")
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    sold_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         db_table = 'investments'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['investment_type', 'symbol']),
+        ]
     
     def __str__(self):
-        return f"{self.user.username} - {self.investment_type} - {self.amount}"
+        return f"{self.user.username} - {self.name} ({self.symbol}) - {self.amount_invested}"
+    
+    def update_current_value(self, new_price_per_unit=None):
+        """Update current value and profit/loss calculations."""
+        if new_price_per_unit:
+            self.current_price_per_unit = new_price_per_unit
+        
+        # Calculate current value
+        self.current_value = Decimal(str(self.quantity)) * Decimal(str(self.current_price_per_unit))
+        
+        # Calculate profit/loss
+        self.profit_loss = self.current_value - self.amount_invested
+        
+        # Calculate profit/loss percentage
+        if self.amount_invested > 0:
+            self.profit_loss_percentage = (self.profit_loss / self.amount_invested) * 100
+        else:
+            self.profit_loss_percentage = 0
+        
+        self.save(update_fields=['current_price_per_unit', 'current_value', 'profit_loss', 'profit_loss_percentage', 'last_updated'])
+    
+    def purchase_investment(self):
+        """Process investment purchase and deduct from user balance."""
+        from django.db import transaction as db_transaction
+        
+        if self.status != 'pending':
+            return False, "Investment is not in pending status"
+        
+        try:
+            with db_transaction.atomic():
+                # Lock user row to prevent concurrent modifications
+                user = self.user.__class__.objects.select_for_update().get(pk=self.user.pk)
+                
+                # Check balance based on source
+                if self.balance_source == 'fiat':
+                    if user.balance < self.amount_invested:
+                        return False, "Insufficient fiat balance"
+                    
+                    # Deduct from fiat balance
+                    user.balance -= self.amount_invested
+                    user.save(update_fields=['balance'])
+                    
+                elif self.balance_source == 'bitcoin':
+                    # Calculate Bitcoin equivalent
+                    from bitcoin_wallet.services import get_bitcoin_price
+                    btc_price = get_bitcoin_price()
+                    btc_amount = self.amount_invested / Decimal(str(btc_price))
+                    
+                    current_btc_balance = user.bitcoin_balance or 0
+                    if current_btc_balance < btc_amount:
+                        return False, "Insufficient Bitcoin balance"
+                    
+                    # Deduct from Bitcoin balance
+                    user.bitcoin_balance = current_btc_balance - btc_amount
+                    user.save(update_fields=['bitcoin_balance'])
+                
+                # Set initial current value to purchase price
+                self.current_price_per_unit = self.price_per_unit
+                self.current_value = self.amount_invested
+                self.status = 'active'
+                self.save()
+                
+                # Create transaction record
+                Transaction.objects.create(
+                    user=user,
+                    transaction_type='investment',
+                    amount=self.amount_invested,
+                    status='completed',
+                    description=f"Investment purchase: {self.name} ({self.symbol})",
+                    balance_before=user.balance + self.amount_invested if self.balance_source == 'fiat' else user.balance,
+                    balance_after=user.balance,
+                    completed_at=timezone.now()
+                )
+                
+                return True, "Investment purchased successfully"
+                
+        except Exception as e:
+            return False, f"Failed to purchase investment: {str(e)}"
+    
+    def sell_investment(self, quantity_to_sell=None):
+        """Sell investment and add proceeds to user balance."""
+        from django.db import transaction as db_transaction
+        
+        if self.status != 'active':
+            return False, "Investment is not active"
+        
+        try:
+            with db_transaction.atomic():
+                # Lock user row
+                user = self.user.__class__.objects.select_for_update().get(pk=self.user.pk)
+                
+                # Determine quantity to sell
+                sell_quantity = Decimal(str(quantity_to_sell)) if quantity_to_sell else self.quantity
+                
+                if sell_quantity > self.quantity:
+                    return False, "Cannot sell more than owned quantity"
+                
+                # Calculate sale proceeds
+                sale_value = sell_quantity * self.current_price_per_unit
+                
+                # Add proceeds to fiat balance (always sell to fiat)
+                user.balance += sale_value
+                user.save(update_fields=['balance'])
+                
+                # Update investment
+                if sell_quantity >= self.quantity:
+                    # Selling entire position
+                    self.status = 'sold'
+                    self.sold_at = timezone.now()
+                    self.quantity = 0
+                    self.current_value = 0
+                else:
+                    # Partial sell
+                    self.quantity -= sell_quantity
+                    self.amount_invested = (self.amount_invested / (self.quantity + sell_quantity)) * self.quantity
+                    self.update_current_value()
+                
+                self.save()
+                
+                # Create transaction record
+                Transaction.objects.create(
+                    user=user,
+                    transaction_type='investment',
+                    amount=sale_value,
+                    status='completed',
+                    description=f"Investment sale: {self.name} ({self.symbol}) - {sell_quantity} units",
+                    balance_before=user.balance - sale_value,
+                    balance_after=user.balance,
+                    completed_at=timezone.now()
+                )
+                
+                return True, f"Successfully sold {sell_quantity} units for {sale_value}"
+                
+        except Exception as e:
+            return False, f"Failed to sell investment: {str(e)}"
 
 
 class CurrencySwap(models.Model):
