@@ -30,10 +30,11 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null)
   const { socket, isConnected } = useSocket(token)
 
-  // Get token from localStorage
+  // Token is now in HTTP-only cookie, we'll use user state to determine connection
   useEffect(() => {
-    const accessToken = localStorage.getItem('access_token')
-    setToken(accessToken)
+    // We can't access the token from cookie in JavaScript
+    // The socket connection will need to be updated to use cookie authentication
+    setToken(user ? 'authenticated' : null)
   }, [user])
 
   useEffect(() => {

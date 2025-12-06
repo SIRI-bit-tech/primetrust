@@ -54,8 +54,8 @@ export default function TwoFactorSetupPage() {
 
   useEffect(() => {
     // Refresh user state to ensure we have the latest authentication
-    const token = localStorage.getItem('access_token')
-    if (token && !user) {
+    // Token is in HTTP-only cookie
+    if (!user) {
       refreshUser()
     }
   }, [user, refreshUser])
@@ -87,9 +87,9 @@ export default function TwoFactorSetupPage() {
       setLoading(true)
       setError('')
       
-      // Check if we have a token but no user state
-      const token = localStorage.getItem('access_token')
-      if (token && !user) {
+      // Check if we need to refresh user state
+      // Token is in HTTP-only cookie
+      if (!user) {
         await refreshUser()
       }
       

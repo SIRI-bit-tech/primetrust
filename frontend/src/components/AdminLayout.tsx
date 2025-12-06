@@ -19,9 +19,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     const checkAdminAccess = () => {
       // Check if user is authenticated from localStorage first
       const storedUser = localStorage.getItem('user')
-      const accessToken = localStorage.getItem('access_token')
       
-      if (!storedUser || !accessToken) {
+      if (!storedUser) {
         router.push('/admin/login')
         return
       }

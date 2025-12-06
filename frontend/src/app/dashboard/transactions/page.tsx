@@ -40,9 +40,7 @@ export default function TransactionsPage() {
   const loadCurrentUser = async () => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/auth/me/`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
+        credentials: 'include'  // Send cookies with request
       })
       if (response.ok) {
         const userData = await response.json()

@@ -29,21 +29,14 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,  // Always send cookies
 })
 
-// Request interceptor to add auth token
+// Request interceptor - tokens are now sent automatically via cookies
 api.interceptors.request.use(
   (config) => {
-    // Don't add auth header for public endpoints
-    const publicEndpoints = ['/auth/register/', '/auth/login/', '/auth/verify-email/', '/auth/password-reset-request/', '/auth/password-reset/']
-    const isPublicEndpoint = publicEndpoints.some(endpoint => config.url?.includes(endpoint))
-    
-    if (!isPublicEndpoint) {
-      const token = localStorage.getItem('access_token')
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-      }
-    }
+    // Ensure credentials are included to send cookies
+    config.withCredentials = true
     return config
   },
   (error) => {
@@ -80,30 +73,33 @@ api.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token')
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh/`, {
-            refresh: refreshToken,
-          })
-          
-          const { access_token } = response.data
-          localStorage.setItem('access_token', access_token)
-          
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
-          return api(originalRequest)
-        }
-      } catch {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
+        // Refresh token is now in HTTP-only cookie, sent automatically
+        await axios.post(`${API_BASE_URL}/auth/refresh/`, {}, {
+          withCredentials: true
+        })
         
-        // Check if we're on admin pages and redirect accordingly
+        // Token is now in cookie, just retry the request
+        return api(originalRequest)
+      } catch (refreshError) {
+        // Only redirect if we're not already on a login/auth page
         const currentPath = window.location.pathname
-        if (currentPath.includes('/admin')) {
-          window.location.href = '/admin/login'
-        } else {
-          window.location.href = '/login'
+        const authPages = ['/login', '/register', '/verify-email', '/two-factor-login', '/two-factor-setup', '/transfer-pin-setup']
+        const isAuthPage = authPages.some(page => currentPath.includes(page))
+        
+        if (!isAuthPage) {
+          // Clear user data from localStorage (tokens are in cookies)
+          localStorage.removeItem('user')
+          
+          // Check if we're on admin pages and redirect accordingly
+          if (currentPath.includes('/admin')) {
+            window.location.href = '/admin/login'
+          } else {
+            window.location.href = '/login'
+          }
         }
+        
+        // If we're on an auth page, just reject the error without redirecting
+        return Promise.reject(refreshError)
       }
     }
 
@@ -129,10 +125,8 @@ export const authAPI = {
   },
 
   logout: async (): Promise<void> => {
-    const refreshToken = localStorage.getItem('refresh_token')
-    await api.post('/auth/logout/', { refresh_token: refreshToken })
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
+    // Tokens are in HTTP-only cookies, backend will clear them
+    await api.post('/auth/logout/', {})
     localStorage.removeItem('user')
   },
 
@@ -157,14 +151,10 @@ export const authAPI = {
     return response.data
   },
 
-  verifyTwoFactorLogin: async (code: string, tempToken: string, isBackupCode = false): Promise<AuthResponse> => {
+  verifyTwoFactorLogin: async (code: string, isBackupCode = false): Promise<AuthResponse> => {
+    // Temp token is now sent automatically via HTTP-only cookie
     const response = await api.post('/auth/two-factor-login-verify/',
-      isBackupCode ? { backup_code: code } : { code },
-      {
-        headers: {
-          Authorization: `Bearer ${tempToken}`
-        }
-      }
+      isBackupCode ? { backup_code: code } : { code }
     )
     return response.data
   },

@@ -44,9 +44,7 @@ export default function AdminLoginPage() {
       // Use the same login API but we'll check admin status after login
       const response = await authAPI.login({ email: data.email, password: data.password })
       
-      // Store tokens
-      localStorage.setItem('access_token', response.access_token)
-      localStorage.setItem('refresh_token', response.refresh_token)
+      // Store user data (tokens are in HTTP-only cookies)
       localStorage.setItem('user', JSON.stringify(response.user))
       
       // Check if user has admin privileges - simplified check

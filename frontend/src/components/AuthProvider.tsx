@@ -60,11 +60,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem('access_token')
       const storedUser = localStorage.getItem('user')
       
-      if (token && storedUser) {
+      if (storedUser) {
         try {
+          // Try to fetch fresh user data (token is in cookie)
           const userData = await authAPI.getProfile()
           setUser(userData)
         } catch {
@@ -76,8 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null)
       }
     } catch {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
+      // Clear user data (tokens are in cookies, managed by backend)
       localStorage.removeItem('user')
       setUser(null)
     } finally {
@@ -87,14 +86,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      if (token) {
-        const userData = await authAPI.getProfile()
-        // Only update if data actually changed to prevent unnecessary re-renders
-        if (JSON.stringify(userData) !== JSON.stringify(user)) {
-          setUser(userData)
-          localStorage.setItem('user', JSON.stringify(userData))
-        }
+      // Token is in HTTP-only cookie, just fetch user data
+      const userData = await authAPI.getProfile()
+      // Only update if data actually changed to prevent unnecessary re-renders
+      if (JSON.stringify(userData) !== JSON.stringify(user)) {
+        setUser(userData)
+        localStorage.setItem('user', JSON.stringify(userData))
       }
     } catch (error) {
       console.error('Error refreshing user:', error)
@@ -102,8 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const setUserFromTokens = (accessToken: string, refreshToken: string, userData: User) => {
-    localStorage.setItem('access_token', accessToken)
-    localStorage.setItem('refresh_token', refreshToken)
+    // Tokens are now in HTTP-only cookies, just store user data
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
   }
@@ -114,12 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Check if 2FA is required
       if (response.requires_2fa) {
-        return { requires_2fa: true, temp_token: response.temp_token }
+        return { requires_2fa: true }
       }
       
-      // Normal login flow
-      localStorage.setItem('access_token', response.access_token)
-      localStorage.setItem('refresh_token', response.refresh_token)
+      // Normal login flow - tokens are in HTTP-only cookies
       localStorage.setItem('user', JSON.stringify(response.user))
       setUser(response.user)
       
@@ -147,9 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Logout error:', error)
       // Continue with logout even if backend call fails
     } finally {
-      // Always clear local storage and user state
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
+      // Clear user data (tokens are in cookies, cleared by backend)
       localStorage.removeItem('user')
       setUser(null)
       // Redirect to login page

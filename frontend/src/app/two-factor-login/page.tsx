@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -33,8 +33,6 @@ export default function TwoFactorLoginPage() {
   const [showBackupCode, setShowBackupCode] = useState(false)
   const [useBackupCode, setUseBackupCode] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const tempToken = searchParams.get('token')
   const { setUserFromTokens } = useAuth()
 
   const {
@@ -47,18 +45,12 @@ export default function TwoFactorLoginPage() {
 
   const watchedCode = watch('code')
 
-  useEffect(() => {
-    if (!tempToken) {
-      router.push('/login')
-    }
-  }, [tempToken, router])
-
   const onSubmit = async (data: TwoFactorForm) => {
     try {
       setLoading(true)
       setError('')
 
-      const response = await authAPI.verifyTwoFactorLogin(data.code, tempToken!)
+      const response = await authAPI.verifyTwoFactorLogin(data.code)
 
       // Update auth context with tokens and user data
       setUserFromTokens(response.access_token, response.refresh_token, response.user)
@@ -77,7 +69,7 @@ export default function TwoFactorLoginPage() {
       setLoading(true)
       setError('')
 
-      const response = await authAPI.verifyTwoFactorLogin(data.code, tempToken!, true)
+      const response = await authAPI.verifyTwoFactorLogin(data.code, true)
 
       // Update auth context with tokens and user data
       setUserFromTokens(response.access_token, response.refresh_token, response.user)

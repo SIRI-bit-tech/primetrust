@@ -111,14 +111,27 @@ class UserLoginView(APIView):
             
             # Check if 2FA is enabled
             if user.two_factor_enabled:
-                # Return temporary token for 2FA verification
+                # Generate temporary token for 2FA verification
                 temp_token = RefreshToken.for_user(user)
                 
-                return Response({
+                # Create response
+                response = Response({
                     'requires_2fa': True,
-                    'temp_token': str(temp_token.access_token),
                     'message': 'Please enter your 2FA code to complete login'
                 }, status=status.HTTP_200_OK)
+                
+                # Set temp token as HTTP-only cookie (expires in 5 minutes)
+                response.set_cookie(
+                    key='temp_2fa_token',
+                    value=str(temp_token.access_token),
+                    max_age=300,  # 5 minutes
+                    httponly=True,
+                    secure=True,  # Only send over HTTPS in production
+                    samesite='Lax',
+                    path='/'
+                )
+                
+                return response
             
             # No 2FA required, proceed with normal login
             return self.complete_login(user, request)
@@ -143,12 +156,33 @@ class UserLoginView(APIView):
         # Generate tokens
         refresh = RefreshToken.for_user(user)
         
-        return Response({
-            'access_token': str(refresh.access_token),
-            'refresh_token': str(refresh),
+        # Create response
+        response = Response({
             'user': UserSerializer(user).data,
             'requires_2fa': False
         }, status=status.HTTP_200_OK)
+        
+        # Set tokens as HTTP-only cookies
+        response.set_cookie(
+            key='access_token',
+            value=str(refresh.access_token),
+            max_age=3600,  # 1 hour
+            httponly=True,
+            secure=True,
+            samesite='Lax',
+            path='/'
+        )
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh),
+            max_age=86400 * 7,  # 7 days
+            httponly=True,
+            secure=True,
+            samesite='Lax',
+            path='/'
+        )
+        
+        return response
     
     def get_client_ip(self, request):
         """Get client IP address."""
@@ -171,7 +205,8 @@ class UserLogoutView(APIView):
         print(f"Headers: {request.headers}")
         
         try:
-            refresh_token = request.data.get('refresh_token')
+            # Try to get refresh token from cookie first, then from request body
+            refresh_token = request.COOKIES.get('refresh_token') or request.data.get('refresh_token')
             if refresh_token:
                 try:
                     token = RefreshToken(refresh_token)
@@ -182,11 +217,21 @@ class UserLogoutView(APIView):
                     # Token might be invalid, but that's okay for logout
                     pass
             
-            return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
+            # Create response
+            response = Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
+            
+            # Clear auth cookies
+            response.delete_cookie('access_token', path='/')
+            response.delete_cookie('refresh_token', path='/')
+            
+            return response
         except Exception as e:
             print(f"Logout exception: {e}")
             # Always return success for logout, even if token is invalid
-            return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
+            response = Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
+            response.delete_cookie('access_token', path='/')
+            response.delete_cookie('refresh_token', path='/')
+            return response
 
 
 class EmailVerificationView(APIView):
@@ -232,8 +277,6 @@ class EmailVerificationView(APIView):
             
             # Generate authentication tokens
             refresh = RefreshToken.for_user(user)
-            access_token = str(refresh.access_token)
-            refresh_token = str(refresh)
             
             # Log successful login
             log_security_event(
@@ -243,13 +286,34 @@ class EmailVerificationView(APIView):
                 request=request
             )
             
-            return Response({
+            # Create response
+            response = Response({
                 'message': 'Email verified successfully',
                 'next_step': 'two_factor_setup',
-                'access_token': access_token,
-                'refresh_token': refresh_token,
                 'user': UserSerializer(user).data
             }, status=status.HTTP_200_OK)
+            
+            # Set tokens as HTTP-only cookies
+            response.set_cookie(
+                key='access_token',
+                value=str(refresh.access_token),
+                max_age=3600,  # 1 hour
+                httponly=True,
+                secure=True,
+                samesite='Lax',
+                path='/'
+            )
+            response.set_cookie(
+                key='refresh_token',
+                value=str(refresh),
+                max_age=86400 * 7,  # 7 days
+                httponly=True,
+                secure=True,
+                samesite='Lax',
+                path='/'
+            )
+            
+            return response
             
         except EmailVerification.DoesNotExist:
             return Response({'error': 'Invalid verification code'}, status=status.HTTP_400_BAD_REQUEST)
@@ -689,14 +753,31 @@ class RegistrationStatusView(APIView):
 class TwoFactorLoginVerifyView(APIView):
     """View for 2FA login verification."""
     
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Allow access with temp token
     
     def post(self, request):
         """Verify 2FA code during login."""
+        # Get user from temp 2FA token cookie
+        temp_token = request.COOKIES.get('temp_2fa_token')
+        if not temp_token:
+            return Response({
+                'error': 'Authentication required'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        try:
+            # Validate temp token and get user
+            from rest_framework_simplejwt.tokens import AccessToken
+            token = AccessToken(temp_token)
+            user_id = token.get('user_id')
+            user = User.objects.get(id=user_id)
+        except Exception:
+            return Response({
+                'error': 'Invalid or expired session'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
         serializer = TwoFactorLoginSerializer(data=request.data, context={'request': request})
         
         if serializer.is_valid():
-            user = request.user
             code = serializer.validated_data.get('code')
             backup_code = serializer.validated_data.get('backup_code')
             
@@ -740,12 +821,36 @@ class TwoFactorLoginVerifyView(APIView):
         # Generate tokens
         refresh = RefreshToken.for_user(user)
         
-        return Response({
-            'access_token': str(refresh.access_token),
-            'refresh_token': str(refresh),
+        # Create response
+        response = Response({
             'user': UserSerializer(user).data,
             'requires_2fa': False
         }, status=status.HTTP_200_OK)
+        
+        # Set tokens as HTTP-only cookies
+        response.set_cookie(
+            key='access_token',
+            value=str(refresh.access_token),
+            max_age=3600,  # 1 hour
+            httponly=True,
+            secure=True,
+            samesite='Lax',
+            path='/'
+        )
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh),
+            max_age=86400 * 7,  # 7 days
+            httponly=True,
+            secure=True,
+            samesite='Lax',
+            path='/'
+        )
+        
+        # Clear the temp 2FA token cookie
+        response.delete_cookie('temp_2fa_token', path='/')
+        
+        return response
     
     def get_client_ip(self, request):
         """Get client IP address."""
@@ -1031,18 +1136,82 @@ class TokenRefreshView(BaseTokenRefreshView):
     permission_classes = [permissions.AllowAny]
     
     def post(self, request, *args, **kwargs):
-        """Refresh access token using refresh token."""
+        """Refresh access token using refresh token from cookie."""
+        import logging
+        # Suppress Django's default error logging for this endpoint
+        logger = logging.getLogger('django.request')
+        original_level = logger.level
+        logger.setLevel(logging.CRITICAL)
+        
         try:
-            response = super().post(request, *args, **kwargs)
+            # Get refresh token from cookie
+            refresh_token = request.COOKIES.get('refresh_token')
+            if not refresh_token:
+                # Fallback to request body for backward compatibility
+                refresh_token = request.data.get('refresh') if request.data else None
+            
+            if not refresh_token:
+                # Silently fail - don't expose error details
+                return Response({
+                    'detail': 'Authentication credentials were not provided.'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Validate and refresh the token
+            try:
+                token = RefreshToken(refresh_token)
+                
+                # Get new access token
+                access_token = str(token.access_token)
+                
+                # Rotate refresh token (blacklist old one and create new one)
+                # This happens automatically when ROTATE_REFRESH_TOKENS is True
+                token.set_jti()
+                token.set_exp()
+                new_refresh_token = str(token)
+                
+                # Create response with cookies
+                response = Response({
+                    'message': 'Token refreshed successfully'
+                }, status=status.HTTP_200_OK)
+                
+                # Set new access token as cookie
+                response.set_cookie(
+                    key='access_token',
+                    value=access_token,
+                    max_age=3600,  # 1 hour
+                    httponly=True,
+                    secure=True,
+                    samesite='Lax',
+                    path='/'
+                )
+                
+                # Set new refresh token as cookie
+                response.set_cookie(
+                    key='refresh_token',
+                    value=new_refresh_token,
+                    max_age=86400 * 7,  # 7 days
+                    httponly=True,
+                    secure=True,
+                    samesite='Lax',
+                    path='/'
+                )
+                
+                return response
+                
+            except Exception:
+                # Token is invalid or expired - silently fail
+                return Response({
+                    'detail': 'Token is invalid or expired.'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+                
+        except Exception:
+            # Generic error - silently fail
             return Response({
-                'access_token': response.data.get('access'),
-                'refresh_token': response.data.get('refresh', '')
-            }, status=response.status_code)
-        except Exception as e:
-            return Response({
-                'error': 'Token refresh failed',
-                'detail': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'detail': 'Authentication failed.'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        finally:
+            # Restore original logging level
+            logger.setLevel(original_level)
 
 
 

@@ -57,10 +57,8 @@ export default function VerifyEmailPage() {
       setSuccess(true)
       localStorage.removeItem('pending_verification_email')
       
-      // Store authentication tokens
-      if (response.access_token && response.refresh_token) {
-        localStorage.setItem('access_token', response.access_token)
-        localStorage.setItem('refresh_token', response.refresh_token)
+      // Store user data (tokens are in HTTP-only cookies)
+      if (response.user) {
         localStorage.setItem('user', JSON.stringify(response.user))
         
         // Force a page reload to ensure AuthProvider picks up the new user state

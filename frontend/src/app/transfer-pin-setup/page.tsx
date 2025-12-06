@@ -69,8 +69,8 @@ export default function TransferPinSetupPage() {
 
   useEffect(() => {
     // Refresh user state to ensure we have the latest authentication
-    const token = localStorage.getItem('access_token')
-    if (token && !user) {
+    // Token is in HTTP-only cookie
+    if (!user) {
       refreshUser()
     }
   }, [user, refreshUser])

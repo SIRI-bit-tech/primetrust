@@ -53,7 +53,8 @@ export default function LoginPage() {
 
       // Check if 2FA is required
       if (response.requires_2fa) {
-        router.push(`/two-factor-login?token=${response.temp_token}`)
+        // Token is now in HTTP-only cookie, no need to pass in URL
+        router.push('/two-factor-login')
       } else {
         router.push('/dashboard')
       }
