@@ -11,7 +11,8 @@ import {
   Calendar,
   DollarSign,
   Clock,
-  XCircle
+  XCircle,
+  LineChart
 } from 'lucide-react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -144,6 +145,7 @@ export default function TransactionsPage() {
     const status = transaction.status
     const isSender = currentUserId && transaction.sender === currentUserId
     const isReceiver = currentUserId && transaction.recipient === currentUserId
+    const description = transaction.description || ''
     
     // Status-based icons (override type-based icons)
     if (status === 'failed' || status === 'cancelled' || status === 'declined') {
@@ -154,6 +156,11 @@ export default function TransactionsPage() {
     }
     if (status === 'completed' || status === 'approved') {
       // Type-based icons for completed transactions
+      if (type === 'investment') {
+        // Check description to determine if purchase or sale
+        const isSale = description.toLowerCase().includes('sale')
+        return <LineChart className={`w-5 h-5 ${isSale ? 'text-green-600' : 'text-purple-600'}`} />
+      }
       if (type === 'deposit') {
         return <TrendingUp className="w-5 h-5 text-green-500" />
       }
@@ -177,35 +184,47 @@ export default function TransactionsPage() {
     const status = transaction.status
     
     if (status === 'failed' || status === 'cancelled' || status === 'declined') {
-      return 'bg-red-100'
+      return 'bg-red-100 dark:bg-red-900/20'
     }
     if (status === 'pending' || status === 'processing') {
-      return 'bg-yellow-100'
+      return 'bg-yellow-100 dark:bg-yellow-900/20'
     }
     if (status === 'completed' || status === 'approved') {
       const type = transaction.transaction_type || transaction.transfer_type
       const isReceiver = currentUserId && transaction.recipient === currentUserId
+      const description = transaction.description || ''
       
+      if (type === 'investment') {
+        // Check description to determine if purchase or sale
+        const isSale = description.toLowerCase().includes('sale')
+        return isSale ? 'bg-green-100 dark:bg-green-900/20' : 'bg-purple-100 dark:bg-purple-900/20'
+      }
       if (type === 'deposit' || (isReceiver && !transaction.sender)) {
-        return 'bg-green-100'
+        return 'bg-green-100 dark:bg-green-900/20'
       }
       if (type === 'withdrawal') {
-        return 'bg-red-100'
+        return 'bg-red-100 dark:bg-red-900/20'
       }
-      return 'bg-blue-100'
+      return 'bg-blue-100 dark:bg-blue-900/20'
     }
     
-    return 'bg-gray-100'
+    return 'bg-gray-100 dark:bg-gray-700'
   }
 
-  const getTransactionColor = (type: string) => {
+  const getTransactionColor = (type: string, description: string = '') => {
+    // For investments, check description
+    if (type === 'investment') {
+      const isSale = description.toLowerCase().includes('sale')
+      return isSale ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+    }
+    
     switch (type) {
       case 'deposit':
-        return 'text-green-600'
+        return 'text-green-600 dark:text-green-400'
       case 'withdrawal':
-        return 'text-red-600'
+        return 'text-red-600 dark:text-red-400'
       default:
-        return 'text-gray-600'
+        return 'text-gray-600 dark:text-gray-400'
     }
   }
 
@@ -356,6 +375,8 @@ export default function TransactionsPage() {
               <option value="wire_international">International Wire</option>
               <option value="deposit">Deposit</option>
               <option value="withdrawal">Withdrawal</option>
+              <option value="investment_purchase">Investment Purchase</option>
+              <option value="investment_sale">Investment Sale</option>
             </select>
 
             {/* Clear Filters */}
@@ -424,8 +445,8 @@ export default function TransactionsPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className={`text-sm font-semibold ${getTransactionColor(type)}`}>
-                              {type === 'withdrawal' ? '-' : ''}
+                            <div className={`text-sm font-semibold ${getTransactionColor(type, transaction.description)}`}>
+                              {(type === 'withdrawal' || (type === 'investment' && !transaction.description?.toLowerCase().includes('sale'))) ? '-' : ''}
                               {formatCurrency(transaction.amount)}
                             </div>
                             {fee > 0 && (
@@ -447,8 +468,12 @@ export default function TransactionsPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             <div>
-                              <div>From: {senderName}</div>
-                              <div>To: {recipientName}</div>
+                              {type !== 'investment' && (
+                                <>
+                                  <div>From: {senderName}</div>
+                                  <div>To: {recipientName}</div>
+                                </>
+                              )}
                               {refNumber && (
                                 <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                                   Ref: {refNumber}
@@ -489,7 +514,7 @@ export default function TransactionsPage() {
                           </div>
                         </div>
                         <div className={`text-sm font-semibold ${getTransactionColor(type)} ml-2 flex-shrink-0`}>
-                          {type === 'withdrawal' ? '-' : ''}
+                          {(type === 'withdrawal' || type === 'investment_purchase') ? '-' : ''}
                           {formatCurrency(transaction.amount)}
                         </div>
                       </div>
@@ -510,15 +535,19 @@ export default function TransactionsPage() {
                           </span>
                         </div>
                         
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500 dark:text-gray-400">From:</span>
-                          <span className="text-gray-900 dark:text-white truncate ml-2">{senderName}</span>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500 dark:text-gray-400">To:</span>
-                          <span className="text-gray-900 dark:text-white truncate ml-2">{recipientName}</span>
-                        </div>
+                        {type !== 'investment' && (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">From:</span>
+                              <span className="text-gray-900 dark:text-white truncate ml-2">{senderName}</span>
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">To:</span>
+                              <span className="text-gray-900 dark:text-white truncate ml-2">{recipientName}</span>
+                            </div>
+                          </>
+                        )}
                         
                         {fee > 0 && (
                           <div className="flex items-center justify-between">
