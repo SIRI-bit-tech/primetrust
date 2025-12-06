@@ -39,7 +39,7 @@ export default function TransactionsPage() {
 
   const loadCurrentUser = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/auth/me/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/auth/profile/`, {
         credentials: 'include'  // Send cookies with request
       })
       if (response.ok) {
@@ -168,12 +168,14 @@ export default function TransactionsPage() {
       if (type === 'withdrawal') {
         return <TrendingDown className="w-5 h-5 text-red-500" />
       }
-      // For transfers, use TrendingUp/TrendingDown based on direction
+      // For transfers, use TrendingDown for incoming (green) and TrendingUp for outgoing (red)
       if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
         if (isReceiver && !isSender) {
           return <TrendingDown className="w-5 h-5 text-green-500" />
         }
-        return <TrendingUp className="w-5 h-5 text-red-500" />
+        if (isSender) {
+          return <TrendingUp className="w-5 h-5 text-red-500" />
+        }
       }
     }
     
@@ -192,6 +194,7 @@ export default function TransactionsPage() {
     }
     if (status === 'completed' || status === 'approved') {
       const type = transaction.transaction_type || transaction.transfer_type
+      const isSender = currentUserId && transaction.sender === currentUserId
       const isReceiver = currentUserId && transaction.recipient === currentUserId
       const description = transaction.description || ''
       
@@ -200,11 +203,20 @@ export default function TransactionsPage() {
         const isSale = description.toLowerCase().includes('sale')
         return isSale ? 'bg-green-100 dark:bg-green-900/20' : 'bg-purple-100 dark:bg-purple-900/20'
       }
-      if (type === 'deposit' || (isReceiver && !transaction.sender)) {
+      if (type === 'deposit') {
         return 'bg-green-100 dark:bg-green-900/20'
       }
       if (type === 'withdrawal') {
         return 'bg-red-100 dark:bg-red-900/20'
+      }
+      // For transfers, use green for incoming, red for outgoing
+      if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
+        if (isReceiver && !isSender) {
+          return 'bg-green-100 dark:bg-green-900/20'
+        }
+        if (isSender) {
+          return 'bg-red-100 dark:bg-red-900/20'
+        }
       }
       return 'bg-blue-100 dark:bg-blue-900/20'
     }
