@@ -30,8 +30,11 @@ export default function TransactionsPage() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
 
   useEffect(() => {
-    loadTransactions()
-    loadCurrentUser()
+    const initializePage = async () => {
+      await loadCurrentUser() // Load user ID first
+      await loadTransactions() // Then load transactions
+    }
+    initializePage()
   }, [])
 
   const loadCurrentUser = async () => {
@@ -52,7 +55,7 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     filterTransactions()
-  }, [transactions, searchTerm, statusFilter, typeFilter])
+  }, [transactions, searchTerm, statusFilter, typeFilter, currentUserId])
 
   // Listen for real-time transaction updates
   useEffect(() => {
@@ -218,7 +221,7 @@ export default function TransactionsPage() {
       return isSale ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
     }
     
-    // For transfers, use ID-based logic (same as getTransactionIcon)
+    // For transfers, use ID-based logic only
     if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
       if (transaction && currentUserId) {
         const isSender = transaction.sender === currentUserId
@@ -234,18 +237,7 @@ export default function TransactionsPage() {
         }
       }
       
-      // Fallback: check description for direction indicators
-      if (description) {
-        const desc = description.toLowerCase()
-        if (desc.includes(' to ')) {
-          return 'text-red-600 dark:text-red-400' // Outgoing
-        }
-        if (desc.includes(' from ')) {
-          return 'text-green-600 dark:text-green-400' // Incoming
-        }
-      }
-      
-      // Default to gray when we can't determine direction
+      // If currentUserId not loaded yet, return gray
       return 'text-gray-600 dark:text-gray-400'
     }
     
@@ -483,7 +475,7 @@ export default function TransactionsPage() {
                                 // Show minus sign for investment purchases
                                 if (type === 'investment' && !transaction.description?.toLowerCase().includes('sale')) return '-'
                                 
-                                // Show minus sign for outgoing transfers (use ID-based logic)
+                                // Show minus sign for outgoing transfers (use ID-based logic only)
                                 if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
                                   if (currentUserId) {
                                     const isSender = (transaction as any).sender === currentUserId
@@ -491,10 +483,6 @@ export default function TransactionsPage() {
                                     // If sender (outgoing), show minus sign
                                     if (isSender && !isReceiver) return '-'
                                   }
-                                  
-                                  // Fallback: check description for direction indicators
-                                  const desc = transaction.description?.toLowerCase() || ''
-                                  if (desc.includes(' to ')) return '-' // Outgoing
                                 }
                                 
                                 return ''
@@ -573,7 +561,7 @@ export default function TransactionsPage() {
                             // Show minus sign for investment purchases
                             if (type === 'investment' && !transaction.description?.toLowerCase().includes('sale')) return '-'
                             
-                            // Show minus sign for outgoing transfers (use ID-based logic)
+                            // Show minus sign for outgoing transfers (use ID-based logic only)
                             if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
                               if (currentUserId) {
                                 const isSender = (transaction as any).sender === currentUserId
@@ -581,10 +569,6 @@ export default function TransactionsPage() {
                                 // If sender (outgoing), show minus sign
                                 if (isSender && !isReceiver) return '-'
                               }
-                              
-                              // Fallback: check description for direction indicators
-                              const desc = transaction.description?.toLowerCase() || ''
-                              if (desc.includes(' to ')) return '-' // Outgoing
                             }
                             
                             return ''
@@ -687,15 +671,21 @@ export default function TransactionsPage() {
                     // Only count completed/approved transactions
                     if (t.status !== 'completed' && t.status !== 'approved') return false
                     
-                    // Count withdrawals and outgoing transfers (where current user is sender)
+                    // Count withdrawals
                     if (t.transaction_type === 'withdrawal') return true
                     
-                    // For transfers, check if current user is the sender
-                    const transfer = t as any
-                    if (transfer.transfer_type) {
-                      // Check if sender ID matches current user (or if currentUserId not loaded yet, assume all are sent)
-                      return !currentUserId || transfer.sender === currentUserId
+                    // Count investment purchases (money going out)
+                    if (t.transaction_type === 'investment') {
+                      const desc = t.description?.toLowerCase() || ''
+                      return !desc.includes('sale') // Purchase, not sale
                     }
+                    
+                    // For transfers, check if current user is the sender (ID-based only)
+                    const transfer = t as any
+                    if (transfer.transfer_type && currentUserId) {
+                      return transfer.sender === currentUserId
+                    }
+                    
                     return false
                   }).length}
                 </div>
@@ -707,12 +697,19 @@ export default function TransactionsPage() {
                     // Only count completed/approved transactions
                     if (t.status !== 'completed' && t.status !== 'approved') return false
                     
-                    // Count incoming transfers (where current user is recipient)
+                    // Count investment sales (money coming in)
+                    if (t.transaction_type === 'investment') {
+                      const desc = t.description?.toLowerCase() || ''
+                      return desc.includes('sale') // Sale, not purchase
+                    }
+                    
+                    // Count incoming transfers (where current user is recipient, ID-based only)
                     const transfer = t as any
                     if (transfer.transfer_type && currentUserId && transfer.recipient) {
                       // Check if recipient ID matches current user
                       return transfer.recipient === currentUserId
                     }
+                    
                     return false
                   }).length}
                 </div>
