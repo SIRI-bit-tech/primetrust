@@ -87,8 +87,8 @@ export default function BillsPage() {
       const data = await billsAPI.getBills()
       setBills(data)
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Failed to fetch bills')
+      // Generic error message
+      setError('Failed to load bills. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -110,8 +110,8 @@ export default function BillsPage() {
       reset()
       fetchBills()
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Failed to save bill')
+      // Generic error message
+      setError('Failed to save bill. Please try again.')
     } finally {
       setAdding(false)
     }
@@ -131,8 +131,8 @@ export default function BillsPage() {
       setSelectedBill(null)
       fetchBills()
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Failed to pay bill')
+      // Generic error message
+      setError('Failed to pay bill. Please try again.')
     } finally {
       setPaying(false)
     }
@@ -145,8 +145,8 @@ export default function BillsPage() {
       await billsAPI.deleteBill(billId)
       fetchBills()
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Failed to delete bill')
+      // Generic error message
+      setError('Failed to delete bill. Please try again.')
     }
   }
 

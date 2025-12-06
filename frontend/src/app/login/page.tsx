@@ -80,7 +80,8 @@ export default function LoginPage() {
           unlockRequestPending: error.response.data.unlock_request_pending || false
         })
       } else {
-        setError(error.response?.data?.message || 'Login failed. Please try again.')
+        // Generic error message to prevent information disclosure
+        setError('Invalid email or password. Please try again.')
       }
     } finally {
       setIsLoading(false)
@@ -241,10 +242,17 @@ export default function LoginPage() {
         <AccountLockedModal
           isOpen={accountLocked}
           onClose={() => setAccountLocked(false)}
-          email={getValues('email')}
+          userEmail={getValues('email')}
           lockReason={lockDetails.reason}
           lockedUntil={lockDetails.lockedUntil}
           unlockRequestPending={lockDetails.unlockRequestPending}
+          onUnlockRequested={() => {
+            // Update the unlock request pending status
+            setLockDetails({
+              ...lockDetails,
+              unlockRequestPending: true
+            })
+          }}
         />
       )}
     </div>

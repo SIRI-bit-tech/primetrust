@@ -83,8 +83,8 @@ export default function LoansPage() {
       // Ensure data is always an array
       setLoans(Array.isArray(data) ? data : [])
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Failed to fetch loans')
+      // Generic error message
+      setError('Failed to load loans. Please try again.')
       setLoans([]) // Set empty array on error
     } finally {
       setLoading(false)
@@ -104,8 +104,8 @@ export default function LoansPage() {
       reset()
       fetchLoans()
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Failed to apply for loan')
+      // Generic error message
+      setError('Failed to apply for loan. Please try again.')
     } finally {
       setApplying(false)
     }
@@ -122,8 +122,8 @@ export default function LoansPage() {
       setPaymentAmount('')
       fetchLoans()
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Failed to make payment')
+      // Generic error message
+      setError('Failed to make payment. Please try again.')
     } finally {
       setMakingPayment(false)
     }

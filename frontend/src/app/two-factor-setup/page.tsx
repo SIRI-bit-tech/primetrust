@@ -75,8 +75,8 @@ export default function TwoFactorSetupPage() {
       setQrData(response)
       setStep('verify')
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } }
-      setError(error.response?.data?.error || 'Failed to initiate 2FA setup')
+      // Generic error message to prevent information disclosure
+      setError('Failed to initiate 2FA setup. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -98,8 +98,8 @@ export default function TwoFactorSetupPage() {
       // Force navigation to transfer PIN setup
       window.location.href = '/transfer-pin-setup'
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } }
-      setError(error.response?.data?.error || 'Invalid verification code')
+      // Generic error message to prevent information disclosure
+      setError('Invalid verification code. Please try again.')
     } finally {
       setLoading(false)
     }

@@ -74,8 +74,8 @@ export default function VerifyEmailPage() {
         }, 2000)
       }
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Verification failed. Please try again.')
+      // Generic error message to prevent information disclosure
+      setError('Verification failed. Please check your code and try again.')
     } finally {
       setIsLoading(false)
     }

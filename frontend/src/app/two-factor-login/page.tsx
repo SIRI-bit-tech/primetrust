@@ -65,8 +65,8 @@ export default function TwoFactorLoginPage() {
 
       router.push('/dashboard')
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } }
-      setError(error.response?.data?.error || 'Invalid verification code')
+      // Generic error message to prevent information disclosure
+      setError('Invalid verification code. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -84,8 +84,8 @@ export default function TwoFactorLoginPage() {
 
       router.push('/dashboard')
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } }
-      setError(error.response?.data?.error || 'Invalid backup code')
+      // Generic error message to prevent information disclosure
+      setError('Invalid backup code. Please try again.')
     } finally {
       setLoading(false)
     }

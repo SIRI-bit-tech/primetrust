@@ -186,8 +186,8 @@ export default function TransferPage() {
       setPendingTransfer(transferData)
       setShowPinModal(true)
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Transfer failed. Please try again.')
+      // Generic error message
+      setError('Transfer failed. Please check your information and try again.')
     } finally {
       setIsLoading(false)
     }
@@ -279,7 +279,8 @@ export default function TransferPage() {
       setReceiptData(receipt)
       setShowPinModal(false)
       setShowReceipt(true)
-      setError(error.response?.data?.message || error.response?.data?.error || 'Transfer failed. Please try again.')
+      // Generic error message
+      setError('Transfer failed. Please check your information and try again.')
     } finally {
       setIsLoading(false)
     }

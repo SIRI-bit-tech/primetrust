@@ -72,8 +72,8 @@ export default function ProfilePage() {
       setSuccess('Profile updated successfully!')
       setIsEditing(false)
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Failed to update profile. Please try again.')
+      // Generic error message
+      setError('Failed to update profile. Please try again.')
     } finally {
       setIsLoading(false)
     }

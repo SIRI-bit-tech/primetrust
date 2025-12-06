@@ -145,7 +145,8 @@ export default function RegisterPage() {
       router.push('/verify-email')
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Registration failed. Please try again.')
+      // Generic error message to prevent information disclosure
+      setError('Registration failed. Please check your information and try again.')
     } finally {
       setIsLoading(false)
     }

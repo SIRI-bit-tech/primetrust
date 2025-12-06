@@ -92,8 +92,8 @@ export default function TransferPinSetupPage() {
       
       window.location.href = '/dashboard'
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } }
-      setError(error.response?.data?.error || 'Failed to set up transfer PIN')
+      // Generic error message to prevent information disclosure
+      setError('Failed to set up transfer PIN. Please try again.')
     } finally {
       setLoading(false)
     }
