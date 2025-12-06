@@ -218,33 +218,35 @@ export default function TransactionsPage() {
       return isSale ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
     }
     
-    // For transfers, check if there's a recipient_name (means outgoing) or if description indicates direction
+    // For transfers, use ID-based logic (same as getTransactionIcon)
     if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
-      if (transaction) {
-        const recipientName = transaction.recipient_name || transaction.recipient?.full_name
-        const senderName = transaction.sender_name || transaction.sender?.full_name
+      if (transaction && currentUserId) {
+        const isSender = transaction.sender === currentUserId
+        const isReceiver = transaction.recipient === currentUserId
         
-        // If there's a recipient name, it's an outgoing transfer (red)
-        if (recipientName) {
-          return 'text-red-600 dark:text-red-400'
-        }
-        
-        // If there's a sender name but no recipient name, it's incoming (green)
-        if (senderName && !recipientName) {
+        // If receiver only (incoming), show green
+        if (isReceiver && !isSender) {
           return 'text-green-600 dark:text-green-400'
         }
-        
-        // Fallback: check description for "to" (outgoing) or "from" (incoming)
-        const desc = description.toLowerCase()
-        if (desc.includes(' to ')) {
+        // If sender (outgoing), show red
+        if (isSender) {
           return 'text-red-600 dark:text-red-400'
-        }
-        if (desc.includes(' from ')) {
-          return 'text-green-600 dark:text-green-400'
         }
       }
-      // Default to red for transfers (most are outgoing)
-      return 'text-red-600 dark:text-red-400'
+      
+      // Fallback: check description for direction indicators
+      if (description) {
+        const desc = description.toLowerCase()
+        if (desc.includes(' to ')) {
+          return 'text-red-600 dark:text-red-400' // Outgoing
+        }
+        if (desc.includes(' from ')) {
+          return 'text-green-600 dark:text-green-400' // Incoming
+        }
+      }
+      
+      // Default to gray when we can't determine direction
+      return 'text-gray-600 dark:text-gray-400'
     }
     
     switch (type) {
@@ -481,11 +483,18 @@ export default function TransactionsPage() {
                                 // Show minus sign for investment purchases
                                 if (type === 'investment' && !transaction.description?.toLowerCase().includes('sale')) return '-'
                                 
-                                // Show minus sign for outgoing transfers
+                                // Show minus sign for outgoing transfers (use ID-based logic)
                                 if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
-                                  const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name
-                                  // If there's a recipient name, it's outgoing
-                                  if (recipientName) return '-'
+                                  if (currentUserId) {
+                                    const isSender = (transaction as any).sender === currentUserId
+                                    const isReceiver = (transaction as any).recipient === currentUserId
+                                    // If sender (outgoing), show minus sign
+                                    if (isSender && !isReceiver) return '-'
+                                  }
+                                  
+                                  // Fallback: check description for direction indicators
+                                  const desc = transaction.description?.toLowerCase() || ''
+                                  if (desc.includes(' to ')) return '-' // Outgoing
                                 }
                                 
                                 return ''
@@ -564,11 +573,18 @@ export default function TransactionsPage() {
                             // Show minus sign for investment purchases
                             if (type === 'investment' && !transaction.description?.toLowerCase().includes('sale')) return '-'
                             
-                            // Show minus sign for outgoing transfers
+                            // Show minus sign for outgoing transfers (use ID-based logic)
                             if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
-                              const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name
-                              // If there's a recipient name, it's outgoing
-                              if (recipientName) return '-'
+                              if (currentUserId) {
+                                const isSender = (transaction as any).sender === currentUserId
+                                const isReceiver = (transaction as any).recipient === currentUserId
+                                // If sender (outgoing), show minus sign
+                                if (isSender && !isReceiver) return '-'
+                              }
+                              
+                              // Fallback: check description for direction indicators
+                              const desc = transaction.description?.toLowerCase() || ''
+                              if (desc.includes(' to ')) return '-' // Outgoing
                             }
                             
                             return ''

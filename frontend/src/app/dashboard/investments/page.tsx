@@ -60,7 +60,8 @@ export default function InvestmentsPage() {
   const [selling, setSelling] = useState(false)
   const [showMarketData, setShowMarketData] = useState(false)
   const [marketData, setMarketData] = useState<MarketDataResponse | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  const [refreshingInvestments, setRefreshingInvestments] = useState(false)
+  const [refreshingMarket, setRefreshingMarket] = useState(false)
   const [fiatBalance, setFiatBalance] = useState(0)
   const [bitcoinBalance, setBitcoinBalance] = useState(0)
   
@@ -114,21 +115,21 @@ export default function InvestmentsPage() {
   }
   
   const refreshInvestments = async () => {
-    setRefreshing(true)
+    setRefreshingInvestments(true)
     await fetchInvestments(false)
-    setRefreshing(false)
+    setRefreshingInvestments(false)
   }
 
   const fetchMarketData = async () => {
     try {
-      setRefreshing(true)
+      setRefreshingMarket(true)
       const data = await investmentsAPI.getMarketData()
       setMarketData(data)
     } catch (err: unknown) {
       // Silently fail - market data is not critical
       console.debug('Market data unavailable:', err)
     } finally {
-      setRefreshing(false)
+      setRefreshingMarket(false)
     }
   }
 
@@ -222,11 +223,11 @@ export default function InvestmentsPage() {
           <div className="flex space-x-3">
             <button
               onClick={refreshInvestments}
-              disabled={refreshing}
+              disabled={refreshingInvestments}
               className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
               title="Refresh prices"
             >
-              <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+              <RefreshCw className={cn("w-4 h-4", refreshingInvestments && "animate-spin")} />
               <span>Refresh</span>
             </button>
             <button
@@ -267,10 +268,10 @@ export default function InvestmentsPage() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Market Data</h2>
               <button
                 onClick={refreshMarketData}
-                disabled={refreshing}
+                disabled={refreshingMarket}
                 className="flex items-center space-x-2 text-primary-dark dark:text-primary-navy hover:text-primary-dark/80 dark:hover:text-primary-navy/80 transition-colors"
               >
-                <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+                <RefreshCw className={cn("w-4 h-4", refreshingMarket && "animate-spin")} />
                 <span>Refresh</span>
               </button>
             </div>
