@@ -18,7 +18,8 @@ import {
   Bitcoin,
   ArrowUpDown,
   ArrowDownUp,
-  XCircle
+  XCircle,
+  LineChart
 } from 'lucide-react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -204,6 +205,7 @@ export default function DashboardPage() {
     const status = transaction.status
     const isSender = currentUserId && (transaction as any).sender === currentUserId
     const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
+    const description = transaction.description || ''
     
     // Status-based icons (override type-based icons)
     if (status === 'failed' || status === 'cancelled' || status === 'declined') {
@@ -214,6 +216,11 @@ export default function DashboardPage() {
     }
     if (status === 'completed' || status === 'approved') {
       // Type-based icons for completed transactions
+      if (type === 'investment') {
+        // Check description to determine if purchase or sale
+        const isSale = description.toLowerCase().includes('sale')
+        return <LineChart className={`w-5 h-5 ${isSale ? 'text-green-600' : 'text-purple-600'}`} />
+      }
       if (type === 'deposit') {
         return <TrendingUp className="w-5 h-5 text-green-500" />
       }
@@ -245,7 +252,13 @@ export default function DashboardPage() {
     if (status === 'completed' || status === 'approved') {
       const type = transaction.transaction_type || transaction.transfer_type
       const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
+      const description = transaction.description || ''
       
+      if (type === 'investment') {
+        // Check description to determine if purchase or sale
+        const isSale = description.toLowerCase().includes('sale')
+        return isSale ? 'bg-green-100 dark:bg-green-900/20' : 'bg-purple-100 dark:bg-purple-900/20'
+      }
       if (type === 'deposit' || (isReceiver && !(transaction as any).sender)) {
         return 'bg-green-100 dark:bg-green-900/20'
       }
@@ -262,6 +275,7 @@ export default function DashboardPage() {
     const type = transaction.transaction_type || transaction.transfer_type
     const isSender = currentUserId && (transaction as any).sender === currentUserId
     const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
+    const description = transaction.description || ''
     
     // For transfers, color based on direction
     if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
@@ -269,6 +283,12 @@ export default function DashboardPage() {
         return 'text-green-600 dark:text-green-400'
       }
       return 'text-red-600 dark:text-red-400'
+    }
+    
+    // For investments, check description
+    if (type === 'investment') {
+      const isSale = description.toLowerCase().includes('sale')
+      return isSale ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
     }
     
     switch (type) {
@@ -620,8 +640,13 @@ export default function DashboardPage() {
                   
                   // Determine if this is a debit (money out) or credit (money in)
                   let isDebit = false
+                  const description = transaction.description || ''
+                  
                   if (type === 'withdrawal') {
                     isDebit = true
+                  } else if (type === 'investment') {
+                    // Check description to determine if purchase (debit) or sale (credit)
+                    isDebit = !description.toLowerCase().includes('sale')
                   } else if (type === 'deposit') {
                     isDebit = false
                   } else if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
