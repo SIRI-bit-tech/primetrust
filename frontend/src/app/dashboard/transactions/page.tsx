@@ -211,11 +211,40 @@ export default function TransactionsPage() {
     return 'bg-gray-100 dark:bg-gray-700'
   }
 
-  const getTransactionColor = (type: string, description: string = '') => {
+  const getTransactionColor = (type: string, description: string = '', transaction?: any) => {
     // For investments, check description
     if (type === 'investment') {
       const isSale = description.toLowerCase().includes('sale')
       return isSale ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+    }
+    
+    // For transfers, check if there's a recipient_name (means outgoing) or if description indicates direction
+    if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
+      if (transaction) {
+        const recipientName = transaction.recipient_name || transaction.recipient?.full_name
+        const senderName = transaction.sender_name || transaction.sender?.full_name
+        
+        // If there's a recipient name, it's an outgoing transfer (red)
+        if (recipientName) {
+          return 'text-red-600 dark:text-red-400'
+        }
+        
+        // If there's a sender name but no recipient name, it's incoming (green)
+        if (senderName && !recipientName) {
+          return 'text-green-600 dark:text-green-400'
+        }
+        
+        // Fallback: check description for "to" (outgoing) or "from" (incoming)
+        const desc = description.toLowerCase()
+        if (desc.includes(' to ')) {
+          return 'text-red-600 dark:text-red-400'
+        }
+        if (desc.includes(' from ')) {
+          return 'text-green-600 dark:text-green-400'
+        }
+      }
+      // Default to red for transfers (most are outgoing)
+      return 'text-red-600 dark:text-red-400'
     }
     
     switch (type) {
@@ -375,8 +404,7 @@ export default function TransactionsPage() {
               <option value="wire_international">International Wire</option>
               <option value="deposit">Deposit</option>
               <option value="withdrawal">Withdrawal</option>
-              <option value="investment_purchase">Investment Purchase</option>
-              <option value="investment_sale">Investment Sale</option>
+              <option value="investment">Investment</option>
             </select>
 
             {/* Clear Filters */}
@@ -445,8 +473,23 @@ export default function TransactionsPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className={`text-sm font-semibold ${getTransactionColor(type, transaction.description)}`}>
-                              {(type === 'withdrawal' || (type === 'investment' && !transaction.description?.toLowerCase().includes('sale'))) ? '-' : ''}
+                            <div className={`text-sm font-semibold ${getTransactionColor(type, transaction.description, transaction)}`}>
+                              {(() => {
+                                // Show minus sign for withdrawals
+                                if (type === 'withdrawal') return '-'
+                                
+                                // Show minus sign for investment purchases
+                                if (type === 'investment' && !transaction.description?.toLowerCase().includes('sale')) return '-'
+                                
+                                // Show minus sign for outgoing transfers
+                                if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
+                                  const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name
+                                  // If there's a recipient name, it's outgoing
+                                  if (recipientName) return '-'
+                                }
+                                
+                                return ''
+                              })()}
                               {formatCurrency(transaction.amount)}
                             </div>
                             {fee > 0 && (
@@ -513,8 +556,23 @@ export default function TransactionsPage() {
                             </div>
                           </div>
                         </div>
-                        <div className={`text-sm font-semibold ${getTransactionColor(type)} ml-2 flex-shrink-0`}>
-                          {(type === 'withdrawal' || type === 'investment_purchase') ? '-' : ''}
+                        <div className={`text-sm font-semibold ${getTransactionColor(type, transaction.description, transaction)} ml-2 flex-shrink-0`}>
+                          {(() => {
+                            // Show minus sign for withdrawals
+                            if (type === 'withdrawal') return '-'
+                            
+                            // Show minus sign for investment purchases
+                            if (type === 'investment' && !transaction.description?.toLowerCase().includes('sale')) return '-'
+                            
+                            // Show minus sign for outgoing transfers
+                            if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
+                              const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name
+                              // If there's a recipient name, it's outgoing
+                              if (recipientName) return '-'
+                            }
+                            
+                            return ''
+                          })()}
                           {formatCurrency(transaction.amount)}
                         </div>
                       </div>

@@ -96,17 +96,27 @@ export default function InvestmentsPage() {
     }
   }
 
-  const fetchInvestments = async () => {
+  const fetchInvestments = async (showLoadingState = true) => {
     try {
-      setLoading(true)
+      if (showLoadingState) {
+        setLoading(true)
+      }
       const data = await investmentsAPI.getInvestments()
       setInvestments(data)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
       setError(error.response?.data?.message || 'Failed to fetch investments')
     } finally {
-      setLoading(false)
+      if (showLoadingState) {
+        setLoading(false)
+      }
     }
+  }
+  
+  const refreshInvestments = async () => {
+    setRefreshing(true)
+    await fetchInvestments(false)
+    setRefreshing(false)
   }
 
   const fetchMarketData = async () => {
@@ -130,6 +140,22 @@ export default function InvestmentsPage() {
     fetchInvestments()
     fetchBalances()
     fetchMarketData()
+    
+    // Set up auto-refresh for investments every 30 seconds
+    const investmentRefreshInterval = setInterval(() => {
+      fetchInvestments(false) // Don't show loading state for background refreshes
+    }, 30000) // 30 seconds
+    
+    // Set up auto-refresh for market data every 60 seconds
+    const marketDataRefreshInterval = setInterval(() => {
+      fetchMarketData()
+    }, 60000) // 60 seconds
+    
+    // Cleanup intervals on unmount
+    return () => {
+      clearInterval(investmentRefreshInterval)
+      clearInterval(marketDataRefreshInterval)
+    }
   }, [])
 
   const onSubmit = async (data: InvestmentPurchaseForm) => {
@@ -194,6 +220,15 @@ export default function InvestmentsPage() {
             <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your investment portfolio</p>
           </div>
           <div className="flex space-x-3">
+            <button
+              onClick={refreshInvestments}
+              disabled={refreshing}
+              className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
+              title="Refresh prices"
+            >
+              <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+              <span>Refresh</span>
+            </button>
             <button
               onClick={() => setShowMarketData(!showMarketData)}
               className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2"
