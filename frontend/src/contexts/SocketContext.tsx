@@ -27,15 +27,7 @@ interface SocketProviderProps {
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const { user } = useAuth()
-  const [token, setToken] = useState<string | null>(null)
-  const { socket, isConnected } = useSocket(token)
-
-  // Token is now in HTTP-only cookie, we'll use user state to determine connection
-  useEffect(() => {
-    // We can't access the token from cookie in JavaScript
-    // The socket connection will need to be updated to use cookie authentication
-    setToken(user ? 'authenticated' : null)
-  }, [user])
+  const { socket, isConnected } = useSocket(!!user) // Pass boolean instead of token
 
   useEffect(() => {
     if (!socket) return

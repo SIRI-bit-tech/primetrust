@@ -11,10 +11,9 @@ class CardApplication(models.Model):
     """Model for card applications that need admin approval."""
     
     APPLICATION_STATUS = [
-        ('pending', 'Pending Review'),
         ('processing', 'Processing'),
         ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
+        ('declined', 'Declined'),
         ('completed', 'Completed'),
     ]
     
@@ -32,7 +31,7 @@ class CardApplication(models.Model):
     preferred_monthly_limit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     # Status and processing
-    status = models.CharField(max_length=20, choices=APPLICATION_STATUS, default='pending')
+    status = models.CharField(max_length=20, choices=APPLICATION_STATUS, default='processing')
     admin_notes = models.TextField(blank=True)
     estimated_completion_date = models.DateField(null=True, blank=True)
     
@@ -58,8 +57,8 @@ class CardApplication(models.Model):
         return f"Card Application {self.id} - {self.user.email} ({self.get_status_display()})"
     
     def approve(self, admin_user, notes=""):
-        """Approve the application and move to processing."""
-        self.status = 'processing'
+        """Approve the application."""
+        self.status = 'approved'
         self.processed_by = admin_user
         self.processed_at = timezone.now()
         self.admin_notes = notes
@@ -75,13 +74,13 @@ class CardApplication(models.Model):
         send_notification(
             self.user.id,
             'Card Application Approved',
-            f'Your {self.get_card_type_display()} card application has been approved and is being processed.',
+            f'Your {self.get_card_type_display()} card application has been approved.',
             'success'
         )
     
-    def reject(self, admin_user, notes=""):
-        """Reject the application."""
-        self.status = 'rejected'
+    def decline(self, admin_user, notes=""):
+        """Decline the application."""
+        self.status = 'declined'
         self.processed_by = admin_user
         self.processed_at = timezone.now()
         self.admin_notes = notes
@@ -93,16 +92,16 @@ class CardApplication(models.Model):
         
         # Send real-time notification
         from socketio_app.utils import notify_card_update, send_notification
-        notify_card_update(self.user.id, self.id, self.status, 'rejected')
+        notify_card_update(self.user.id, self.id, self.status, 'declined')
         send_notification(
             self.user.id,
-            'Card Application Rejected',
-            f'Your {self.get_card_type_display()} card application has been rejected. {notes}',
+            'Card Application Declined',
+            f'Your {self.get_card_type_display()} card application has been declined. {notes}',
             'error'
         )
     
-    def complete(self, admin_user, notes=""):
-        """Mark application as completed (card created)."""
+    def complete(self, admin_user, card, notes=""):
+        """Mark application as completed (card already created and passed in)."""
         self.status = 'completed'
         self.processed_by = admin_user
         self.processed_at = timezone.now()
@@ -111,16 +110,12 @@ class CardApplication(models.Model):
         
         # Send notification
         from .services import CardApplicationNotificationService
-        card_number = None
-        # Get the created card properly
-        created_card = self.created_card.first() if hasattr(self, 'created_card') else None
-        if created_card:
-            card_number = created_card.card_number
+        card_number = card.card_number if card else None
         CardApplicationNotificationService.send_application_completed_notification(self, card_number)
         
-        # Send real-time notification
-        from socketio_app.utils import notify_card_update, send_notification
-        notify_card_update(self.user.id, self.id, self.status, 'completed')
+        # Send real-time notification with card data
+        from socketio_app.utils import notify_card_created, send_notification
+        notify_card_created(self.user.id, card.id if card else None, self.id)
         send_notification(
             self.user.id,
             'Card Ready!',

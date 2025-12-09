@@ -419,12 +419,23 @@ class AdminCardApplicationCompleteView(APIView):
     def post(self, request, application_id):
         application = get_object_or_404(CardApplication, pk=application_id)
         
-        if application.status != 'processing':
+        if application.status != 'approved':
             return Response({
-                'error': 'Application must be in processing status to complete'
+                'error': 'Application must be in approved status to complete'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
+            # Check if user already has an active card
+            existing_card = VirtualCard.objects.filter(
+                user=application.user,
+                status__in=['active', 'suspended']
+            ).first()
+            
+            if existing_card:
+                return Response({
+                    'error': 'User already has an active card'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             # Create the virtual card
             card = VirtualCard.objects.create(
                 user=application.user,
@@ -435,8 +446,8 @@ class AdminCardApplicationCompleteView(APIView):
             )
             
             # Mark application as completed
-            notes = f"Your {application.card_type} card has been issued and is ready for use"
-            application.complete(request.user, notes)
+            notes = f"Card generated successfully"
+            application.complete(request.user, card, notes)
             
             return Response({
                 'message': 'Application completed and card generated successfully',

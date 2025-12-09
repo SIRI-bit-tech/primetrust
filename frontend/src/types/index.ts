@@ -332,7 +332,7 @@ export interface CardApplication {
   reason?: string;
   preferred_daily_limit?: number;
   preferred_monthly_limit?: number;
-  status: 'pending' | 'processing' | 'approved' | 'rejected' | 'completed';
+  status: 'processing' | 'approved' | 'declined' | 'completed';
   status_display: string;
   admin_notes?: string;
   estimated_completion_date?: string;

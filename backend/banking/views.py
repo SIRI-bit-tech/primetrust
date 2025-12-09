@@ -37,6 +37,28 @@ class CardApplicationViewSet(ModelViewSet):
     
     def perform_create(self, serializer):
         """Create application for the current user."""
+        # Check if user already has an active card or pending/processing/approved application
+        existing_cards = VirtualCard.objects.filter(
+            user=self.request.user,
+            status__in=['active', 'suspended']
+        ).exists()
+        
+        if existing_cards:
+            raise serializers.ValidationError({
+                'error': 'You already have an active card. Please cancel your current card before applying for a new one.'
+            })
+        
+        # Check for pending/processing/approved applications
+        pending_applications = CardApplication.objects.filter(
+            user=self.request.user,
+            status__in=['processing', 'approved']
+        ).exists()
+        
+        if pending_applications:
+            raise serializers.ValidationError({
+                'error': 'You already have a pending card application. Please wait for it to be processed.'
+            })
+        
         application = serializer.save(user=self.request.user)
         
         # Send notification for new application
@@ -163,21 +185,32 @@ class AdminCardApplicationViewSet(ModelViewSet):
         return Response({'message': 'Application approved and moved to processing'})
     
     @action(detail=True, methods=['post'])
-    def reject(self, request, pk=None):
-        """Reject an application."""
+    def decline(self, request, pk=None):
+        """Decline an application."""
         application = self.get_object()
         notes = request.data.get('notes', '')
-        application.reject(request.user, notes)
-        return Response({'message': 'Application rejected'})
+        application.decline(request.user, notes)
+        return Response({'message': 'Application declined'})
     
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         """Complete an application and generate card."""
         application = self.get_object()
-        if application.status != 'processing':
-            return Response({'error': 'Application must be in processing status'}, status=status.HTTP_400_BAD_REQUEST)
+        if application.status != 'approved':
+            return Response({'error': 'Application must be in approved status to complete'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
+            # Check if user already has an active card
+            existing_card = VirtualCard.objects.filter(
+                user=application.user,
+                status__in=['active', 'suspended']
+            ).first()
+            
+            if existing_card:
+                return Response({
+                    'error': 'User already has an active card'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             # Create the virtual card
             card = VirtualCard.objects.create(
                 user=application.user,
@@ -188,13 +221,14 @@ class AdminCardApplicationViewSet(ModelViewSet):
             )
             
             # Mark application as completed
-            notes = request.data.get('notes', f'Card {card.card_number} generated successfully')
-            application.complete(request.user, notes)
+            notes = request.data.get('notes', f'Card generated successfully')
+            application.complete(request.user, card, notes)
             
             return Response({
                 'message': 'Application completed and card generated',
                 'card_id': card.id,
-                'card_number': card.mask_card_number()
+                'card_number': card.mask_card_number(),
+                'status': 'completed'
             })
             
         except Exception as e:

@@ -14,17 +14,27 @@ def register_events(sio):
     async def connect(sid, environ, auth):
         """Handle client connection"""
         try:
-            # Get token from auth
-            token = auth.get('token') if auth else None
+            # Get token from cookies (HTTP-only cookie authentication)
+            cookies = environ.get('HTTP_COOKIE', '')
+            token = None
+            
+            # Parse cookies to find access_token
+            for cookie in cookies.split(';'):
+                cookie = cookie.strip()
+                if cookie.startswith('access_token='):
+                    token = cookie.split('=', 1)[1]
+                    break
             
             if not token:
-                logger.warning(f"Connection rejected for {sid}: No token provided")
+                logger.warning(f"Connection rejected for {sid}: No access token in cookies")
+                await sio.emit('error', {'message': 'Connection rejected by server'}, room=sid)
                 return False
             
             # Authenticate user (returns dict with user info from token)
             user_data = authenticate_socket(token)
             if not user_data:
                 logger.warning(f"Connection rejected for {sid}: Invalid token")
+                await sio.emit('error', {'message': 'Connection rejected by server'}, room=sid)
                 return False
             
             # Store user info in session

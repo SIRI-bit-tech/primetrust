@@ -10,20 +10,20 @@ interface UseSocketReturn {
   isConnected: boolean
 }
 
-export const useSocket = (token: string | null): UseSocketReturn => {
+export const useSocket = (isAuthenticated: boolean): UseSocketReturn => {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
 
   useEffect(() => {
-    if (!token) {
+    if (!isAuthenticated) {
       disconnectSocket()
       setSocket(null)
       setIsConnected(false)
       return
     }
 
-    // Initialize socket connection
-    const socketInstance = initializeSocket(token)
+    // Initialize socket connection (uses cookies for auth)
+    const socketInstance = initializeSocket()
     setSocket(socketInstance)
 
     // Listen for connection events
@@ -46,7 +46,7 @@ export const useSocket = (token: string | null): UseSocketReturn => {
       socketInstance.off('connect', handleConnect)
       socketInstance.off('disconnect', handleDisconnect)
     }
-  }, [token])
+  }, [isAuthenticated])
 
   return { socket, isConnected }
 }

@@ -47,21 +47,38 @@ def notify_transfer_update(user_id, transfer_id, status, transfer_type):
 
 
 def notify_card_update(user_id, card_id, status, action):
-    """Notify user of card update"""
+    """Notify user of card application update"""
     try:
         message = {
-            'event': 'card_updated',
+            'event': 'card_application_updated',
             'user_id': user_id,
             'data': {
-                'card_id': card_id,
+                'application_id': card_id,
                 'status': status,
                 'action': action
             }
         }
         redis_client.publish('socketio_events', json.dumps(message))
-        logger.info(f"Published card update for user {user_id}")
+        logger.info(f"Published card application update for user {user_id}")
     except Exception as e:
-        logger.error(f"Error publishing card update: {str(e)}")
+        logger.error(f"Error publishing card application update: {str(e)}")
+
+
+def notify_card_created(user_id, card_id, application_id):
+    """Notify user that their card has been created"""
+    try:
+        message = {
+            'event': 'card_created',
+            'user_id': user_id,
+            'data': {
+                'card_id': card_id,
+                'application_id': application_id
+            }
+        }
+        redis_client.publish('socketio_events', json.dumps(message))
+        logger.info(f"Published card created notification for user {user_id}")
+    except Exception as e:
+        logger.error(f"Error publishing card created notification: {str(e)}")
 
 
 def notify_loan_update(user_id, loan_id, status):
