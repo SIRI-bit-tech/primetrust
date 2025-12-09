@@ -80,6 +80,7 @@ coverage.xml
 
 # Celery
 celerybeat-schedule
+celerybeat-schedule.*
 celerybeat.pid
 
 # Redis

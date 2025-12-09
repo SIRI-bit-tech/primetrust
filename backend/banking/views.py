@@ -9,14 +9,18 @@ from django.db import transaction
 from rest_framework import serializers
 import logging
 import traceback
-from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication, ExternalBankAccount, SavedBeneficiary
+from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication, ExternalBankAccount, SavedBeneficiary, CheckDeposit
 from .serializers import (
-    VirtualCardSerializer, VirtualCardCreateSerializer, TransferSerializer,
-    BankAccountSerializer, DirectDepositSerializer, CardApplicationSerializer, CardApplicationCreateSerializer,
-    ExternalBankAccountSerializer, SavedBeneficiarySerializer, ACHTransferSerializer,
-    WireTransferSerializer, InternationalWireTransferSerializer, BankLookupSerializer
+    CheckDepositSerializer, CheckDepositCreateSerializer,
+    TransferSerializer, BankAccountSerializer, DirectDepositSerializer,
+    ExternalBankAccountSerializer, SavedBeneficiarySerializer,
+    CardApplicationCreateSerializer, VirtualCardCreateSerializer,
+    ACHTransferSerializer, WireTransferSerializer, InternationalWireTransferSerializer,
+    BankLookupSerializer
 )
-from .transfer_services import BankLookupService, ACHTransferService, WireTransferService
+from admin_api.serializers import (
+    VirtualCardSerializer, CardApplicationSerializer
+)
 
 logger = logging.getLogger(__name__)
 
@@ -347,19 +351,17 @@ def validate_routing_number(request):
     
     routing_number = serializer.validated_data['routing_number']
     
-    # Validate routing number format and checksum
-    validation_result = BankLookupService.validate_routing_number(routing_number)
-    
-    if not validation_result['is_valid']:
+    # Basic validation - just check format
+    if len(routing_number) != 9 or not routing_number.isdigit():
         return Response({
             'is_valid': False,
-            'message': validation_result['message']
+            'message': 'Routing number must be 9 digits'
         }, status=status.HTTP_400_BAD_REQUEST)
     
     # Return success - user will enter bank name manually
     return Response({
         'is_valid': True,
-        'message': validation_result['message'],
+        'message': 'Routing number format is valid',
         'routing_number': routing_number,
         'note': 'Please enter your bank name manually'
     }, status=status.HTTP_200_OK)
@@ -395,137 +397,100 @@ class SavedBeneficiaryViewSet(ModelViewSet):
 @permission_classes([permissions.IsAuthenticated])
 def create_ach_transfer(request):
     """Create an ACH transfer."""
-    # Log only non-sensitive metadata
-    logger.info(
-        f"ACH transfer request from user {request.user.id}, "
-        f"amount: {request.data.get('amount', 'N/A')}, "
-        f"transfer_type: ACH"
-    )
     serializer = ACHTransferSerializer(data=request.data)
     if not serializer.is_valid():
-        # Log only error field names, not values
-        error_fields = list(serializer.errors.keys())
-        logger.warning(f"ACH transfer validation failed for user {request.user.id}, fields: {error_fields}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    try:
-        transfer = ACHTransferService.create_transfer(
-            user=request.user,
-            data=serializer.validated_data
-        )
-        
-        return Response({
-            'message': 'ACH transfer created successfully',
-            'transfer_id': transfer.id,
-            'reference_number': transfer.reference_number,
-            'status': transfer.status,
-            'scheduled_completion_time': transfer.scheduled_completion_time
-        }, status=status.HTTP_201_CREATED)
-        
-    except ValueError as e:
-        logger.warning(f"ACH transfer validation error for user {request.user.id}: {str(e)}")
-        return Response({
-            'error': str(e)
-        }, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:
-        logger.error(
-            f"Failed to create ACH transfer for user {request.user.id}: {str(e)}\n"
-            f"Stack trace: {traceback.format_exc()}"
-        )
-        return Response({
-            'error': 'Failed to create transfer'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({
+        'message': 'ACH transfer endpoint not yet implemented',
+        'error': 'Feature coming soon'
+    }, status=status.HTTP_501_NOT_IMPLEMENTED)
 
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def create_wire_transfer(request):
     """Create a domestic wire transfer."""
-    # Log only non-sensitive metadata
-    logger.info(
-        f"Wire transfer request from user {request.user.id}, "
-        f"amount: {request.data.get('amount', 'N/A')}, "
-        f"transfer_type: domestic_wire"
-    )
     serializer = WireTransferSerializer(data=request.data)
     if not serializer.is_valid():
-        # Log only error field names, not values
-        error_fields = list(serializer.errors.keys())
-        logger.warning(f"Wire transfer validation failed for user {request.user.id}, fields: {error_fields}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    try:
-        transfer = WireTransferService.create_transfer(
-            user=request.user,
-            data=serializer.validated_data,
-            is_international=False
-        )
-        
-        return Response({
-            'message': 'Wire transfer created successfully',
-            'transfer_id': transfer.id,
-            'reference_number': transfer.reference_number,
-            'status': transfer.status,
-            'scheduled_completion_time': transfer.scheduled_completion_time
-        }, status=status.HTTP_201_CREATED)
-        
-    except ValueError as e:
-        logger.warning(f"Wire transfer validation error for user {request.user.id}: {str(e)}")
-        return Response({
-            'error': str(e)
-        }, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:
-        logger.error(
-            f"Failed to create wire transfer for user {request.user.id}: {str(e)}\n"
-            f"Stack trace: {traceback.format_exc()}"
-        )
-        return Response({
-            'error': 'Failed to create transfer'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({
+        'message': 'Wire transfer endpoint not yet implemented',
+        'error': 'Feature coming soon'
+    }, status=status.HTTP_501_NOT_IMPLEMENTED)
 
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def create_international_wire_transfer(request):
     """Create an international wire transfer."""
-    # Log only non-sensitive metadata
-    logger.info(
-        f"International wire transfer request from user {request.user.id}, "
-        f"amount: {request.data.get('amount', 'N/A')}, "
-        f"transfer_type: international_wire"
-    )
     serializer = InternationalWireTransferSerializer(data=request.data)
     if not serializer.is_valid():
-        # Log only error field names, not values
-        error_fields = list(serializer.errors.keys())
-        logger.warning(f"International wire transfer validation failed for user {request.user.id}, fields: {error_fields}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+    return Response({
+        'message': 'International wire transfer endpoint not yet implemented',
+        'error': 'Feature coming soon'
+    }, status=status.HTTP_501_NOT_IMPLEMENTED)
+
+
+# Check Deposit Views
+class CheckDepositViewSet(ModelViewSet):
+    """ViewSet for check deposits."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return CheckDeposit.objects.filter(user=self.request.user)
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CheckDepositCreateSerializer
+        return CheckDepositSerializer
+    
+    def perform_create(self, serializer):
+        deposit = serializer.save(user=self.request.user)
+        
+        # Send real-time notification
+        from socketio_app.utils import notify_check_deposit_update, send_notification, send_admin_notification
+        notify_check_deposit_update(self.request.user.id, deposit.id, deposit.status, deposit.amount)
+        send_notification(
+            self.request.user.id,
+            'Check Deposit Submitted',
+            f'Your check deposit of ${deposit.amount} has been submitted for review.',
+            'info'
+        )
+        
+        # Notify admins
+        send_admin_notification(
+            'New Check Deposit',
+            f'New check deposit of ${deposit.amount} from {self.request.user.get_full_name() or self.request.user.email}',
+            'info'
+        )
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def extract_check_data(request):
+    """Extract data from check image using OCR."""
+    logger.info(f"Extract check data called with method: {request.method}")
+    front_image = request.FILES.get('front_image')
+    
+    if not front_image:
+        return Response({'error': 'Front image required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Use Tesseract OCR to extract check data
+    from .ocr_service import CheckOCRService
+    
     try:
-        transfer = WireTransferService.create_transfer(
-            user=request.user,
-            data=serializer.validated_data,
-            is_international=True
-        )
-        
-        return Response({
-            'message': 'International wire transfer created successfully',
-            'transfer_id': transfer.id,
-            'reference_number': transfer.reference_number,
-            'status': transfer.status,
-            'scheduled_completion_time': transfer.scheduled_completion_time
-        }, status=status.HTTP_201_CREATED)
-        
-    except ValueError as e:
-        logger.warning(f"International wire transfer validation error for user {request.user.id}: {str(e)}")
-        return Response({
-            'error': str(e)
-        }, status=status.HTTP_400_BAD_REQUEST)
+        extracted_data = CheckOCRService.extract_check_data(front_image)
+        return Response(extracted_data, status=status.HTTP_200_OK)
     except Exception as e:
-        logger.error(
-            f"Failed to create international wire transfer for user {request.user.id}: {str(e)}\n"
-            f"Stack trace: {traceback.format_exc()}"
-        )
+        logger.error(f"OCR extraction error: {str(e)}")
         return Response({
-            'error': 'Failed to create transfer'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            'amount': None,
+            'check_number': None,
+            'confidence': 0.0,
+            'message': 'OCR extraction failed. Please enter details manually.'
+        }, status=status.HTTP_200_OK)

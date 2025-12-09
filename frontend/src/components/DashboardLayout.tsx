@@ -49,6 +49,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Virtual Cards', href: '/dashboard/cards', icon: CreditCard },
   { name: 'Transfer Money', href: '/dashboard/transfer', icon: Send },
+  { name: 'Check Deposit', href: '/dashboard/check-deposit', icon: Receipt },
   { name: 'Loans', href: '/dashboard/loans', icon: DollarSign },
   { name: 'Investments', href: '/dashboard/investments', icon: TrendingUp },
   { name: 'Pay Bills', href: '/dashboard/bills', icon: Receipt },

@@ -12,7 +12,8 @@ import {
   DollarSign,
   Clock,
   XCircle,
-  LineChart
+  LineChart,
+  FileCheck
 } from 'lucide-react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -163,6 +164,10 @@ export default function TransactionsPage() {
         return <LineChart className={`w-5 h-5 ${isSale ? 'text-green-600' : 'text-purple-600'}`} />
       }
       if (type === 'deposit') {
+        // Check if it's a check deposit
+        if (description.toLowerCase().includes('check deposit')) {
+          return <FileCheck className="w-5 h-5 text-green-500" />
+        }
         return <TrendingUp className="w-5 h-5 text-green-500" />
       }
       if (type === 'withdrawal') {
@@ -454,8 +459,15 @@ export default function TransactionsPage() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredTransactions.map((transaction) => {
                       const type = getTransactionType(transaction)
-                      const senderName = (transaction as any).sender_name || (transaction as any).sender?.full_name || 'You'
-                      const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'External Account'
+                      // For deposits, sender is external (merchant_name/payer), recipient is user
+                      const isDeposit = type === 'deposit'
+                      const merchantName = (transaction as any).merchant_name
+                      const senderName = isDeposit 
+                        ? (merchantName || 'External Account')
+                        : ((transaction as any).sender_name || (transaction as any).sender?.full_name || 'You')
+                      const recipientName = isDeposit
+                        ? 'You'
+                        : ((transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'External Account')
                       const fee = (transaction as any).fee || 0
                       const refNumber = (transaction as any).reference_number
                       
@@ -542,8 +554,15 @@ export default function TransactionsPage() {
               <div className="lg:hidden divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredTransactions.map((transaction) => {
                   const type = getTransactionType(transaction)
-                  const senderName = (transaction as any).sender_name || (transaction as any).sender?.full_name || 'You'
-                  const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'External Account'
+                  // For deposits, sender is external (merchant_name/payer), recipient is user
+                  const isDeposit = type === 'deposit'
+                  const merchantName = (transaction as any).merchant_name
+                  const senderName = isDeposit 
+                    ? (merchantName || 'External Account')
+                    : ((transaction as any).sender_name || (transaction as any).sender?.full_name || 'You')
+                  const recipientName = isDeposit
+                    ? 'You'
+                    : ((transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'External Account')
                   const fee = (transaction as any).fee || 0
                   const refNumber = (transaction as any).reference_number
                   

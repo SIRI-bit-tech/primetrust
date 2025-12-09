@@ -150,3 +150,21 @@ def send_admin_notification(title, message, notification_type='info'):
         logger.info(f"Published admin notification")
     except Exception as e:
         logger.error(f"Error publishing admin notification: {str(e)}")
+
+
+def notify_check_deposit_update(user_id, deposit_id, status, amount):
+    """Notify user of check deposit status update"""
+    try:
+        message = {
+            'event': 'check_deposit_updated',
+            'user_id': user_id,
+            'data': {
+                'deposit_id': deposit_id,
+                'status': status,
+                'amount': float(amount)
+            }
+        }
+        redis_client.publish('socketio_events', json.dumps(message))
+        logger.info(f"Published check deposit update for user {user_id}")
+    except Exception as e:
+        logger.error(f"Error publishing check deposit update: {str(e)}")

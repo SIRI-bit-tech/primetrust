@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from accounts.models import SecurityAuditLog
 from transactions.models import Transaction, Loan, Bill, Investment, BitcoinTransaction
-from banking.models import VirtualCard, CardApplication, Transfer
+from banking.models import VirtualCard, CardApplication, Transfer, CheckDeposit
 from api.models import Notification, SystemStatus
 from bitcoin_wallet.models import CurrencySwap
 
@@ -173,3 +173,32 @@ class SecurityAuditLogSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_name', 'event_type', 'description',
             'ip_address', 'user_agent', 'created_at'
         ] 
+
+
+
+class CheckDepositSerializer(serializers.ModelSerializer):
+    """Serializer for CheckDeposit model (admin view)."""
+    
+    user_name = serializers.SerializerMethodField()
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    admin_approved_by_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CheckDeposit
+        fields = [
+            'id', 'user', 'user_name', 'user_email', 'check_number', 'amount',
+            'front_image', 'back_image', 'payer_name', 'memo',
+            'ocr_amount', 'ocr_check_number', 'ocr_confidence',
+            'status', 'status_display', 'admin_notes', 'hold_until',
+            'admin_approved_by', 'admin_approved_by_name', 'admin_approved_at',
+            'created_at', 'updated_at', 'completed_at'
+        ]
+    
+    def get_user_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.email
+    
+    def get_admin_approved_by_name(self, obj):
+        if obj.admin_approved_by:
+            return f"{obj.admin_approved_by.first_name} {obj.admin_approved_by.last_name}".strip() or obj.admin_approved_by.email
+        return None
