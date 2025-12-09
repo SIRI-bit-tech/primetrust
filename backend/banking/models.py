@@ -824,9 +824,6 @@ class CheckDeposit(models.Model):
         
         # Update transaction status to failed
         from transactions.models import Transaction
-        # Match the description format used in save()
-        payer_info = f" from {self.payer_name}" if self.payer_name else ""
-        check_desc = f"Check deposit{payer_info} - Check #{self.check_number or 'Pending'}"
         transaction = Transaction.objects.filter(
             user=self.user,
             transaction_type='deposit',
