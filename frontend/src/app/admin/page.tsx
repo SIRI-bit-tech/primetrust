@@ -55,6 +55,8 @@ export default function AdminPage() {
   // Modal states
   const [showLockModal, setShowLockModal] = useState(false)
   const [selectedUserForAction, setSelectedUserForAction] = useState<number | null>(null)
+  const [showCardSuccessModal, setShowCardSuccessModal] = useState(false)
+  const [cardSuccessData, setCardSuccessData] = useState<{ cardNumber: string } | null>(null)
 
   // Data states
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null)
@@ -297,8 +299,9 @@ export default function AdminPage() {
     try {
       const result = await adminAPI.completeCardApplication(applicationId)
       setError('') // Clear any previous errors
-      // Show success message
-      alert(`Application completed! Card ${result.card_number} has been issued and is ready for use.`)
+      // Show success modal
+      setCardSuccessData({ cardNumber: result.card_number })
+      setShowCardSuccessModal(true)
       loadData() // Reload data
     } catch (err: unknown) {
       const error = err as AxiosError<{ error?: string }>
@@ -597,14 +600,14 @@ export default function AdminPage() {
                   value={applicationItem.status}
                   onChange={(e) => handleUpdateCardApplicationStatus(applicationItem.id, e.target.value)}
                   className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
+                  disabled={applicationItem.status === 'completed'}
                 >
-                  <option value="pending">Pending</option>
                   <option value="processing">Processing</option>
                   <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
+                  <option value="declined">Declined</option>
                   <option value="completed">Completed</option>
                 </select>
-                {applicationItem.status === 'processing' && (
+                {applicationItem.status === 'approved' && (
                   <button
                     onClick={() => handleCompleteCardApplication(applicationItem.id)}
                     className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded"
@@ -807,10 +810,10 @@ export default function AdminPage() {
               {investmentItem.investment_type}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {formatCurrency(investmentItem.amount || investmentItem.amount_invested)}
+              {formatCurrency((investmentItem as any).amount_invested || 0)}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {investmentItem.return_rate}%
+              {(investmentItem as any).return_rate ? `${(investmentItem as any).return_rate}%` : 'N/A'}
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(investmentItem.status)}`}>
@@ -1175,6 +1178,40 @@ export default function AdminPage() {
         cancelText="Cancel"
         isDestructive={true}
       />
+
+      {/* Card Success Modal */}
+      {showCardSuccessModal && cardSuccessData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white text-center mb-2">
+              Card Created Successfully!
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 text-center mb-4">
+              The virtual card has been issued and is ready for use.
+            </p>
+            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 mb-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Card Number</p>
+              <p className="text-lg font-mono font-semibold text-gray-900 dark:text-white">
+                {cardSuccessData.cardNumber}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowCardSuccessModal(false)
+                setCardSuccessData(null)
+              }}
+              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

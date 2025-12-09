@@ -7,15 +7,13 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8001'
 
 let socket: Socket | null = null
 
-export const initializeSocket = (token: string): Socket => {
+export const initializeSocket = (): Socket => {
   if (socket && socket.connected) {
     return socket
   }
 
   socket = io(SOCKET_URL, {
-    auth: {
-      token: token
-    },
+    withCredentials: true, // Send cookies with Socket.IO connection
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionDelay: 1000,
