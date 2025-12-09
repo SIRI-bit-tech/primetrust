@@ -3,23 +3,40 @@ OCR Service for extracting data from check images using EasyOCR
 """
 import re
 import logging
+import threading
 from decimal import Decimal
 from PIL import Image
 import numpy as np
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# Initialize EasyOCR reader (lazy loading)
+# Configuration: Maximum check amount for OCR validation
+# Can be overridden in settings.py with MAX_CHECK_AMOUNT
+# Set to None to disable upper limit validation
+MAX_CHECK_AMOUNT = getattr(settings, 'MAX_CHECK_AMOUNT', 100000)  # Default: $100,000
+
+# Initialize EasyOCR reader (lazy loading with thread-safe double-checked locking)
 _reader = None
+_reader_lock = threading.Lock()
 
 def get_reader():
-    """Lazy load EasyOCR reader to avoid startup delay"""
+    """Lazy load EasyOCR reader to avoid startup delay (thread-safe)"""
     global _reader
-    if _reader is None:
-        import easyocr
-        logger.info("Initializing EasyOCR reader (English)...")
-        _reader = easyocr.Reader(['en'], gpu=False)  # Use CPU, set gpu=True if you have CUDA
-        logger.info("EasyOCR reader initialized successfully")
+    
+    # First check without lock (fast path)
+    if _reader is not None:
+        return _reader
+    
+    # Acquire lock for initialization
+    with _reader_lock:
+        # Double-check inside lock to prevent race condition
+        if _reader is None:
+            import easyocr
+            logger.info("Initializing EasyOCR reader (English)...")
+            _reader = easyocr.Reader(['en'], gpu=False)  # Use CPU, set gpu=True if you have CUDA
+            logger.info("EasyOCR reader initialized successfully")
+    
     return _reader
 
 
@@ -120,9 +137,17 @@ class CheckOCRService:
                 amount_str = matches[0].replace(',', '')
                 try:
                     amount = Decimal(amount_str)
-                    # Sanity check - check amounts are typically under $10,000
-                    if 0 < amount <= 10000:
-                        return amount
+                    # Validate amount is positive
+                    if amount <= 0:
+                        continue
+                    # Validate against max check amount if configured
+                    if MAX_CHECK_AMOUNT is not None and amount > MAX_CHECK_AMOUNT:
+                        logger.warning(
+                            f"Extracted check amount ${amount} exceeds MAX_CHECK_AMOUNT "
+                            f"${MAX_CHECK_AMOUNT}, skipping this match"
+                        )
+                        continue
+                    return amount
                 except (ValueError, ArithmeticError):
                     continue
         

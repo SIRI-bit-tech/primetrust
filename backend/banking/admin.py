@@ -244,7 +244,7 @@ class CheckDepositAdmin(admin.ModelAdmin):
         """Complete approved check deposits (bypass hold period)."""
         completed_count = 0
         for deposit in queryset.filter(status='approved'):
-            success, message = deposit.complete()
+            success, message = deposit.complete(bypass_hold=True)
             if success:
                 completed_count += 1
             else:

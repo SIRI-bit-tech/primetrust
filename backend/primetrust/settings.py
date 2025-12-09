@@ -356,6 +356,10 @@ MAXIMUM_TRANSFER_AMOUNT = 10000.00
 DAILY_TRANSFER_LIMIT = 50000.00
 MONTHLY_TRANSFER_LIMIT = 500000.00
 
+# Check deposit settings
+# Maximum check amount for OCR validation (set to None to disable upper limit)
+MAX_CHECK_AMOUNT = 100000.00  # $100,000
+
 # Investment settings
 MINIMUM_INVESTMENT_AMOUNT = 10.00
 MAXIMUM_INVESTMENT_AMOUNT = 100000.00
