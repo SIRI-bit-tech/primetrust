@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
 from datetime import date, timedelta
-from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication
+from .models import VirtualCard, Transfer, BankAccount, DirectDeposit, CardApplication, CheckDeposit
 
 
 @admin.register(CardApplication)
@@ -177,3 +177,81 @@ class DirectDepositAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
     raw_id_fields = ('user',)
     date_hierarchy = 'created_at'
+
+
+
+@admin.register(CheckDeposit)
+class CheckDepositAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'amount', 'check_number', 'status', 'created_at', 'hold_until', 'admin_approved_by']
+    list_filter = ['status', 'created_at', 'admin_approved_by']
+    search_fields = ['user__email', 'user__first_name', 'user__last_name', 'check_number', 'payer_name']
+    readonly_fields = ['created_at', 'updated_at', 'completed_at', 'ocr_amount', 'ocr_check_number', 'ocr_confidence', 'front_image_preview', 'back_image_preview']
+    actions = ['approve_deposits', 'reject_deposits', 'complete_deposits']
+    
+    fieldsets = (
+        ('Check Information', {
+            'fields': ('user', 'amount', 'check_number', 'payer_name', 'memo')
+        }),
+        ('Check Images', {
+            'fields': ('front_image', 'front_image_preview', 'back_image', 'back_image_preview')
+        }),
+        ('OCR Data', {
+            'fields': ('ocr_amount', 'ocr_check_number', 'ocr_confidence'),
+            'classes': ('collapse',)
+        }),
+        ('Status & Approval', {
+            'fields': ('status', 'admin_notes', 'hold_until', 'admin_approved_by', 'admin_approved_at')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'completed_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def front_image_preview(self, obj):
+        """Display front image preview."""
+        if obj.front_image:
+            return format_html('<img src="{}" style="max-width: 400px; max-height: 300px;" />', obj.front_image.url)
+        return "No image"
+    front_image_preview.short_description = 'Front Image Preview'
+    
+    def back_image_preview(self, obj):
+        """Display back image preview."""
+        if obj.back_image:
+            return format_html('<img src="{}" style="max-width: 400px; max-height: 300px;" />', obj.back_image.url)
+        return "No image"
+    back_image_preview.short_description = 'Back Image Preview'
+    
+    def approve_deposits(self, request, queryset):
+        """Approve selected check deposits."""
+        approved_count = 0
+        for deposit in queryset.filter(status='pending'):
+            deposit.approve(request.user, hold_days=1, notes="Approved by admin")
+            approved_count += 1
+        self.message_user(request, f'{approved_count} check deposits approved.')
+    approve_deposits.short_description = "Approve check deposits (1 day hold)"
+    
+    def reject_deposits(self, request, queryset):
+        """Reject selected check deposits."""
+        rejected_count = 0
+        for deposit in queryset.filter(status__in=['pending', 'approved']):
+            deposit.reject(request.user, notes="Rejected by admin")
+            rejected_count += 1
+        self.message_user(request, f'{rejected_count} check deposits rejected.')
+    reject_deposits.short_description = "Reject check deposits"
+    
+    def complete_deposits(self, request, queryset):
+        """Complete approved check deposits (bypass hold period)."""
+        completed_count = 0
+        for deposit in queryset.filter(status='approved'):
+            success, message = deposit.complete()
+            if success:
+                completed_count += 1
+            else:
+                self.message_user(request, f'Error completing deposit {deposit.id}: {message}', level='ERROR')
+        self.message_user(request, f'{completed_count} check deposits completed.')
+    complete_deposits.short_description = "Complete check deposits (bypass hold)"
+    
+    def has_add_permission(self, request):
+        """Prevent manual creation of check deposits."""
+        return False

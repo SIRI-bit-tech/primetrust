@@ -405,6 +405,49 @@ export interface AdminDashboardData {
   }
 }
 
+// Check Deposit
+export interface CheckDeposit {
+  id: number
+  user: number
+  user_email: string
+  user_name: string
+  check_number: string
+  amount: number
+  front_image: string
+  back_image: string
+  payer_name: string
+  memo: string
+  ocr_amount: number | null
+  ocr_check_number: string
+  ocr_confidence: number
+  status: 'pending' | 'processing' | 'approved' | 'rejected' | 'completed'
+  status_display: string
+  admin_notes: string
+  hold_until: string | null
+  admin_approved_by: number | null
+  admin_approved_by_name: string | null
+  admin_approved_at: string | null
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+}
+
+export interface CheckDepositCreate {
+  check_number: string
+  amount: number
+  front_image: File
+  back_image: File
+  payer_name: string
+  memo: string
+}
+
+export interface OCRExtractResponse {
+  amount: number | null
+  check_number: string | null
+  confidence: number
+  message: string
+}
+
 export type TableItem = 
   | User 
   | Transaction 
@@ -418,6 +461,7 @@ export type TableItem =
   | Bill 
   | Investment 
   | SecurityAuditLog 
+  | CheckDeposit 
 
 
 // Transfer with approval fields

@@ -30,7 +30,14 @@ python manage.py runserver
 ```bash
 cd backend
 python manage.py run_socketio --host 0.0.0.0 --port 8001
+
+celery -A primetrust worker -l info --pool=solo
+
+celery -A primetrust beat -l info
+
 ```
+
+
 
 ### 3. Next.js Frontend (Port 3000)
 ```bash

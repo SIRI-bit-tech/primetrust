@@ -19,7 +19,8 @@ import {
   ArrowUpDown,
   ArrowDownUp,
   XCircle,
-  LineChart
+  LineChart,
+  FileCheck
 } from 'lucide-react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -185,11 +186,17 @@ export default function DashboardPage() {
       fetchData()
     }
 
+    const handleCheckDepositUpdate = () => {
+      // Refresh data when check deposit status changes
+      fetchData()
+    }
+
     window.addEventListener('balance-updated', handleBalanceUpdate as EventListener)
     window.addEventListener('transfer-updated', handleTransferUpdate as EventListener)
     window.addEventListener('card-updated', handleCardUpdate as EventListener)
     window.addEventListener('loan-updated', handleLoanUpdate as EventListener)
     window.addEventListener('bitcoin-transaction-updated', handleBitcoinTransactionUpdate as EventListener)
+    window.addEventListener('check-deposit-updated', handleCheckDepositUpdate as EventListener)
 
     return () => {
       window.removeEventListener('balance-updated', handleBalanceUpdate as EventListener)
@@ -197,6 +204,7 @@ export default function DashboardPage() {
       window.removeEventListener('card-updated', handleCardUpdate as EventListener)
       window.removeEventListener('loan-updated', handleLoanUpdate as EventListener)
       window.removeEventListener('bitcoin-transaction-updated', handleBitcoinTransactionUpdate as EventListener)
+      window.removeEventListener('check-deposit-updated', handleCheckDepositUpdate as EventListener)
     }
   }, [account, fetchData])
 
@@ -222,6 +230,10 @@ export default function DashboardPage() {
         return <LineChart className={`w-5 h-5 ${isSale ? 'text-green-600' : 'text-purple-600'}`} />
       }
       if (type === 'deposit') {
+        // Check if it's a check deposit
+        if (description.toLowerCase().includes('check deposit')) {
+          return <FileCheck className="w-5 h-5 text-green-500" />
+        }
         return <TrendingUp className="w-5 h-5 text-green-500" />
       }
       if (type === 'withdrawal') {

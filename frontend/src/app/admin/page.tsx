@@ -44,6 +44,7 @@ import {
 } from '@/types'
 import PendingTransfersTable from '@/components/admin/PendingTransfersTable'
 import UnlockRequestsTable from '@/components/admin/UnlockRequestsTable'
+import CheckDepositsTable from '@/components/admin/CheckDepositsTable'
 import AdminActionModal from '@/components/admin/AdminActionModal'
 
 export default function AdminPage() {
@@ -73,6 +74,7 @@ export default function AdminPage() {
   const [loans, setLoans] = useState<Loan[]>([])
   const [bills, setBills] = useState<Bill[]>([])
   const [investments, setInvestments] = useState<Investment[]>([])
+  const [checkDeposits, setCheckDeposits] = useState<any[]>([])
   const [securityLogs, setSecurityLogs] = useState<SecurityAuditLog[]>([])
 
   // Filter states
@@ -98,6 +100,7 @@ export default function AdminPage() {
     { id: 'loans', label: 'Loans', icon: Shield },
     { id: 'bills', label: 'Bills', icon: Receipt },
     { id: 'investments', label: 'Investments', icon: PiggyBank },
+    { id: 'check-deposits', label: 'Check Deposits', icon: Receipt },
     { id: 'security-logs', label: 'Security Logs', icon: AlertTriangle },
   ]
 
@@ -157,6 +160,10 @@ export default function AdminPage() {
         case 'investments':
           const investmentsData = await adminAPI.getAllInvestments()
           setInvestments(investmentsData)
+          break
+        case 'check-deposits':
+          const checkDepositsData = await adminAPI.getAllCheckDeposits()
+          setCheckDeposits(checkDepositsData)
           break
         case 'security-logs':
           const securityLogsData = await adminAPI.getAllSecurityLogs()
@@ -370,6 +377,7 @@ export default function AdminPage() {
       loans,
       bills,
       investments,
+      'check-deposits': checkDeposits,
       'security-logs': securityLogs
     }
     
@@ -435,6 +443,8 @@ export default function AdminPage() {
         return ['User', 'Type', 'Amount', 'Due Date', 'Status', 'Description']
       case 'investments':
         return ['User', 'Type', 'Amount', 'Return Rate', 'Status', 'Date']
+      case 'check-deposits':
+        return ['User', 'Amount', 'Check Number', 'Status', 'Created', 'Actions']
       case 'security-logs':
         return ['User', 'Event Type', 'Description', 'IP Address', 'Timestamp']
       default:
@@ -825,6 +835,37 @@ export default function AdminPage() {
             </td>
           </>
         )
+      case 'check-deposits':
+        const checkDepositItem = item as any
+        return (
+          <>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              {checkDepositItem.user_name || checkDepositItem.user_email}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatCurrency(Number(checkDepositItem.amount) || 0)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {checkDepositItem.check_number || 'N/A'}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(checkDepositItem.status)}`}>
+                {checkDepositItem.status_display || checkDepositItem.status}
+              </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              {formatDate(checkDepositItem.created_at)}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+              <button
+                onClick={() => window.open(`/admin/banking/checkdeposit/${checkDepositItem.id}/change/`, '_blank')}
+                className="text-blue-400 hover:text-blue-300"
+              >
+                View Details
+              </button>
+            </td>
+          </>
+        )
       case 'security-logs':
         const securityLogItem = item as SecurityAuditLog
         return (
@@ -1095,8 +1136,25 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Check Deposits Tab */}
+        {activeTab === 'check-deposits' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-white">Check Deposits</h2>
+              <button
+                onClick={loadData}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 py-2 rounded"
+              >
+                {loading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+            <CheckDepositsTable deposits={checkDeposits} onRefresh={loadData} />
+          </div>
+        )}
+
         {/* Other Tabs */}
-        {activeTab !== 'dashboard' && activeTab !== 'pending-transfers' && activeTab !== 'unlock-requests' && (
+        {activeTab !== 'dashboard' && activeTab !== 'pending-transfers' && activeTab !== 'unlock-requests' && activeTab !== 'check-deposits' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-white capitalize">

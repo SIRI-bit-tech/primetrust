@@ -685,4 +685,238 @@ class DirectDeposit(models.Model):
     def _hash_field(value):
         """Generate a deterministic hash for a field value using HMAC-SHA256."""
         secret_key = settings.SECRET_KEY.encode('utf-8')
-        return hmac.new(secret_key, value.encode('utf-8'), hashlib.sha256).hexdigest() 
+        return hmac.new(secret_key, value.encode('utf-8'), hashlib.sha256).hexdigest()
+
+
+class CheckDeposit(models.Model):
+    """Model for check deposits."""
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('completed', 'Completed'),
+    ]
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='check_deposits')
+    check_number = models.CharField(max_length=50, blank=True)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    
+    # Check images
+    front_image = models.ImageField(upload_to='check_deposits/front/')
+    back_image = models.ImageField(upload_to='check_deposits/back/', blank=True, null=True)
+    
+    # Check details
+    payer_name = models.CharField(max_length=200, blank=True)
+    memo = models.CharField(max_length=200, blank=True)
+    
+    # OCR extracted data
+    ocr_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    ocr_check_number = models.CharField(max_length=50, blank=True)
+    ocr_confidence = models.FloatField(default=0.0)
+    
+    # Status and approval
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    admin_notes = models.TextField(blank=True)
+    
+    # Hold period
+    hold_until = models.DateTimeField(null=True, blank=True)
+    
+    # Admin approval
+    requires_admin_approval = models.BooleanField(default=True)
+    admin_approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_check_deposits'
+    )
+    admin_approved_at = models.DateTimeField(null=True, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'check_deposits'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Check deposit ${self.amount} - {self.user.email} ({self.status})"
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        
+        # Create transaction record when check deposit is first created
+        if is_new:
+            from transactions.models import Transaction
+            payer_info = f" from {self.payer_name}" if self.payer_name else ""
+            Transaction.objects.create(
+                user=self.user,
+                transaction_type='deposit',
+                amount=self.amount,
+                status='pending',
+                description=f"Check deposit{payer_info} - Check #{self.check_number or 'Pending'}",
+                balance_before=self.user.balance,
+                balance_after=self.user.balance,
+                merchant_name=self.payer_name or "Check Deposit",
+            )
+            
+            # Trigger async tasks for new deposits
+            try:
+                from .tasks import validate_check_image_quality, detect_duplicate_checks, send_check_deposit_email_notification
+                # Validate image quality
+                validate_check_image_quality.delay(self.id)
+                # Check for duplicates
+                detect_duplicate_checks.delay()
+                # Send email notification
+                send_check_deposit_email_notification.delay(self.id, 'submitted')
+            except Exception:
+                pass  # Celery might not be running in development
+    
+    def approve(self, admin_user, hold_days=1, notes=""):
+        """Approve check deposit and set hold period."""
+        from datetime import timedelta
+        
+        self.status = 'approved'
+        self.admin_approved_by = admin_user
+        self.admin_approved_at = timezone.now()
+        self.admin_notes = notes
+        self.hold_until = timezone.now() + timedelta(days=hold_days)
+        self.save()
+        
+        # Send real-time notification
+        from socketio_app.utils import notify_check_deposit_update, send_notification
+        notify_check_deposit_update(self.user.id, self.id, self.status, self.amount)
+        send_notification(
+            self.user.id,
+            'Check Deposit Approved',
+            f'Your check deposit of ${self.amount} has been approved. Funds will be available on {self.hold_until.strftime("%B %d, %Y")}.',
+            'success'
+        )
+        
+        # Send email notification
+        try:
+            from .tasks import send_check_deposit_email_notification
+            send_check_deposit_email_notification.delay(self.id, 'approved')
+        except Exception:
+            pass
+    
+    def reject(self, admin_user, notes=""):
+        """Reject check deposit."""
+        self.status = 'rejected'
+        self.admin_approved_by = admin_user
+        self.admin_approved_at = timezone.now()
+        self.admin_notes = notes
+        
+        # Update transaction status to failed
+        from transactions.models import Transaction
+        check_desc = f"Check deposit - Check #{self.check_number or 'Pending'}"
+        transaction = Transaction.objects.filter(
+            user=self.user,
+            transaction_type='deposit',
+            description=check_desc,
+            status='pending'
+        ).first()
+        
+        if transaction:
+            transaction.status = 'failed'
+            transaction.save()
+        
+        # Temporarily disable save to avoid recursion
+        super(CheckDeposit, self).save(update_fields=['status', 'admin_approved_by', 'admin_approved_at', 'admin_notes'])
+        
+        # Send real-time notification
+        from socketio_app.utils import notify_check_deposit_update, send_notification
+        notify_check_deposit_update(self.user.id, self.id, self.status, self.amount)
+        send_notification(
+            self.user.id,
+            'Check Deposit Rejected',
+            f'Your check deposit of ${self.amount} has been rejected. {notes}',
+            'error'
+        )
+        
+        # Send email notification
+        try:
+            from .tasks import send_check_deposit_email_notification
+            send_check_deposit_email_notification.delay(self.id, 'rejected')
+        except Exception:
+            pass
+    
+    def complete(self, bypass_hold=False):
+        """Complete check deposit and add funds to user balance."""
+        if self.status != 'approved':
+            return False, "Check must be approved first"
+        
+        if not bypass_hold and self.hold_until and timezone.now() < self.hold_until:
+            return False, "Hold period not yet expired"
+        
+        # Add to user balance
+        self.user.balance += self.amount
+        self.user.save()
+        
+        # Update existing transaction record
+        from transactions.models import Transaction
+        payer_info = f" from {self.payer_name}" if self.payer_name else ""
+        check_desc = f"Check deposit{payer_info} - Check #{self.check_number or 'Pending'}"
+        
+        # Try to find the pending transaction (it might have the old description format)
+        transaction = Transaction.objects.filter(
+            user=self.user,
+            transaction_type='deposit',
+            status='pending',
+            amount=self.amount
+        ).filter(
+            description__contains=f"Check #{self.check_number}" if self.check_number else "Check #Pending"
+        ).first()
+        
+        if transaction:
+            transaction.status = 'completed'
+            transaction.description = check_desc  # Update description with payer name
+            transaction.balance_before = self.user.balance - self.amount
+            transaction.balance_after = self.user.balance
+            transaction.completed_at = timezone.now()
+            transaction.merchant_name = self.payer_name or "Check Deposit"
+            transaction.save()
+        else:
+            # Fallback: create new transaction if not found
+            Transaction.objects.create(
+                user=self.user,
+                transaction_type='deposit',
+                amount=self.amount,
+                status='completed',
+                description=check_desc,
+                balance_before=self.user.balance - self.amount,
+                balance_after=self.user.balance,
+                completed_at=timezone.now(),
+                merchant_name=self.payer_name or "Check Deposit",
+            )
+        
+        self.status = 'completed'
+        self.completed_at = timezone.now()
+        
+        # Temporarily disable save to avoid recursion
+        super(CheckDeposit, self).save(update_fields=['status', 'completed_at'])
+        
+        # Send real-time notifications
+        from socketio_app.utils import notify_check_deposit_update, notify_balance_update, send_notification
+        notify_check_deposit_update(self.user.id, self.id, self.status, self.amount)
+        notify_balance_update(self.user.id, self.user.balance)
+        send_notification(
+            self.user.id,
+            'Check Deposit Completed',
+            f'Your check deposit of ${self.amount} is now available in your account.',
+            'success'
+        )
+        
+        # Send email notification
+        try:
+            from .tasks import send_check_deposit_email_notification
+            send_check_deposit_email_notification.delay(self.id, 'completed')
+        except Exception:
+            pass
+        
+        return True, "Check deposit completed" 

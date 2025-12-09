@@ -265,6 +265,26 @@ export const bankingAPI = {
     const response = await api.post('/banking/saved-beneficiaries/', data)
     return response.data
   },
+
+  // Check deposits
+  getCheckDeposits: async () => {
+    const response = await api.get('/banking/check-deposits/')
+    return response.data
+  },
+
+  createCheckDeposit: async (formData: FormData) => {
+    const response = await api.post('/banking/check-deposits/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return response.data
+  },
+
+  extractCheckData: async (formData: FormData) => {
+    const response = await api.post('/banking/check-deposits/extract/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return response.data
+  },
 }
 
 // Transactions API
@@ -414,6 +434,35 @@ export const adminAPI = {
   getAllSecurityLogs: async () => {
     const response = await api.get('/admin/security-logs/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  // Check deposits
+  getAllCheckDeposits: async () => {
+    const response = await api.get('/admin/check-deposits/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  getPendingCheckDeposits: async () => {
+    const response = await api.get('/admin/pending-check-deposits/')
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
+  },
+
+  approveCheckDeposit: async (depositId: number, holdDays: number = 1, notes?: string) => {
+    const response = await api.post(`/admin/check-deposits/${depositId}/approve/`, { 
+      hold_days: holdDays,
+      notes 
+    })
+    return response.data
+  },
+
+  rejectCheckDeposit: async (depositId: number, notes?: string) => {
+    const response = await api.post(`/admin/check-deposits/${depositId}/reject/`, { notes })
+    return response.data
+  },
+
+  completeCheckDeposit: async (depositId: number) => {
+    const response = await api.post(`/admin/check-deposits/${depositId}/complete/`)
+    return response.data
   },
 
   // Transfer approval

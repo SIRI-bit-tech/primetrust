@@ -14,7 +14,7 @@ import requests
 
 from accounts.models import SecurityAuditLog
 from transactions.models import Transaction, Loan, Bill, Investment, BitcoinTransaction
-from banking.models import VirtualCard, CardApplication, Transfer
+from banking.models import VirtualCard, CardApplication, Transfer, CheckDeposit
 from api.models import Notification, SystemStatus
 from bitcoin_wallet.models import CurrencySwap
 
@@ -24,7 +24,7 @@ from .serializers import (
     UserSerializer, TransactionSerializer, VirtualCardSerializer,
     CardApplicationSerializer, NotificationSerializer, SystemStatusSerializer,
     LoanSerializer, BillSerializer, InvestmentSerializer, CurrencySwapSerializer,
-    BitcoinTransactionSerializer, SecurityAuditLogSerializer
+    BitcoinTransactionSerializer, SecurityAuditLogSerializer, CheckDepositSerializer
 )
 
 
@@ -525,6 +525,12 @@ class AdminDashboardView(APIView):
         total_notifications = Notification.objects.count()
         unread_notifications = Notification.objects.filter(is_read=False).count()
         
+        # Check deposit statistics
+        total_check_deposits = CheckDeposit.objects.count()
+        pending_check_deposits = CheckDeposit.objects.filter(status='pending').count()
+        approved_check_deposits = CheckDeposit.objects.filter(status='approved').count()
+        total_check_deposit_amount = CheckDeposit.objects.filter(status__in=['approved', 'completed']).aggregate(total=Sum('amount'))['total'] or 0
+        
         dashboard_data = {
             'users': {
                 'total': total_users,
@@ -554,6 +560,12 @@ class AdminDashboardView(APIView):
             'applications': {
                 'total': total_applications,
                 'pending': pending_applications
+            },
+            'check_deposits': {
+                'total': total_check_deposits,
+                'pending': pending_check_deposits,
+                'approved': approved_check_deposits,
+                'total_amount': str(total_check_deposit_amount)
             },
             'notifications': {
                 'total': total_notifications,
@@ -1229,3 +1241,141 @@ class AdminRejectUnlockView(APIView):
             return Response({
                 'error': message
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+# Check Deposit Admin Views
+
+class AdminCheckDepositListView(generics.ListAPIView):
+    """List all check deposits (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = CheckDepositSerializer
+    
+    def get_queryset(self):
+        queryset = CheckDeposit.objects.all().select_related('user', 'admin_approved_by')
+        
+        # Filter by status
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        # Filter by user
+        user_id = self.request.query_params.get('user')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        
+        return queryset.order_by('-created_at')
+
+
+class AdminCheckDepositDetailView(generics.RetrieveAPIView):
+    """Get check deposit details (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    queryset = CheckDeposit.objects.all()
+    serializer_class = CheckDepositSerializer
+
+
+class AdminApproveCheckDepositView(APIView):
+    """Approve a check deposit (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, deposit_id):
+        """Approve check deposit with hold period."""
+        deposit = get_object_or_404(CheckDeposit, id=deposit_id)
+        
+        if deposit.status != 'pending':
+            return Response({
+                'error': 'Only pending deposits can be approved'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        hold_days = request.data.get('hold_days', 1)
+        notes = request.data.get('notes', '')
+        
+        try:
+            hold_days = int(hold_days)
+            if hold_days < 0 or hold_days > 10:
+                return Response({
+                    'error': 'Hold days must be between 0 and 10'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({
+                'error': 'Invalid hold_days value'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        deposit.approve(request.user, hold_days=hold_days, notes=notes)
+        
+        return Response({
+            'message': 'Check deposit approved successfully',
+            'deposit_id': deposit.id,
+            'status': deposit.status,
+            'hold_until': deposit.hold_until
+        }, status=status.HTTP_200_OK)
+
+
+class AdminRejectCheckDepositView(APIView):
+    """Reject a check deposit (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, deposit_id):
+        """Reject check deposit."""
+        deposit = get_object_or_404(CheckDeposit, id=deposit_id)
+        
+        if deposit.status not in ['pending', 'approved']:
+            return Response({
+                'error': 'Only pending or approved deposits can be rejected'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        notes = request.data.get('notes', 'Rejected by admin')
+        
+        deposit.reject(request.user, notes=notes)
+        
+        return Response({
+            'message': 'Check deposit rejected successfully',
+            'deposit_id': deposit.id,
+            'status': deposit.status
+        }, status=status.HTTP_200_OK)
+
+
+class AdminCompleteCheckDepositView(APIView):
+    """Complete a check deposit (bypass hold period) (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, deposit_id):
+        """Complete check deposit immediately."""
+        deposit = get_object_or_404(CheckDeposit, id=deposit_id)
+        
+        if deposit.status != 'approved':
+            return Response({
+                'error': 'Only approved deposits can be completed'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        success, message = deposit.complete(bypass_hold=True)
+        
+        if success:
+            return Response({
+                'message': 'Check deposit completed successfully',
+                'deposit_id': deposit.id,
+                'status': deposit.status,
+                'amount': str(deposit.amount)
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'error': message
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminPendingCheckDepositsView(generics.ListAPIView):
+    """List all pending check deposits awaiting approval (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = CheckDepositSerializer
+    
+    def get_queryset(self):
+        """Return pending check deposits."""
+        return CheckDeposit.objects.filter(
+            status='pending'
+        ).select_related('user').order_by('created_at')

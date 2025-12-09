@@ -43,4 +43,12 @@ urlpatterns = [
     path('unlock-requests/', views.AdminUnlockRequestListView.as_view(), name='admin-unlock-requests'),
     path('users/<int:user_id>/unlock/approve/', views.AdminApproveUnlockView.as_view(), name='admin-approve-unlock'),
     path('users/<int:user_id>/unlock/reject/', views.AdminRejectUnlockView.as_view(), name='admin-reject-unlock'),
+    
+    # Check deposit endpoints
+    path('check-deposits/', views.AdminCheckDepositListView.as_view(), name='admin-check-deposits'),
+    path('check-deposits/<int:pk>/', views.AdminCheckDepositDetailView.as_view(), name='admin-check-deposit-detail'),
+    path('check-deposits/<int:deposit_id>/approve/', views.AdminApproveCheckDepositView.as_view(), name='admin-approve-check-deposit'),
+    path('check-deposits/<int:deposit_id>/reject/', views.AdminRejectCheckDepositView.as_view(), name='admin-reject-check-deposit'),
+    path('check-deposits/<int:deposit_id>/complete/', views.AdminCompleteCheckDepositView.as_view(), name='admin-complete-check-deposit'),
+    path('pending-check-deposits/', views.AdminPendingCheckDepositsView.as_view(), name='admin-pending-check-deposits'),
 ] 

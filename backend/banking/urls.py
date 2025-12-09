@@ -7,8 +7,12 @@ router.register(r'card-applications', views.CardApplicationViewSet, basename='ca
 router.register(r'admin/card-applications', views.AdminCardApplicationViewSet, basename='admin-card-application')
 router.register(r'external-accounts', views.ExternalBankAccountViewSet, basename='external-account')
 router.register(r'saved-beneficiaries', views.SavedBeneficiaryViewSet, basename='saved-beneficiary')
+router.register(r'check-deposits', views.CheckDepositViewSet, basename='check-deposit')
 
 urlpatterns = [
+    # Check Deposits - must come BEFORE router to avoid conflicts
+    path('check-deposits/extract/', views.extract_check_data, name='extract-check-data'),
+    
     # Router URLs
     path('', include(router.urls)),
     
