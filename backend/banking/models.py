@@ -1,10 +1,14 @@
-from django.db import models
+from django.db import models, transaction
+from django.db.models import F
 from django.conf import settings
 from django.utils import timezone
 import uuid
 import hashlib
 import hmac
+import logging
 from encrypted_model_fields.fields import EncryptedCharField
+
+logger = logging.getLogger(__name__)
 
 
 class CardApplication(models.Model):
@@ -775,7 +779,11 @@ class CheckDeposit(models.Model):
                 # Send email notification
                 send_check_deposit_email_notification.delay(self.id, 'submitted')
             except Exception:
-                pass  # Celery might not be running in development
+                logger.exception(
+                    f"Failed to schedule Celery tasks for check deposit {self.id}. "
+                    "Tasks: validate_check_image_quality, detect_duplicate_checks, send_check_deposit_email_notification. "
+                    "Celery might not be running in development."
+                )
     
     def approve(self, admin_user, hold_days=1, notes=""):
         """Approve check deposit and set hold period."""
@@ -803,7 +811,9 @@ class CheckDeposit(models.Model):
             from .tasks import send_check_deposit_email_notification
             send_check_deposit_email_notification.delay(self.id, 'approved')
         except Exception:
-            pass
+            logger.exception(
+                f"Failed to schedule email notification task for approved check deposit {self.id}"
+            )
     
     def reject(self, admin_user, notes=""):
         """Reject check deposit."""
@@ -814,11 +824,14 @@ class CheckDeposit(models.Model):
         
         # Update transaction status to failed
         from transactions.models import Transaction
-        check_desc = f"Check deposit - Check #{self.check_number or 'Pending'}"
+        # Match the description format used in save()
+        payer_info = f" from {self.payer_name}" if self.payer_name else ""
+        check_desc = f"Check deposit{payer_info} - Check #{self.check_number or 'Pending'}"
         transaction = Transaction.objects.filter(
             user=self.user,
             transaction_type='deposit',
-            description=check_desc,
+            description__contains=f"Check #{self.check_number}" if self.check_number else "Check #Pending",
+            amount=self.amount,
             status='pending'
         ).first()
         
@@ -844,7 +857,9 @@ class CheckDeposit(models.Model):
             from .tasks import send_check_deposit_email_notification
             send_check_deposit_email_notification.delay(self.id, 'rejected')
         except Exception:
-            pass
+            logger.exception(
+                f"Failed to schedule email notification task for rejected check deposit {self.id}"
+            )
     
     def complete(self, bypass_hold=False):
         """Complete check deposit and add funds to user balance."""
@@ -854,52 +869,69 @@ class CheckDeposit(models.Model):
         if not bypass_hold and self.hold_until and timezone.now() < self.hold_until:
             return False, "Hold period not yet expired"
         
-        # Add to user balance
-        self.user.balance += self.amount
-        self.user.save()
-        
-        # Update existing transaction record
-        from transactions.models import Transaction
-        payer_info = f" from {self.payer_name}" if self.payer_name else ""
-        check_desc = f"Check deposit{payer_info} - Check #{self.check_number or 'Pending'}"
-        
-        # Try to find the pending transaction (it might have the old description format)
-        transaction = Transaction.objects.filter(
-            user=self.user,
-            transaction_type='deposit',
-            status='pending',
-            amount=self.amount
-        ).filter(
-            description__contains=f"Check #{self.check_number}" if self.check_number else "Check #Pending"
-        ).first()
-        
-        if transaction:
-            transaction.status = 'completed'
-            transaction.description = check_desc  # Update description with payer name
-            transaction.balance_before = self.user.balance - self.amount
-            transaction.balance_after = self.user.balance
-            transaction.completed_at = timezone.now()
-            transaction.merchant_name = self.payer_name or "Check Deposit"
-            transaction.save()
-        else:
-            # Fallback: create new transaction if not found
-            Transaction.objects.create(
-                user=self.user,
-                transaction_type='deposit',
-                amount=self.amount,
-                status='completed',
-                description=check_desc,
-                balance_before=self.user.balance - self.amount,
-                balance_after=self.user.balance,
-                completed_at=timezone.now(),
-                merchant_name=self.payer_name or "Check Deposit",
-            )
-        
-        self.status = 'completed'
-        self.completed_at = timezone.now()
-        
-        # Temporarily disable save to avoid recursion
-        super(CheckDeposit, self).save(update_fields=['status', 'completed_at'])
+        try:
+            with transaction.atomic():
+                # Lock the user row and atomically update balance
+                User = self.user.__class__
+                user = User.objects.select_for_update().get(pk=self.user.pk)
+                
+                # Calculate balance before and after
+                balance_before = user.balance
+                balance_after = balance_before + self.amount
+                
+                # Atomically update user balance using F() expression
+                User.objects.filter(pk=user.pk).update(balance=F('balance') + self.amount)
+                
+                # Refresh user instance to get updated balance
+                user.refresh_from_db()
+                self.user = user
+                
+                # Update existing transaction record
+                from transactions.models import Transaction
+                payer_info = f" from {self.payer_name}" if self.payer_name else ""
+                check_desc = f"Check deposit{payer_info} - Check #{self.check_number or 'Pending'}"
+                
+                # Try to find the pending transaction (it might have the old description format)
+                txn = Transaction.objects.filter(
+                    user=self.user,
+                    transaction_type='deposit',
+                    status='pending',
+                    amount=self.amount
+                ).filter(
+                    description__contains=f"Check #{self.check_number}" if self.check_number else "Check #Pending"
+                ).first()
+                
+                if txn:
+                    txn.status = 'completed'
+                    txn.description = check_desc  # Update description with payer name
+                    txn.balance_before = balance_before
+                    txn.balance_after = balance_after
+                    txn.completed_at = timezone.now()
+                    txn.merchant_name = self.payer_name or "Check Deposit"
+                    txn.save()
+                else:
+                    # Fallback: create new transaction if not found
+                    Transaction.objects.create(
+                        user=self.user,
+                        transaction_type='deposit',
+                        amount=self.amount,
+                        status='completed',
+                        description=check_desc,
+                        balance_before=balance_before,
+                        balance_after=balance_after,
+                        completed_at=timezone.now(),
+                        merchant_name=self.payer_name or "Check Deposit",
+                    )
+                
+                self.status = 'completed'
+                self.completed_at = timezone.now()
+                
+                # Temporarily disable save to avoid recursion
+                super(CheckDeposit, self).save(update_fields=['status', 'completed_at'])
+                
+        except Exception as e:
+            logger.exception(f"Failed to complete check deposit {self.id}: {str(e)}")
+            return False, f"Failed to complete deposit: {str(e)}"
         
         # Send real-time notifications
         from socketio_app.utils import notify_check_deposit_update, notify_balance_update, send_notification
@@ -917,6 +949,8 @@ class CheckDeposit(models.Model):
             from .tasks import send_check_deposit_email_notification
             send_check_deposit_email_notification.delay(self.id, 'completed')
         except Exception:
-            pass
+            logger.exception(
+                f"Failed to schedule email notification task for completed check deposit {self.id}"
+            )
         
         return True, "Check deposit completed" 

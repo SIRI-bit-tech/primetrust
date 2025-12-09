@@ -110,73 +110,89 @@ export default function AdminPage() {
     
     try {
       switch (activeTab) {
-        case 'dashboard':
+        case 'dashboard': {
           const dashboard = await adminAPI.getAdminDashboard()
           setDashboardData(dashboard)
           // Also load users for Balance Management section
           const dashboardUsers = await adminAPI.getAllUsers()
           setUsers(dashboardUsers)
           break
-        case 'users':
+        }
+        case 'users': {
           const usersData = await adminAPI.getAllUsers()
           setUsers(usersData)
           break
-        case 'transactions':
+        }
+        case 'transactions': {
           const transactionsData = await adminAPI.getAllTransactions()
           setTransactions(transactionsData)
           break
-        case 'cards':
+        }
+        case 'cards': {
           const cardsData = await adminAPI.getAllCards()
           setCards(cardsData)
           break
-        case 'applications':
+        }
+        case 'applications': {
           const applicationsData = await adminAPI.getAllCardApplications()
           setApplications(applicationsData)
           break
-        case 'notifications':
+        }
+        case 'notifications': {
           const notificationsData = await adminAPI.getAllNotifications()
           setNotifications(notificationsData)
           break
-        case 'system-status':
+        }
+        case 'system-status': {
           const systemStatusData = await adminAPI.getSystemStatus()
           setSystemStatus(systemStatusData.components || [])
           break
-        case 'currency-swaps':
+        }
+        case 'currency-swaps': {
           const currencySwapsData = await adminAPI.getAllCurrencySwaps()
           setCurrencySwaps(currencySwapsData)
           break
-        case 'bitcoin-transactions':
+        }
+        case 'bitcoin-transactions': {
           const bitcoinTransactionsData = await adminAPI.getAllBitcoinTransactions()
           setBitcoinTransactions(bitcoinTransactionsData)
           break
-        case 'loans':
+        }
+        case 'loans': {
           const loansData = await adminAPI.getAllLoans()
           setLoans(loansData)
           break
-        case 'bills':
+        }
+        case 'bills': {
           const billsData = await adminAPI.getAllBills()
           setBills(billsData)
           break
-        case 'investments':
+        }
+        case 'investments': {
           const investmentsData = await adminAPI.getAllInvestments()
           setInvestments(investmentsData)
           break
-        case 'check-deposits':
+        }
+        case 'check-deposits': {
           const checkDepositsData = await adminAPI.getAllCheckDeposits()
           setCheckDeposits(checkDepositsData)
           break
-        case 'security-logs':
+        }
+        case 'security-logs': {
           const securityLogsData = await adminAPI.getAllSecurityLogs()
           setSecurityLogs(securityLogsData)
           break
-        case 'pending-transfers':
+        }
+        case 'pending-transfers': {
           const pendingTransfersData = await adminAPI.getPendingTransfers()
           setPendingTransfers(pendingTransfersData)
           break
-        case 'unlock-requests':
+        }
+        case 'unlock-requests': {
           const unlockRequestsData = await adminAPI.getUnlockRequests()
           setUnlockRequests(unlockRequestsData)
           break
+        }
       }
     } catch (err: unknown) {
       const error = err as AxiosError<{ error?: string }>
@@ -454,7 +470,7 @@ export default function AdminPage() {
 
   const renderTableRow = (item: TableItem) => {
     switch (activeTab) {
-      case 'users':
+      case 'users': {
         const userItem = item as User
         return (
           <>
@@ -508,7 +524,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'transactions':
+      }
+      case 'transactions': {
         const transactionItem = item as any // Can be Transaction or Transfer
         // Handle both Transaction and Transfer types
         const userName = transactionItem.user_name || transactionItem.sender_name || 'N/A'
@@ -554,7 +571,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'cards':
+      }
+      case 'cards': {
         const cardItem = item as VirtualCard
         return (
           <>
@@ -586,7 +604,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'applications':
+      }
+      case 'applications': {
         const applicationItem = item as CardApplication
         return (
           <>
@@ -629,7 +648,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'notifications':
+      }
+      case 'notifications': {
         const notificationItem = item as UserNotification
         return (
           <>
@@ -657,7 +677,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'system-status':
+      }
+      case 'system-status': {
         const systemStatusItem = item as SystemStatus
         return (
           <>
@@ -680,7 +701,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'currency-swaps':
+      }
+      case 'currency-swaps': {
         const currencySwapItem = item as CurrencySwap
         return (
           <>
@@ -715,7 +737,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'bitcoin-transactions':
+      }
+      case 'bitcoin-transactions': {
         const bitcoinTransactionItem = item as BitcoinTransaction
         return (
           <>
@@ -744,7 +767,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'loans':
+      }
+      case 'loans': {
         const loanItem = item as Loan
         return (
           <>
@@ -783,7 +807,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'bills':
+      }
+      case 'bills': {
         const billItem = item as Bill
         return (
           <>
@@ -809,7 +834,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'investments':
+      }
+      case 'investments': {
         const investmentItem = item as Investment
         return (
           <>
@@ -835,7 +861,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'check-deposits':
+      }
+      case 'check-deposits': {
         const checkDepositItem = item as any
         return (
           <>
@@ -866,7 +893,8 @@ export default function AdminPage() {
             </td>
           </>
         )
-      case 'security-logs':
+      }
+      case 'security-logs': {
         const securityLogItem = item as SecurityAuditLog
         return (
           <>
@@ -887,6 +915,7 @@ export default function AdminPage() {
             </td>
           </>
         )
+      }
       default:
         return null
     }

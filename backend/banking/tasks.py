@@ -82,8 +82,15 @@ def detect_duplicate_checks():
                 'duplicate_count': potential_duplicates.count()
             })
             
-            # Add admin note
-            deposit.admin_notes = f"⚠️ POTENTIAL DUPLICATE: Found {potential_duplicates.count()} other deposit(s) with same check number from this user in last 30 days."
+            # Add admin note (preserve existing notes)
+            existing_notes = deposit.admin_notes or ""
+            duplicate_note = f"⚠️ POTENTIAL DUPLICATE: Found {potential_duplicates.count()} other deposit(s) with same check number from this user in last 30 days."
+            
+            if existing_notes:
+                deposit.admin_notes = f"{existing_notes}\n\n{duplicate_note}"
+            else:
+                deposit.admin_notes = duplicate_note
+            
             deposit.save(update_fields=['admin_notes'])
             
             logger.warning(f"Duplicate check detected: Deposit {deposit.id}, Check #{deposit.check_number}")
@@ -196,7 +203,7 @@ def send_check_deposit_email_notification(deposit_id, notification_type):
         message_map = {
             'submitted': f'Your check deposit of ${deposit.amount} has been submitted and is under review.',
             'approved': f'Your check deposit of ${deposit.amount} has been approved. Funds will be available on {deposit.hold_until.strftime("%B %d, %Y") if deposit.hold_until else "soon"}.',
-            'rejected': f'Your check deposit of ${deposit.amount} has been rejected. {deposit.admin_notes}',
+            'rejected': f'Your check deposit of ${deposit.amount} has been rejected. Please contact support for more details.',
             'completed': f'Your check deposit of ${deposit.amount} is now complete. Funds have been added to your account.'
         }
         
@@ -211,7 +218,14 @@ def send_check_deposit_email_notification(deposit_id, notification_type):
             fail_silently=False,
         )
         
-        logger.info(f"Email sent to {user.email} for deposit {deposit_id}: {notification_type}")
+        # Log admin notes internally for audit purposes (not sent to user)
+        if notification_type == 'rejected' and deposit.admin_notes:
+            logger.info(
+                f"Email sent to {user.email} for deposit {deposit_id}: {notification_type}. "
+                f"Admin notes (internal only): {deposit.admin_notes}"
+            )
+        else:
+            logger.info(f"Email sent to {user.email} for deposit {deposit_id}: {notification_type}")
         return {'success': True, 'email': user.email}
         
     except CheckDeposit.DoesNotExist:
