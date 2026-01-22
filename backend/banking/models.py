@@ -73,7 +73,7 @@ class CardApplication(models.Model):
         CardApplicationNotificationService.send_application_approved_notification(self)
         
         # Send real-time notification
-        from socketio_app.utils import notify_card_update, send_notification
+        from utils.realtime import notify_card_update, send_notification
         notify_card_update(self.user.id, self.id, self.status, 'approved')
         send_notification(
             self.user.id,
@@ -95,7 +95,7 @@ class CardApplication(models.Model):
         CardApplicationNotificationService.send_application_rejected_notification(self)
         
         # Send real-time notification
-        from socketio_app.utils import notify_card_update, send_notification
+        from utils.realtime import notify_card_update, send_notification
         notify_card_update(self.user.id, self.id, self.status, 'declined')
         send_notification(
             self.user.id,
@@ -118,7 +118,7 @@ class CardApplication(models.Model):
         CardApplicationNotificationService.send_application_completed_notification(self, card_number)
         
         # Send real-time notification with card data
-        from socketio_app.utils import notify_card_created, send_notification
+        from utils.realtime import notify_card_created, send_notification
         notify_card_created(self.user.id, card.id if card else None, self.id)
         send_notification(
             self.user.id,
@@ -407,7 +407,7 @@ class Transfer(models.Model):
         
         # Send real-time notification to user
         if success:
-            from socketio_app.utils import notify_transfer_update, notify_balance_update, send_notification
+            from utils.realtime import notify_transfer_update, notify_balance_update, send_notification
             notify_transfer_update(self.sender.id, self.id, self.status, self.transfer_type)
             notify_balance_update(self.sender.id, self.sender.balance)
             send_notification(
@@ -444,7 +444,7 @@ class Transfer(models.Model):
         self.save()
         
         # Send real-time notification to user
-        from socketio_app.utils import notify_transfer_update, notify_balance_update, send_notification
+        from utils.realtime import notify_transfer_update, notify_balance_update, send_notification
         notify_transfer_update(self.sender.id, self.id, self.status, self.transfer_type)
         notify_balance_update(self.sender.id, self.sender.balance)
         send_notification(
@@ -797,7 +797,7 @@ class CheckDeposit(models.Model):
         self.save()
         
         # Send real-time notification
-        from socketio_app.utils import notify_check_deposit_update, send_notification
+        from utils.realtime import notify_check_deposit_update, send_notification
         notify_check_deposit_update(self.user.id, self.id, self.status, self.amount)
         send_notification(
             self.user.id,
@@ -840,7 +840,7 @@ class CheckDeposit(models.Model):
         super(CheckDeposit, self).save(update_fields=['status', 'admin_approved_by', 'admin_approved_at', 'admin_notes'])
         
         # Send real-time notification
-        from socketio_app.utils import notify_check_deposit_update, send_notification
+        from utils.realtime import notify_check_deposit_update, send_notification
         notify_check_deposit_update(self.user.id, self.id, self.status, self.amount)
         send_notification(
             self.user.id,
@@ -931,7 +931,7 @@ class CheckDeposit(models.Model):
             return False, f"Failed to complete deposit: {str(e)}"
         
         # Send real-time notifications
-        from socketio_app.utils import notify_check_deposit_update, notify_balance_update, send_notification
+        from utils.realtime import notify_check_deposit_update, notify_balance_update, send_notification
         notify_check_deposit_update(self.user.id, self.id, self.status, self.amount)
         notify_balance_update(self.user.id, self.user.balance)
         send_notification(

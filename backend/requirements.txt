@@ -14,10 +14,12 @@ plaid-python
 bitcoin
 blockcypher
 pycoin
-python-socketio
-aiohttp
-python-engineio
-aioredis
+ably
 redis
 celery
 django-celery-beat
+dj_database_url
+django-filter
+psycopg2-binary
+qrcode[pil]
+pyotp

@@ -1,22 +1,21 @@
 'use client'
 
 /**
- * Socket.IO Context Provider for real-time updates
+ * Ably Realtime Context Provider
  */
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { Socket } from 'socket.io-client'
-import { useSocket } from '@/hooks/useSocket'
+import Ably from 'ably'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 
 interface SocketContextType {
-  socket: Socket | null
   isConnected: boolean
+  ablyClient: Ably.Realtime | null
 }
 
 const SocketContext = createContext<SocketContextType>({
-  socket: null,
-  isConnected: false
+  isConnected: false,
+  ablyClient: null
 })
 
 export const useSocketContext = () => useContext(SocketContext)
@@ -27,123 +26,122 @@ interface SocketProviderProps {
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const { user } = useAuth()
-  const { socket, isConnected } = useSocket(!!user) // Pass boolean instead of token
+  const [ablyClient, setAblyClient] = useState<Ably.Realtime | null>(null)
+  const [isConnected, setIsConnected] = useState(false)
 
   useEffect(() => {
-    if (!socket) return
-
-    // Connection handler (no toast notification)
-    const handleConnected = () => {
-      // Silent connection
+    if (!user) {
+      if (ablyClient) {
+        ablyClient.close()
+        setAblyClient(null)
+        setIsConnected(false)
+      }
+      return
     }
 
-    // Listen for balance updates
-    const handleBalanceUpdate = (data: { balance: number }) => {
-      // Trigger a custom event that components can listen to
+    // Initialize Ably connection
+    const client = new Ably.Realtime({
+      authUrl: `/api/ably/auth?clientId=${user.id}`,
+      autoConnect: true
+    })
+
+    setAblyClient(client)
+
+    client.connection.on('connected', () => {
+      setIsConnected(true)
+      console.log('Connected to Ably')
+    })
+
+    client.connection.on('disconnected', () => {
+      setIsConnected(false)
+      console.log('Disconnected from Ably')
+    })
+
+    // Subscribe to user channel
+    const channelName = `user:${user.id}`
+    const channel = client.channels.get(channelName)
+
+    // Handler helpers
+    const handleBalanceUpdate = (message: Ably.InboundMessage) => {
+      const data = message.data
       window.dispatchEvent(new CustomEvent('balance-updated', { detail: data }))
     }
 
-    // Listen for transfer updates
-    const handleTransferUpdate = (data: { transfer_id: number; status: string; transfer_type: string }) => {
+    const handleTransferUpdate = (message: Ably.InboundMessage) => {
+      const data = message.data
       window.dispatchEvent(new CustomEvent('transfer-updated', { detail: data }))
-      
-      // Show toast notification
+
       const statusMessages: Record<string, string> = {
         completed: 'Transfer completed successfully',
         failed: 'Transfer failed',
         pending: 'Transfer is pending',
         processing: 'Transfer is being processed'
       }
-      
-      const message = statusMessages[data.status] || 'Transfer status updated'
-      if (data.status === 'completed') {
-        toast.success(message)
-      } else if (data.status === 'failed') {
-        toast.error(message)
-      } else {
-        toast.info(message)
-      }
+
+      const msg = statusMessages[data.status] || 'Transfer status updated'
+      if (data.status === 'completed') toast.success(msg)
+      else if (data.status === 'failed') toast.error(msg)
+      else toast.info(msg)
     }
 
-    // Listen for card updates
-    const handleCardUpdate = (data: { card_id: number; status: string; action: string }) => {
+    const handleCardUpdate = (message: Ably.InboundMessage) => {
+      const data = message.data
       window.dispatchEvent(new CustomEvent('card-updated', { detail: data }))
     }
 
-    // Listen for loan updates
-    const handleLoanUpdate = (data: { loan_id: number; status: string }) => {
+    const handleLoanUpdate = (message: Ably.InboundMessage) => {
+      const data = message.data
       window.dispatchEvent(new CustomEvent('loan-updated', { detail: data }))
-      
-      // Show toast notification
+
       const statusMessages: Record<string, string> = {
         approved: 'Loan application approved!',
         rejected: 'Loan application rejected',
         active: 'Loan is now active',
         completed: 'Loan completed'
       }
-      
-      const message = statusMessages[data.status] || 'Loan status updated'
-      if (data.status === 'approved' || data.status === 'completed') {
-        toast.success(message)
-      } else if (data.status === 'rejected') {
-        toast.error(message)
-      } else {
-        toast.info(message)
-      }
+
+      const msg = statusMessages[data.status] || 'Loan status updated'
+      if (data.status === 'approved' || data.status === 'completed') toast.success(msg)
+      else if (data.status === 'rejected') toast.error(msg)
+      else toast.info(msg)
     }
 
-    // Listen for Bitcoin transaction updates
-    const handleBitcoinTransactionUpdate = (data: { transaction_id: number; status: string; type: string }) => {
+    const handleBitcoinTransactionUpdate = (message: Ably.InboundMessage) => {
+      const data = message.data
       window.dispatchEvent(new CustomEvent('bitcoin-transaction-updated', { detail: data }))
     }
 
-    // Listen for general notifications
-    const handleNotification = (data: { title: string; message: string; type: string }) => {
-      // Check if this is an account lock/unlock notification
+    const handleNotification = (message: Ably.InboundMessage) => {
+      const data = message.data
+
       if (data.title === 'Account Locked' || data.title === 'Account Unlocked') {
-        // Trigger a user data refresh to update lock status
-        // This will cause the GlobalAccountLockModal to show/hide
         window.dispatchEvent(new CustomEvent('refresh-user-data'))
       }
-      
+
       switch (data.type) {
-        case 'success':
-          toast.success(data.title, { description: data.message })
-          break
-        case 'error':
-          toast.error(data.title, { description: data.message })
-          break
-        case 'warning':
-          toast.warning(data.title, { description: data.message })
-          break
-        default:
-          toast.info(data.title, { description: data.message })
+        case 'success': toast.success(data.title, { description: data.message }); break;
+        case 'error': toast.error(data.title, { description: data.message }); break;
+        case 'warning': toast.warning(data.title, { description: data.message }); break;
+        default: toast.info(data.title, { description: data.message });
       }
     }
 
-    // Register event listeners
-    socket.on('connected', handleConnected)
-    socket.on('balance_updated', handleBalanceUpdate)
-    socket.on('transfer_updated', handleTransferUpdate)
-    socket.on('card_updated', handleCardUpdate)
-    socket.on('loan_updated', handleLoanUpdate)
-    socket.on('bitcoin_transaction_updated', handleBitcoinTransactionUpdate)
-    socket.on('notification', handleNotification)
+    // Subscribe to events
+    channel.subscribe('balance_updated', handleBalanceUpdate)
+    channel.subscribe('transfer_updated', handleTransferUpdate)
+    channel.subscribe('card_updated', handleCardUpdate)
+    channel.subscribe('loan_updated', handleLoanUpdate)
+    channel.subscribe('bitcoin_transaction_updated', handleBitcoinTransactionUpdate)
+    channel.subscribe('notification', handleNotification)
 
-    // Cleanup
     return () => {
-      socket.off('connected', handleConnected)
-      socket.off('balance_updated', handleBalanceUpdate)
-      socket.off('transfer_updated', handleTransferUpdate)
-      socket.off('card_updated', handleCardUpdate)
-      socket.off('loan_updated', handleLoanUpdate)
-      socket.off('bitcoin_transaction_updated', handleBitcoinTransactionUpdate)
-      socket.off('notification', handleNotification)
+      channel.unsubscribe()
+      client.close()
     }
-  }, [socket])
+  }, [user]) // Re-connect when user changes
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected }}>
+    <SocketContext.Provider value={{ ablyClient, isConnected }}>
       {children}
     </SocketContext.Provider>
   )
