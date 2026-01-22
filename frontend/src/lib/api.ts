@@ -1,12 +1,12 @@
 import axios from 'axios'
-import { 
-  AuthResponse, 
-  LoginCredentials, 
-  RegisterData, 
-  User, 
-  Account, 
-  Transaction, 
-  VirtualCard, 
+import {
+  AuthResponse,
+  LoginCredentials,
+  RegisterData,
+  User,
+  Account,
+  Transaction,
+  VirtualCard,
   TransferData,
   Transfer,
   Loan,
@@ -61,7 +61,7 @@ api.interceptors.response.use(
         }
       })
       window.dispatchEvent(lockEvent)
-      
+
       return Promise.reject(error)
     }
 
@@ -77,7 +77,7 @@ api.interceptors.response.use(
         await axios.post(`${API_BASE_URL}/auth/refresh/`, {}, {
           withCredentials: true
         })
-        
+
         // Token is now in cookie, just retry the request
         return api(originalRequest)
       } catch (refreshError) {
@@ -85,11 +85,11 @@ api.interceptors.response.use(
         const currentPath = window.location.pathname
         const authPages = ['/login', '/register', '/verify-email', '/two-factor-login', '/two-factor-setup', '/transfer-pin-setup']
         const isAuthPage = authPages.some(page => currentPath.includes(page))
-        
+
         if (!isAuthPage) {
           // Clear user data from localStorage (tokens are in cookies)
           localStorage.removeItem('user')
-          
+
           // Check if we're on admin pages and redirect accordingly
           if (currentPath.includes('/admin')) {
             window.location.href = '/admin/login'
@@ -97,7 +97,7 @@ api.interceptors.response.use(
             window.location.href = '/login'
           }
         }
-        
+
         // If we're on an auth page, just reject the error without redirecting
         return Promise.reject(refreshError)
       }
@@ -169,8 +169,8 @@ export const authAPI = {
     return response.data
   },
 
-  getRegistrationStatus: async (): Promise<{ 
-    two_factor_setup_completed: boolean; 
+  getRegistrationStatus: async (): Promise<{
+    two_factor_setup_completed: boolean;
     transfer_pin_setup_completed: boolean;
     is_registration_complete: boolean;
   }> => {
@@ -328,7 +328,7 @@ export const adminAPI = {
   },
 
   updateUserBitcoinBalance: async (userId: number, bitcoinBalance: number, action: 'set' | 'add' | 'subtract' = 'add'): Promise<{ message: string; bitcoin_balance: string; action: string }> => {
-    const response = await api.put(`/admin/users/${userId}/bitcoin-balance/`, { 
+    const response = await api.put(`/admin/users/${userId}/bitcoin-balance/`, {
       bitcoin_balance: bitcoinBalance,
       action: action
     })
@@ -448,9 +448,9 @@ export const adminAPI = {
   },
 
   approveCheckDeposit: async (depositId: number, holdDays: number = 1, notes?: string) => {
-    const response = await api.post(`/admin/check-deposits/${depositId}/approve/`, { 
+    const response = await api.post(`/admin/check-deposits/${depositId}/approve/`, {
       hold_days: holdDays,
-      notes 
+      notes
     })
     return response.data
   },
@@ -483,9 +483,9 @@ export const adminAPI = {
 
   // Account locking
   lockUserAccount: async (userId: number, reason: string, durationHours: number = 24) => {
-    const response = await api.post(`/admin/users/${userId}/lock/`, { 
-      reason, 
-      duration_hours: durationHours 
+    const response = await api.post(`/admin/users/${userId}/lock/`, {
+      reason,
+      duration_hours: durationHours
     })
     return response.data
   },
@@ -666,7 +666,7 @@ export const notificationsAPI = {
 export const billsAPI = {
   getBills: async (): Promise<Bill[]> => {
     const response = await api.get('/bills/')
-    return response.data
+    return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
   getBill: async (id: number): Promise<Bill> => {
@@ -785,29 +785,29 @@ export const virtualCardAPI = {
     const response = await api.get('/banking/virtual-cards/')
     return response.data.results || []
   },
-  
+
   getCard: async (id: number): Promise<VirtualCard> => {
     const response = await api.get(`/banking/virtual-cards/${id}/`)
     return response.data
   },
-  
+
   updateCard: async (id: number, data: Partial<VirtualCard>): Promise<VirtualCard> => {
     const response = await api.patch(`/banking/virtual-cards/${id}/update/`, data)
     return response.data
   },
-  
+
   cancelCard: async (id: number): Promise<void> => {
     await api.post(`/banking/virtual-cards/${id}/cancel/`)
   },
-  
+
   freezeCard: async (id: number): Promise<void> => {
     await api.post(`/banking/virtual-cards/${id}/freeze/`)
   },
-  
+
   unfreezeCard: async (id: number): Promise<void> => {
     await api.post(`/banking/virtual-cards/${id}/unfreeze/`)
   },
-  
+
   deleteCard: async (id: number): Promise<void> => {
     await api.delete(`/banking/virtual-cards/${id}/delete/`)
   }

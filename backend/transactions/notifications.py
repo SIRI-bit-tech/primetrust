@@ -24,7 +24,7 @@ def send_investment_notifications(user, investment, action):
     
     # Send real-time WebSocket notification
     try:
-        from socketio_app.utils import send_notification, notify_balance_update
+        from utils.realtime import send_notification, notify_balance_update
         
         # Prepare notification message based on action
         if action == 'purchased':

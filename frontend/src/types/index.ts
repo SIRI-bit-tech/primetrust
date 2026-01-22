@@ -18,6 +18,14 @@ export interface User {
   email: string
   first_name: string
   last_name: string
+  full_name: string
+  phone_number: string
+  address: string
+  city: string
+  state: string
+  zip_code: string
+  country: string
+  profile?: UserProfile
   is_active: boolean
   date_joined: string
   last_login: string
@@ -448,20 +456,20 @@ export interface OCRExtractResponse {
   message: string
 }
 
-export type TableItem = 
-  | User 
-  | Transaction 
-  | VirtualCard 
-  | CardApplication 
-  | UserNotification 
-  | SystemStatus 
-  | CurrencySwap 
-  | BitcoinTransaction 
-  | Loan 
-  | Bill 
-  | Investment 
-  | SecurityAuditLog 
-  | CheckDeposit 
+export type TableItem =
+  | User
+  | Transaction
+  | VirtualCard
+  | CardApplication
+  | UserNotification
+  | SystemStatus
+  | CurrencySwap
+  | BitcoinTransaction
+  | Loan
+  | Bill
+  | Investment
+  | SecurityAuditLog
+  | CheckDeposit
 
 
 // Transfer with approval fields

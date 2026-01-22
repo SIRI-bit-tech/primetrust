@@ -133,7 +133,7 @@ class AdminUserBalanceView(APIView):
                 user.save()
                 
                 # Send real-time notification to user
-                from socketio_app.utils import notify_balance_update, send_notification
+                from utils.realtime import notify_balance_update, send_notification
                 notify_balance_update(user.id, user.balance)
                 send_notification(
                     user.id,
@@ -196,7 +196,7 @@ class AdminUserBitcoinBalanceView(APIView):
                 user.save()
                 
                 # Send real-time notification to user
-                from socketio_app.utils import send_notification
+                from utils.realtime import send_notification
                 send_notification(
                     user.id,
                     'Bitcoin Balance Updated',
@@ -919,7 +919,7 @@ class AdminLoanStatusView(APIView):
                 loan.save()
                 
                 # Send real-time notification
-                from socketio_app.utils import notify_loan_update, send_notification
+                from utils.realtime import notify_loan_update, send_notification
                 notify_loan_update(loan.user.id, loan.id, loan.status)
                 
                 status_messages = {
@@ -1079,7 +1079,7 @@ class AdminLockUserAccountView(APIView):
         )
         
         # Send real-time notification
-        from socketio_app.utils import send_notification
+        from utils.realtime import send_notification
         send_notification(
             user.id,
             'Account Locked',
@@ -1141,7 +1141,7 @@ class AdminUnlockUserAccountView(APIView):
         )
         
         # Send real-time notification
-        from socketio_app.utils import send_notification
+        from utils.realtime import send_notification
         send_notification(
             user.id,
             'Account Unlocked',

@@ -105,7 +105,7 @@ class IncomingBitcoinTransaction(models.Model):
                 )
             
             # Send real-time notification
-            from socketio_app.utils import notify_bitcoin_transaction, send_notification
+            from utils.realtime import notify_bitcoin_transaction, send_notification
             notify_bitcoin_transaction(self.user.id, self.id, self.status, 'incoming')
             send_notification(
                 self.user.id,
@@ -226,7 +226,7 @@ class OutgoingBitcoinTransaction(models.Model):
                 self.save()
                 
                 # Send real-time notification
-                from socketio_app.utils import notify_bitcoin_transaction, send_notification
+                from utils.realtime import notify_bitcoin_transaction, send_notification
                 notify_bitcoin_transaction(user.id, self.id, self.status, 'outgoing')
                 send_notification(
                     user.id,

@@ -453,7 +453,7 @@ class CheckDepositViewSet(ModelViewSet):
         deposit = serializer.save(user=self.request.user)
         
         # Send real-time notification
-        from socketio_app.utils import notify_check_deposit_update, send_notification, send_admin_notification
+        from utils.realtime import notify_check_deposit_update, send_notification, send_admin_notification
         notify_check_deposit_update(self.request.user.id, deposit.id, deposit.status, deposit.amount)
         send_notification(
             self.request.user.id,

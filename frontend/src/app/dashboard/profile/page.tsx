@@ -4,20 +4,17 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
-  Save, 
-  ArrowLeft,
-  Shield,
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Save,
   Edit,
   Check,
   X
 } from 'lucide-react'
-import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { User as UserType } from '@/types'
@@ -46,7 +43,7 @@ export default function ProfilePage() {
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      full_name: user?.full_name || '',
+      full_name: user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
       phone_number: user?.phone_number || '',
       email: user?.email || '',
     },
@@ -55,7 +52,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       reset({
-        full_name: user.full_name,
+        full_name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
         phone_number: user.phone_number,
         email: user.email,
       })
@@ -81,7 +78,7 @@ export default function ProfilePage() {
 
   const handleCancel = () => {
     reset({
-      full_name: user?.full_name || '',
+      full_name: user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
       phone_number: user?.phone_number || '',
       email: user?.email || '',
     })
@@ -104,15 +101,8 @@ export default function ProfilePage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Link>
-            <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Profile Settings</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
               Manage your account information and preferences.
             </p>
           </div>
@@ -148,12 +138,12 @@ export default function ProfilePage() {
         )}
 
         {/* Profile Form */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Full Name */}
               <div>
-                <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Full Name
                 </label>
                 <div className="relative">
@@ -169,8 +159,8 @@ export default function ProfilePage() {
                       "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
                       errors.full_name
                         ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark",
-                      !isEditing && "bg-gray-50 cursor-not-allowed"
+                        : "border-gray-300 dark:border-gray-600 focus:ring-primary-dark",
+                      !isEditing && "bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100"
                     )}
                     placeholder="Enter your full name"
                   />
@@ -182,7 +172,7 @@ export default function ProfilePage() {
 
               {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Email Address
                 </label>
                 <div className="relative">
@@ -198,8 +188,8 @@ export default function ProfilePage() {
                       "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
                       errors.email
                         ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark",
-                      !isEditing && "bg-gray-50 cursor-not-allowed"
+                        : "border-gray-300 dark:border-gray-600 focus:ring-primary-dark",
+                      !isEditing && "bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100"
                     )}
                     placeholder="Enter your email"
                   />
@@ -211,7 +201,7 @@ export default function ProfilePage() {
 
               {/* Phone Number */}
               <div>
-                <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Phone Number
                 </label>
                 <div className="relative">
@@ -227,8 +217,8 @@ export default function ProfilePage() {
                       "block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
                       errors.phone_number
                         ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-300 focus:ring-primary-dark",
-                      !isEditing && "bg-gray-50 cursor-not-allowed"
+                        : "border-gray-300 dark:border-gray-600 focus:ring-primary-dark",
+                      !isEditing && "bg-gray-50 dark:bg-gray-700 cursor-not-allowed text-gray-900 dark:text-gray-100"
                     )}
                     placeholder="Enter your phone number"
                   />
@@ -239,64 +229,68 @@ export default function ProfilePage() {
               </div>
 
               {/* Date of Birth (Read-only) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Date of Birth
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Calendar className="h-5 w-5 text-gray-400" />
+                <div className="flex items-center space-x-3 p-3.5 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200 dark:border-gray-700/50">
+                  <div className="bg-white dark:bg-gray-700 p-2 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600">
+                    <Calendar className="h-5 w-5 text-primary-dark dark:text-primary-light" />
                   </div>
-                  <input
-                    type="text"
-                    value={user?.date_of_birth ? formatDate(user.date_of_birth) : ''}
-                    disabled
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
-                  />
+                  <div>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold tracking-tight">
+                      {user?.profile?.date_of_birth ? formatDate(user.profile.date_of_birth) : 'Not set'}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Verification data • Permanent</p>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Date of birth cannot be changed</p>
               </div>
 
               {/* Gender (Read-only) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Gender
                 </label>
-                <input
-                  type="text"
-                  value={user?.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : ''}
-                  disabled
-                  className="block w-full px-3 py-3 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
-                />
-                <p className="mt-1 text-xs text-gray-500">Gender cannot be changed</p>
+                <div className="flex items-center space-x-3 p-3.5 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200 dark:border-gray-700/50">
+                  <div className="bg-white dark:bg-gray-700 p-2 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600">
+                    <User className="h-5 w-5 text-primary-dark dark:text-primary-light" />
+                  </div>
+                  <div>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold tracking-tight capitalize">
+                      {user?.profile?.gender ? user.profile.gender.replace('_', ' ') : 'Not set'}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Verification data • Permanent</p>
+                  </div>
+                </div>
               </div>
 
               {/* Location (Read-only) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Location
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MapPin className="h-5 w-5 text-gray-400" />
+                <div className="flex items-center space-x-3 p-3.5 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200 dark:border-gray-700/50">
+                  <div className="bg-white dark:bg-gray-700 p-2 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600">
+                    <MapPin className="h-5 w-5 text-primary-dark dark:text-primary-light" />
                   </div>
-                  <input
-                    type="text"
-                    value={`${user?.city || ''}, ${user?.state || ''}`}
-                    disabled
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
-                  />
+                  <div>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold tracking-tight">
+                      {user?.city && user?.state
+                        ? `${user.city.split(',')[0].trim()}, ${user.state}`
+                        : user?.city || user?.state || 'Not set'}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Registered location • Permanent</p>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Location cannot be changed</p>
               </div>
             </div>
 
             {/* Account Information */}
             <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Account Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Account Status
                   </label>
                   <div className="flex items-center">
@@ -307,26 +301,26 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Member Since
                   </label>
-                  <p className="text-sm text-gray-900">
+                  <p className="text-sm text-gray-900 dark:text-gray-300">
                     {user?.date_joined ? formatDate(user.date_joined) : ''}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Last Login
                   </label>
-                  <p className="text-sm text-gray-900">
+                  <p className="text-sm text-gray-900 dark:text-gray-300">
                     {user?.last_login ? formatDate(user.last_login) : 'Never'}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Account Type
                   </label>
-                  <p className="text-sm text-gray-900">PrimeTrust Banking</p>
+                  <p className="text-sm text-gray-900 dark:text-gray-300">PrimeTrust Banking</p>
                 </div>
               </div>
             </div>
@@ -361,44 +355,6 @@ export default function ProfilePage() {
               </div>
             )}
           </form>
-        </div>
-
-        {/* Security Information */}
-        <div className="bg-blue-50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
-            <Shield className="w-5 h-5 mr-2" />
-            Account Security
-          </h3>
-          <div className="grid md:grid-cols-2 gap-4 text-sm text-blue-800">
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Your data is encrypted and secure</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Two-factor authentication available</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Regular security updates</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Monitor account activity</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Secure login sessions</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>24/7 fraud monitoring</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </DashboardLayout>

@@ -1,132 +1,96 @@
 'use client'
 
-import { ArrowRight, Users, Star, CheckCircle, Lock, Sparkles, Heart, Globe, Award, Clock, DollarSign, Building } from 'lucide-react'
+import {
+  ArrowRight, Users, Globe, Shield, Zap,
+  CreditCard, BarChart, Lock, Smartphone, ChevronDown,
+  ChevronUp, Award, Building, Clock, CheckCircle, Star
+} from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 export default function LandingPage() {
   const { user } = useAuth()
 
-  // Scroll animation hook
-  const useScrollAnimation = () => {
-    const [isVisible, setIsVisible] = useState(false)
-    const elementRef = useRef<HTMLDivElement>(null)
+  // FAQ State
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
 
-    useEffect(() => {
-      const currentElement = elementRef.current
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) {
-            setIsVisible(true)
-          }
-        },
-        { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-      )
-
-      if (currentElement) {
-        observer.observe(currentElement)
-      }
-
-      return () => {
-        if (currentElement) {
-          observer.unobserve(currentElement)
-        }
-      }
-    }, [])
-
-    return { isVisible, elementRef }
+  const toggleFaq = (index: number) => {
+    setOpenFaq(openFaq === index ? null : index)
   }
-  const stats = [
-    { icon: Users, label: 'Active Users', value: '250K+', suffix: '' },
-    { icon: DollarSign, label: 'Transactions', value: '500B+', suffix: '' },
-    { icon: Globe, label: 'Countries', value: '45+', suffix: '' },
-    { icon: Star, label: 'Satisfaction', value: '98%', suffix: '' }
-  ]
 
-
-
-  const philosophy = [
+  const features = [
     {
       icon: Lock,
-      title: 'Trustworthy',
-      description: 'Your security is our top priority with bank-level encryption and fraud protection.'
+      title: 'Institutional Encryption',
+      description: 'A dedicated 256-bit SSL encryption for your digital assets ensures you have the highest security standards available in modern banking. Your data is protected by military-grade protocols.'
     },
     {
-      icon: Sparkles,
-      title: 'Innovative',
-      description: 'Cutting-edge technology that makes banking simple, fast, and secure.'
+      icon: Zap,
+      title: 'Hyper-Speed Processing',
+      description: 'Experience automated transaction fluidity with our proprietary core technology designed to handle thousands of transactions per second without lag.'
     },
     {
-      icon: Heart,
-      title: 'Personalized',
-      description: 'Tailored financial solutions designed to meet your unique needs and goals.'
+      icon: CreditCard,
+      title: 'Industry-Low Fees',
+      description: 'Maximize your capital efficiency with a transparent fee structure that eliminates hidden costs and reduces overhead on every single trade.'
+    },
+    {
+      icon: Globe,
+      title: 'Instant Global Transfers',
+      description: 'Move capital across borders in seconds, not days, utilizing our deep liquidity pools and prime banking partnerships for true zero-boundary financial access.'
+    },
+    {
+      icon: BarChart,
+      title: 'Direct Bitcoin Investment',
+      description: 'Securely buy, sell, and hold Bitcoin directly from your dashboard with real-time market data and institutional-grade custody.'
+    },
+    {
+      icon: Smartphone,
+      title: '24/7 Priority Support',
+      description: 'Dedicated account managers are available around the clock to provide instant assistance for high-value financial operations.'
     }
   ]
 
-  const testimonials = [
+  const faqs = [
     {
-      name: 'Sarah Johnson',
-      role: 'Small Business Owner',
-      content: 'PrimeTrust has revolutionized how I manage my business finances. The real-time transfers are a game-changer!',
-      rating: 5,
-      avatar: 'SJ'
+      question: "How secure is PrimeTrust compared to traditional banks?",
+      answer: "PrimeTrust utilizes military-grade AES-256 encryption and hardware security modules (HSM) that exceed standard banking requirements. Unlike traditional banks relying on legacy infrastructure, we run on a decentralized security mesh that prevents single points of failure."
     },
     {
-      name: 'Michael Chen',
-      role: 'Freelance Developer',
-      content: 'The mobile app is incredibly intuitive. I can manage my money on the go without any hassle.',
-      rating: 5,
-      avatar: 'MC'
+      question: "What are the global transfer limits for premium accounts?",
+      answer: "Premium accounts enjoy significantly higher transfer limits, up to $1M daily for verified institutional clients. Our automated compliance engine ensures swift processing for large-volume transactions."
     },
     {
-      name: 'Emily Rodriguez',
-      role: 'Marketing Manager',
-      content: 'Security was my biggest concern, but PrimeTrust\'s encryption gives me complete peace of mind.',
-      rating: 5,
-      avatar: 'ER'
+      question: "How does zero-fee wealth management actually work?",
+      answer: "We leverage AI-driven automated rebalancing and tax-loss harvesting to optimize your portfolio. By removing human overhead from routine maintenance, we pass the savings directly to you."
+    },
+    {
+      question: "Is PrimeTrust regulated in my jurisdiction?",
+      answer: "PrimeTrust operates in full compliance with global financial regulations, including GDPR, CCPA, and regional banking standards. We hold multiple licenses to operate as a secure payment processor and custodian."
     }
   ]
-
-  const achievements = [
-    { icon: Award, title: 'Best Digital Bank 2024', description: 'Recognized by Financial Times' },
-    { icon: Building, title: 'ISO 27001 Certified', description: 'Information Security Management' },
-    { icon: Globe, title: 'Global Presence', description: 'Serving 45+ countries worldwide' },
-    { icon: Clock, title: '99.9% Uptime', description: 'Reliable banking infrastructure' }
-  ]
-
-  
-
-  // Animated components
-  const AnimatedSection = ({ children, className = "", direction = "up" }: { children: React.ReactNode, className?: string, direction?: "up" | "left" | "right" }) => {
-    const { isVisible, elementRef } = useScrollAnimation()
-    const baseClass = direction === "up" ? "scroll-animate" : direction === "left" ? "scroll-animate-left" : "scroll-animate-right"
-    
-    return (
-      <div 
-        ref={elementRef}
-        className={`${baseClass} ${isVisible ? 'visible' : ''} ${className}`}
-      >
-        {children}
-      </div>
-    )
-  }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-white/10 backdrop-blur-md border-b border-white/20">
+      <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b border-white/10 supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-white">PrimeTrust</h1>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-xl">P</span>
+              </div>
+              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                PrimeTrust
+              </h1>
             </div>
             <div className="flex items-center space-x-4">
               {user ? (
                 <Link
                   href="/dashboard"
-                  className="bg-white text-primary-dark px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transition-colors"
+                  className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-full font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(59,130,246,0.5)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)]"
                 >
                   Dashboard
                 </Link>
@@ -134,13 +98,13 @@ export default function LandingPage() {
                 <>
                   <Link
                     href="/login"
-                    className="text-white hover:text-gray-200 transition-colors"
+                    className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                   >
                     Login
                   </Link>
                   <Link
                     href="/register"
-                    className="bg-white text-primary-dark px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transition-colors"
+                    className="bg-white text-primary-navy px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transition-all duration-300 shadow-lg hover:shadow-white/20"
                   >
                     Get Started
                   </Link>
@@ -151,159 +115,111 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section - Dark Background */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary-navy via-primary-dark to-blue-900">
-        <div className="max-w-7xl mx-auto">
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden bg-[#020817]">
+        {/* Background Gradients */}
+        <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-primary/20 blur-[120px] rounded-full" />
+        <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-blue-600/10 blur-[120px] rounded-full" />
+
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Content */}
-            <AnimatedSection direction="up" className="text-white">
-              <h1 className="text-5xl md:text-6xl font-bold mb-6">
-                Experience Banking Like Never Before with PrimeTrust
-          </h1>
-              <p className="text-xl text-gray-200 mb-8">
-                Discover comprehensive banking solutions that combine cutting-edge technology with traditional security. 
-                Manage your finances with confidence and convenience.
+            <div className="animate-fade-in space-y-8">
+
+
+              <h1 className="text-5xl md:text-7xl font-bold leading-tight tracking-tight text-white">
+                The Future of <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8B5CF6] to-[#3B82F6]">
+                  Secure Digital Banking
+                </span>
+              </h1>
+
+              <p className="text-xl text-gray-400 max-w-xl leading-relaxed">
+                Experience the pinnacle of automated financial freedom with our institutional-grade platform.
+                Seamlessly manage assets with 24/7 accessibility and military-grade encryption protocols.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-            {user ? (
-              <Link
-                href="/dashboard"
-                    className="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2"
-              >
-                Go to Dashboard
-                    <ArrowRight className="w-5 h-5" />
-              </Link>
-            ) : (
-              <>
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Link
                   href="/register"
-                      className="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2"
+                  className="group bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:shadow-[0_0_40px_-10px_rgba(59,130,246,0.5)] transition-all duration-300 transform hover:-translate-y-1 inline-flex items-center justify-center gap-2"
                 >
-                      Get Started
-                      <ArrowRight className="w-5 h-5" />
+                  Start Your Financial Journey
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link
                   href="/login"
-                      className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-primary-dark transition-all duration-300"
+                  className="group border border-white/10 bg-white/5 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white/10 hover:border-white/20 transition-all duration-300 backdrop-blur-sm inline-flex items-center justify-center gap-2"
                 >
-                      Learn More
+                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-0 h-0 border-l-[6px] border-l-white border-y-[4px] border-y-transparent ml-1"></div>
+                  </div>
+                  View Demo
                 </Link>
-              </>
-            )}
               </div>
-            </AnimatedSection>
-            
-            {/* Right Content - Three Cards Mockup */}
-            <AnimatedSection direction="left" className="relative">
-              <div className="relative w-full h-96">
-                <Image
-                  src="/images/mockups/hero-cards.png"
-                  alt="PrimeTrust Credit Cards"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
-            </AnimatedSection>
-          </div>
-        </div>
-      </section>
 
-      {/* Statistics Section */}
-      <section id="stats-section" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center animate-fade-in-up" style={{ animationDelay: `${index * 100}ms` }}>
-                <div className="w-16 h-16 bg-gradient-to-r from-primary-dark to-primary-navy rounded-full flex items-center justify-center mx-auto mb-4">
-                  <stat.icon className="w-8 h-8 text-white" />
+              {/* Stats Strip */}
+              <div className="grid grid-cols-3 gap-8 pt-8 border-t border-white/10">
+                <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+                  <p className="text-3xl font-bold text-white mb-1">$10B+</p>
+                  <p className="text-sm text-gray-500 uppercase tracking-wider">Total Volume</p>
                 </div>
-                <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-                  {stat.value}
+                <div className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+                  <p className="text-3xl font-bold text-white mb-1">2.4M</p>
+                  <p className="text-sm text-gray-500 uppercase tracking-wider">Global Users</p>
                 </div>
-                <p className="text-gray-600 font-medium">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Trustworthy, Reliable and Secure Banking Solutions Section - White Background */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content - Dashboard Screenshot */}
-            <div className="relative animate-fade-in-left">
-              <div className="relative w-full h-96">
-                <Image
-                  src="/images/mockups/dashboard-screeenshot.png"
-                  alt="PrimeTrust Dashboard"
-                  fill
-                  className="object-contain"
-                />
+                <div className="animate-slide-up" style={{ animationDelay: '300ms' }}>
+                  <p className="text-3xl font-bold text-green-400 mb-1">99.99%</p>
+                  <p className="text-sm text-gray-500 uppercase tracking-wider">Security Uptime</p>
+                </div>
               </div>
             </div>
-            
-            {/* Right Content */}
-            <div className="animate-fade-in-right">
-              <h2 className="text-4xl font-bold text-gray-900 mb-6">
-                Trustworthy, Reliable and Secure Banking Solutions at PrimeTrust
-              </h2>
-              <p className="text-xl text-gray-600 mb-8">
-                We are committed to providing you with convenient, reliable, and tailored financial services. 
-                Our comprehensive banking solutions are designed to meet your unique needs while ensuring 
-                the highest level of security and trust.
-              </p>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-6 h-6 text-green-500 mt-1 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Bank-Level Security</h3>
-                    <p className="text-gray-600">256-bit encryption and multi-factor authentication</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-6 h-6 text-green-500 mt-1 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900">24/7 Customer Support</h3>
-                    <p className="text-gray-600">Round-the-clock assistance whenever you need help</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-6 h-6 text-green-500 mt-1 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Real-Time Transactions</h3>
-                    <p className="text-gray-600">Instant transfers and real-time balance updates</p>
-                  </div>
-                </div>
-              </div>
+
+            {/* Right Content - Floating Cards */}
+            <div className="relative h-[600px] animate-float hidden lg:block">
+              <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-purple-500/10 rounded-full blur-[60px]" />
+              <Image
+                src="/images/mockups/hero-cards.png"
+                alt="PrimeTrust Modern Banking Cards"
+                fill
+                className="object-contain drop-shadow-2xl"
+                priority
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Our Guiding Philosophy Section - White Background */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+
+
+      {/* Premium Features Grid */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-[#020817]">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Our Guiding Philosophy
+          <div className="text-center mb-20 animate-fade-in space-y-4">
+            <h2 className="text-4xl md:text-5xl font-bold text-white">
+              Premium Financial Benefits
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Explore the four pillars that underpin our online bank and the experience we strive to create for our customers.
+            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+              Our suite of high-end fintech tools is designed for global speed and institutional-grade security.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {philosophy.map((item, index) => (
-              <div key={index} className="text-center p-8 bg-gray-50 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 animate-fade-in-up" style={{ animationDelay: `${index * 200}ms` }}>
-                <div className="w-16 h-16 bg-gradient-to-r from-primary-dark to-primary-navy rounded-full flex items-center justify-center mx-auto mb-6">
-                  <item.icon className="w-8 h-8 text-white" />
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((feature, index) => (
+              <div
+                key={index}
+                className="group p-8 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 hover:-translate-y-1 transition-all duration-300 animate-slide-up backdrop-blur-sm relative overflow-hidden"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                {/* Hover Gradient Effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                <div className="w-14 h-14 bg-blue-600/20 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <feature.icon className="w-7 h-7 text-blue-400" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                  {item.title}
-                </h3>
-                <p className="text-gray-600">
-                  {item.description}
+                <h3 className="text-xl font-bold text-white mb-4">{feature.title}</h3>
+                <p className="text-gray-400 leading-relaxed text-sm">
+                  {feature.description}
                 </p>
               </div>
             ))}
@@ -311,115 +227,127 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Achievements Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+      {/* Feature Split - Journey */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-[#0B1221] relative overflow-hidden">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Industry Recognition & Achievements
-            </h2>
-            <p className="text-xl text-gray-600">
-              Trusted by millions and recognized by industry leaders worldwide.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {achievements.map((achievement, index) => (
-              <div key={index} className="text-center p-6 bg-white rounded-xl shadow-lg animate-fade-in-up" style={{ animationDelay: `${index * 150}ms` }}>
-                <div className="w-12 h-12 bg-gradient-to-r from-primary-dark to-primary-navy rounded-full flex items-center justify-center mx-auto mb-4">
-                  <achievement.icon className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{achievement.title}</h3>
-                <p className="text-gray-600 text-sm">{achievement.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Innovative Approach to Financial Services Section - Dark Background */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary-navy via-primary-dark to-blue-900">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content */}
-            <div className="text-white animate-fade-in-left">
-              <h2 className="text-4xl font-bold mb-6">
-                Innovative Approach to Financial Services
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8 animate-fade-in">
+              <h2 className="text-4xl font-bold text-white leading-tight">
+                Your Journey to <br />
+                <span className="text-blue-500">Financial Excellence</span>
               </h2>
-              <p className="text-xl text-gray-200 mb-8">
-                We are committed to providing you with convenient, reliable, and tailored financial services. 
-                Our innovative approach combines cutting-edge technology with traditional banking security 
-                to deliver an exceptional banking experience.
+              <p className="text-gray-400 text-lg">
+                We've streamlined the onboarding process to ensure you can go from zero to fully automated wealth management in less than 5 minutes.
               </p>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-white">Advanced Technology</h3>
-                    <p className="text-gray-300">State-of-the-art banking infrastructure</p>
+
+              <div className="space-y-6">
+                {[
+                  { title: 'Create Secure Account', desc: 'Complete our state-of-the-art verification process with zero paperwork. Identity protection guaranteed.' },
+                  { title: 'Fund Your Account', desc: 'Seamlessly deposit funds via instant mobile check capture or secure global wire transfers. Your capital is ready to work for you instantly.' },
+                  { title: 'Invest & Spend', desc: 'Grow your portfolio with direct Bitcoin investing or manage daily liquidity with your PrimeTrust premium debit card.' }
+                ].map((step, i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full border border-blue-500/30 flex items-center justify-center bg-blue-500/10 text-blue-400 font-bold">
+                      {i + 1}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
+                      <p className="text-gray-400 text-sm leading-relaxed">{step.desc}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-white">Personalized Experience</h3>
-                    <p className="text-gray-300">Tailored solutions for your unique needs</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-white">Global Accessibility</h3>
-                    <p className="text-gray-300">Bank anywhere, anytime with our mobile app</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
-            
-            {/* Right Content - Laptop Mockup */}
-            <div className="relative animate-fade-in-right">
-              <div className="relative w-full h-96">
-                <Image
-                  src="/images/mockups/laptop-dashbaord.png"
-                  alt="PrimeTrust Banking Dashboard"
-                  fill
-                  className="object-contain"
-                />
-              </div>
+
+            <div className="relative h-[600px] rounded-2xl bg-gradient-to-br from-gray-900 to-black border border-white/10 p-4 shadow-2xl animate-float lg:order-last order-first">
+              <Image
+                src="/images/mockups/dashboard-screeenshot.png"
+                alt="PrimeTrust Dashboard"
+                fill
+                className="object-contain rounded-xl"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* What Our Customers Are Saying Section - White Background */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      {/* Security Section (Dark) */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-[#020817] relative">
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-900/50 to-transparent" />
+
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              What our customers are saying
-            </h2>
-            <p className="text-xl text-gray-600">
-              Hear from our satisfied clients and learn how PrimeTrust has helped them achieve their financial goals.
-            </p>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-white mb-4">Enterprise-Grade Security</h2>
+            <p className="text-gray-400">PrimeTrust is built on a foundation of regulatory compliance and technological redundancy.</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-gray-50 p-8 rounded-xl hover:shadow-lg transition-all duration-300 animate-fade-in-up" style={{ animationDelay: `${index * 200}ms` }}>
-                <div className="flex items-center mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-600 mb-6 italic">
-                  &quot;{testimonial.content}&quot;
-                </p>
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-gradient-to-r from-primary-dark to-primary-navy rounded-full flex items-center justify-center mr-4">
-                    <span className="text-white font-semibold text-sm">{testimonial.avatar}</span>
-                  </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{testimonial.name}</p>
-                  <p className="text-gray-500 text-sm">{testimonial.role}</p>
-                  </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
+            {[
+              { label: 'SOC2 Type II', sub: 'Certified' },
+              { label: 'ISO 27001', sub: 'Standard' },
+              { label: 'PCI-DSS', sub: 'Compliant' },
+              { label: 'GDPR Ready', sub: 'Global' }
+            ].map((cert, i) => (
+              <div key={i} className="p-6 rounded-xl bg-white/5 border border-white/10 text-center hover:bg-white/10 transition-colors">
+                <Shield className="w-8 h-8 text-blue-500 mx-auto mb-3" />
+                <h3 className="text-white font-bold">{cert.label}</h3>
+                <p className="text-xs text-gray-500 uppercase tracking-widest mt-1">{cert.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 text-center border-t border-white/10 pt-16">
+            <div>
+              <div className="flex justify-center mb-4"><CheckCircle className="text-green-500 w-6 h-6" /></div>
+              <h4 className="text-white font-bold mb-2">Cold Storage Vaults</h4>
+              <p className="text-gray-500 text-sm">98% of assets held offline in geographically distributed vaults.</p>
+            </div>
+            <div>
+              <div className="flex justify-center mb-4"><CheckCircle className="text-green-500 w-6 h-6" /></div>
+              <h4 className="text-white font-bold mb-2">DDoS Mitigation</h4>
+              <p className="text-gray-500 text-sm">Enterprise-level protection against high-traffic cyber attacks.</p>
+            </div>
+            <div>
+              <div className="flex justify-center mb-4"><CheckCircle className="text-green-500 w-6 h-6" /></div>
+              <h4 className="text-white font-bold mb-2">Asset Insurance</h4>
+              <p className="text-gray-500 text-sm">Portfolio held with interest against theft and operational failures.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-[#050B19]">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-white mb-4">Frequently Asked Questions</h2>
+            <p className="text-gray-400">Everything you need to know about the PrimeTrust ecosystem.</p>
+          </div>
+
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <div
+                key={index}
+                className="border border-white/10 rounded-xl overflow-hidden bg-white/5 backdrop-blur-sm hover:border-white/20 transition-all"
+              >
+                <button
+                  onClick={() => toggleFaq(index)}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left focus:outline-none"
+                >
+                  <span className="text-lg font-semibold text-white">{faq.question}</span>
+                  {openFaq === index ? (
+                    <ChevronUp className="w-5 h-5 text-blue-500" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                  )}
+                </button>
+                <div
+                  className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${openFaq === index ? 'max-h-48 py-4 opacity-100' : 'max-h-0 py-0 opacity-0'
+                    }`}
+                >
+                  <p className="text-gray-400 leading-relaxed">
+                    {faq.answer}
+                  </p>
                 </div>
               </div>
             ))}
@@ -427,192 +355,72 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Simplify Your Financial Life Section - Dark Background */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary-navy via-primary-dark to-blue-900">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content - Two Cards Mockup */}
-            <div className="relative animate-fade-in-left">
-              <div className="relative w-full h-96">
-                <Image
-                  src="/images/mockups/footer-cards.png"
-                  alt="PrimeTrust Credit Cards"
-                  fill
-                  className="object-contain"
-                />
-              </div>
-            </div>
-            
-            {/* Right Content */}
-            <div className="text-white animate-fade-in-right">
-              <h2 className="text-4xl font-bold mb-6">
-                Simplify Your Financial Life with PrimeTrust
+      {/* Final CTA */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-[#020817] text-center">
+        <div className="max-w-4xl mx-auto bg-gradient-to-b from-blue-900/20 to-transparent p-12 rounded-3xl border border-white/10 relative overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1/2 bg-blue-500/20 blur-[100px] -z-10" />
+
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            Ready to Elevate Your <br /> Financial Future?
           </h2>
-              <p className="text-xl text-gray-200 mb-8">
-                Join thousands of customers who trust PrimeTrust to manage their finances. 
-                We&apos;re here to be your partner in financial success.
-              </p>
-              <div className="space-y-4 mb-8">
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-6 h-6 text-green-400" />
-                  <span className="text-gray-200">No hidden fees or charges</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-6 h-6 text-green-400" />
-                  <span className="text-gray-200">Instant account setup</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-6 h-6 text-green-400" />
-                  <span className="text-gray-200">Global money transfers</span>
-                </div>
-              </div>
-              <div>
-            {user ? (
-              <Link
-                href="/dashboard"
-                    className="bg-white text-primary-dark px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2"
-              >
-                Go to Dashboard
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-            ) : (
-              <Link
-                href="/register"
-                    className="bg-white text-primary-dark px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2"
-              >
-                    Get Started
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-            )}
-              </div>
-            </div>
+          <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
+            Join over 2.4 million institutional and private clients who trust PrimeTrust for their digital banking needs.
+          </p>
+
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Link
+              href="/register"
+              className="bg-white text-primary-navy px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] transform hover:-translate-y-1"
+            >
+              Start Your Financial Journey Today
+            </Link>
+            <Link
+              href="/contact-us"
+              className="px-8 py-4 rounded-xl border border-white/20 text-white font-semibold hover:bg-white/10 transition-all"
+            >
+              Contact Sales
+            </Link>
+          </div>
+
+          <div className="mt-12 flex justify-center gap-8 text-sm text-gray-500">
+            <span className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> No hidden fees</span>
+            <span className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Secure Onboarding</span>
+            <span className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> 24/7 Access</span>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
+      <footer className="bg-[#02050e] border-t border-white/5 pt-16 pb-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-2xl font-bold mb-4">PrimeTrust</h3>
-              <p className="text-gray-400">
-                Empowering your financial future with secure, innovative banking solutions.
-              </p>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-8">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+                <span className="text-white text-xs font-bold">P</span>
+              </div>
+              <span className="text-xl font-bold text-white">PrimeTrust</span>
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Our Company</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link href="/" className="hover:text-white transition-colors">Home</Link></li>
-                <li><Link href="/about-us" className="hover:text-white transition-colors">About Us</Link></li>
-                <li><Link href="/contact-us" className="hover:text-white transition-colors">Contact</Link></li>
-                <li><Link href="/careers" className="hover:text-white transition-colors">Careers</Link></li>
-              </ul>
+            <div className="flex gap-8 text-gray-400 text-sm">
+              <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <Link href="#" className="hover:text-white transition-colors">Terms of Service</Link>
+              <Link href="#" className="hover:text-white transition-colors">Cookie Policy</Link>
+              <Link href="#" className="hover:text-white transition-colors">Legal</Link>
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Products</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li>Checking Accounts</li>
-                <li>Savings Accounts</li>
-                <li>Virtual Cards</li>
-                <li>Money Transfers</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link href="/security" className="hover:text-white transition-colors">Security</Link></li>
-                <li><Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="hover:text-white transition-colors">Terms & Conditions</Link></li>
-                <li><Link href="/help-center" className="hover:text-white transition-colors">Help Center</Link></li>
-              </ul>
+            <div className="flex gap-4">
+              {/* Social placeholders */}
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition-all cursor-pointer">
+                <Globe className="w-4 h-4" />
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition-all cursor-pointer">
+                <Shield className="w-4 h-4" />
+              </div>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 PrimeTrust. All rights reserved.</p>
+          <div className="text-center text-gray-600 text-xs border-t border-white/5 pt-8">
+            &copy; 2026 PrimeTrust Financial Technologies. All rights reserved. PrimeTrust is a financial technology company, not a bank. Banking services are provided by our partner banks.
           </div>
         </div>
       </footer>
-
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        @keyframes fadeInLeft {
-          from {
-            opacity: 0;
-            transform: translateX(-30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        
-        @keyframes fadeInRight {
-          from {
-            opacity: 0;
-            transform: translateX(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        
-        .animate-fade-in-up {
-          animation: fadeInUp 0.8s ease-out forwards;
-        }
-        
-        .animate-fade-in-left {
-          animation: fadeInLeft 0.8s ease-out forwards;
-        }
-        
-        .animate-fade-in-right {
-          animation: fadeInRight 0.8s ease-out forwards;
-        }
-        
-        .scroll-animate {
-          opacity: 0;
-          transform: translateY(30px);
-          transition: all 0.8s ease-out;
-        }
-        
-        .scroll-animate.visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        
-        .scroll-animate-left {
-          opacity: 0;
-          transform: translateX(-30px);
-          transition: all 0.8s ease-out;
-        }
-        
-        .scroll-animate-left.visible {
-          opacity: 1;
-          transform: translateX(0);
-        }
-        
-        .scroll-animate-right {
-          opacity: 0;
-          transform: translateX(30px);
-          transition: all 0.8s ease-out;
-        }
-        
-        .scroll-animate-right.visible {
-          opacity: 1;
-          transform: translateX(0);
-        }
-      `}</style>
     </div>
   )
 }
