@@ -73,7 +73,7 @@ export interface VirtualCard {
   application?: number
   card_number: string
   card_number_display: string
-  cvv: string
+  has_cvv: boolean
   expiry_month: string
   expiry_year: string
   card_type: 'debit' | 'credit'

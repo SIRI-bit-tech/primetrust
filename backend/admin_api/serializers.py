@@ -42,12 +42,13 @@ class VirtualCardSerializer(serializers.ModelSerializer):
     
     user_name = serializers.CharField(source='user.username', read_only=True)
     card_number_display = serializers.SerializerMethodField()
+    has_cvv = serializers.SerializerMethodField()
     
     class Meta:
         model = VirtualCard
         fields = [
             'id', 'user', 'user_name', 'card_number', 'card_number_display', 'card_type',
-            'status', 'cvv', 'expiry_month', 'expiry_year', 
+            'status', 'has_cvv', 'expiry_month', 'expiry_year', 
             'daily_limit', 'monthly_limit', 'current_daily_spent', 'current_monthly_spent',
             'created_at'
         ]
@@ -55,6 +56,10 @@ class VirtualCardSerializer(serializers.ModelSerializer):
     def get_card_number_display(self, obj):
         """Return masked card number for display."""
         return obj.mask_card_number()
+        
+    def get_has_cvv(self, obj):
+        """Return true if CVV exists."""
+        return bool(obj.cvv)
 
 
 class CardApplicationSerializer(serializers.ModelSerializer):
