@@ -80,7 +80,8 @@ class SavedBeneficiarySerializer(serializers.ModelSerializer):
 class CardApplicationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CardApplication
-        fields = ['card_type', 'reason', 'preferred_daily_limit', 'preferred_monthly_limit']
+        fields = ['id', 'card_type', 'reason', 'preferred_daily_limit', 'preferred_monthly_limit', 'status', 'created_at']
+        read_only_fields = ['id', 'status', 'created_at']
 
 
 class VirtualCardCreateSerializer(serializers.ModelSerializer):

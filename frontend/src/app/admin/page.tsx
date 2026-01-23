@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { adminAPI } from '@/lib/api'
 import { AxiosError } from 'axios'
-import { 
-  Users, 
-  CreditCard, 
-  FileText, 
-  Bell, 
-  TrendingUp, 
+import {
+  Users,
+  CreditCard,
+  FileText,
+  Bell,
+  TrendingUp,
   Activity,
   DollarSign,
   Bitcoin,
@@ -25,12 +25,12 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react'
-import { 
-  User, 
-  Transaction, 
+import {
+  User,
+  Transaction,
   Transfer,
-  VirtualCard, 
-  CardApplication, 
+  VirtualCard,
+  CardApplication,
   UserNotification,
   SystemStatus,
   CurrencySwap,
@@ -52,7 +52,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  
+
   // Modal states
   const [showLockModal, setShowLockModal] = useState(false)
   const [selectedUserForAction, setSelectedUserForAction] = useState<number | null>(null)
@@ -107,7 +107,7 @@ export default function AdminPage() {
   const loadData = async () => {
     setLoading(true)
     setError('')
-    
+
     try {
       switch (activeTab) {
         case 'dashboard': {
@@ -208,7 +208,7 @@ export default function AdminPage() {
 
   const handleUpdateBalance = async () => {
     if (!selectedUser || !balanceAmount) return
-    
+
     try {
       await adminAPI.updateUserBalance(selectedUser, parseFloat(balanceAmount), balanceAction)
       setBalanceAmount('')
@@ -221,7 +221,7 @@ export default function AdminPage() {
 
   const handleUpdateBitcoinBalance = async () => {
     if (!selectedUser || !bitcoinAmount) return
-    
+
     try {
       await adminAPI.updateUserBitcoinBalance(selectedUser, parseFloat(bitcoinAmount), bitcoinAction)
       setBitcoinAmount('')
@@ -234,7 +234,7 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (userId: number) => {
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return
-    
+
     try {
       await adminAPI.deleteUser(userId)
       loadData()
@@ -284,7 +284,7 @@ export default function AdminPage() {
 
   const handleDeleteCard = async (cardId: number) => {
     if (!confirm('Are you sure you want to delete this card? This action cannot be undone.')) return
-    
+
     try {
       await adminAPI.deleteCard(cardId)
       loadData()
@@ -396,13 +396,13 @@ export default function AdminPage() {
       'check-deposits': checkDeposits,
       'security-logs': securityLogs
     }
-    
-    const data = dataMap[activeTab] || []
-    
 
-    
+    const data = dataMap[activeTab] || []
+
+
+
     if (!searchTerm) return data
-    
+
     return data.filter((item: TableItem) => {
       const userItem = item as User
       const transactionItem = item as Transaction
@@ -485,11 +485,11 @@ export default function AdminPage() {
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                userItem.account_locked_until && new Date(userItem.account_locked_until) > new Date() ? 'locked' : 
-                userItem.is_active ? 'active' : 'inactive'
+                userItem.account_locked_until && new Date(userItem.account_locked_until) > new Date() ? 'locked' :
+                  userItem.is_active ? 'active' : 'inactive'
               )}`}>
                 {userItem.account_locked_until && new Date(userItem.account_locked_until) > new Date() ? 'Locked' :
-                 userItem.is_active ? 'Active' : 'Inactive'}
+                  userItem.is_active ? 'Active' : 'Inactive'}
               </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
@@ -531,7 +531,7 @@ export default function AdminPage() {
         const userName = transactionItem.user_name || transactionItem.sender_name || 'N/A'
         const transactionType = transactionItem.transaction_type || transactionItem.transfer_type || 'N/A'
         const itemType = transactionItem.type // 'transaction' or 'transfer'
-        
+
         return (
           <>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
@@ -713,7 +713,7 @@ export default function AdminPage() {
               {currencySwapItem.swap_type_display || currencySwapItem.swap_type}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {currencySwapItem.swap_type === 'usd_to_btc' 
+              {currencySwapItem.swap_type === 'usd_to_btc'
                 ? `$${Number(currencySwapItem.amount_from).toFixed(2)}`
                 : `${Number(currencySwapItem.amount_from).toFixed(8)} BTC`
               }
@@ -944,35 +944,34 @@ export default function AdminPage() {
         </div>
       </div>
 
-             {/* Navigation Tabs */}
-       <div className="bg-gray-800 border-b border-gray-700">
-         <style jsx>{`
+      {/* Navigation Tabs */}
+      <div className="bg-gray-800 border-b border-gray-700">
+        <style jsx>{`
            .hide-scrollbar::-webkit-scrollbar {
              display: none;
            }
          `}</style>
-         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                       <div className="flex space-x-8 overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-             {tabs.map((tab) => {
-               const Icon = tab.icon
-               return (
-                 <button
-                   key={tab.id}
-                   onClick={() => setActiveTab(tab.id)}
-                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                     activeTab === tab.id
-                       ? 'border-blue-500 text-blue-400'
-                       : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                   }`}
-                 >
-                   <Icon className="w-4 h-4" />
-                   <span>{tab.label}</span>
-                 </button>
-               )
-             })}
-           </div>
-         </div>
-       </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-8 overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
+                      ? 'border-blue-500 text-blue-400'
+                      : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                    }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1044,90 +1043,90 @@ export default function AdminPage() {
               </div>
             )}
 
-                         {/* Balance Management */}
-             <div className="bg-gray-800 p-6 rounded-lg">
-               <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                 <DollarSign className="w-5 h-5 mr-2" />
-                 Balance Management
-               </h3>
-               
-               <div className="space-y-4">
-                 {/* User Selection */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-300 mb-2">Select User</label>
-                   <select
-                     value={selectedUser || ''}
-                     onChange={(e) => setSelectedUser(Number(e.target.value) || null)}
-                     className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
-                   >
-                     <option value="">Choose a user</option>
-                     {users.map((user) => (
-                       <option key={user.id} value={user.id}>
-                         {user.first_name} {user.last_name} ({user.email})
-                       </option>
-                     ))}
-                   </select>
-                 </div>
+            {/* Balance Management */}
+            <div className="bg-gray-800 p-6 rounded-lg">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <DollarSign className="w-5 h-5 mr-2" />
+                Balance Management
+              </h3>
 
-                 {/* USD Balance */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-300 mb-2">USD Balance</label>
-                   <div className="flex gap-1">
-                     <select
-                       value={balanceAction}
-                       onChange={(e) => setBalanceAction(e.target.value as 'add' | 'subtract' | 'set')}
-                       className="w-20 bg-gray-700 border border-gray-600 text-white rounded px-2 py-2 text-sm"
-                     >
-                       <option value="add">Add</option>
-                       <option value="subtract">Sub</option>
-                       <option value="set">Set</option>
-                     </select>
-                     <input
-                       type="number"
-                       value={balanceAmount}
-                       onChange={(e) => setBalanceAmount(e.target.value)}
-                       placeholder="Amount"
-                       className="flex-1 bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
-                     />
-                     <button
-                       onClick={handleUpdateBalance}
-                       className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
-                     >
-                       Update
-                     </button>
-                   </div>
-                 </div>
+              <div className="space-y-4">
+                {/* User Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Select User</label>
+                  <select
+                    value={selectedUser || ''}
+                    onChange={(e) => setSelectedUser(Number(e.target.value) || null)}
+                    className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
+                  >
+                    <option value="">Choose a user</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.first_name} {user.last_name} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                 {/* Bitcoin Balance */}
-                 <div>
-                   <label className="block text-sm font-medium text-gray-300 mb-2">Bitcoin Balance</label>
-                   <div className="flex gap-1">
-                     <select
-                       value={bitcoinAction}
-                       onChange={(e) => setBitcoinAction(e.target.value as 'add' | 'subtract' | 'set')}
-                       className="w-20 bg-gray-700 border border-gray-600 text-white rounded px-2 py-2 text-sm"
-                     >
-                       <option value="add">Add</option>
-                       <option value="subtract">Sub</option>
-                       <option value="set">Set</option>
-                     </select>
-                     <input
-                       type="number"
-                       value={bitcoinAmount}
-                       onChange={(e) => setBitcoinAmount(e.target.value)}
-                       placeholder="BTC"
-                       className="flex-1 bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
-                     />
-                     <button
-                       onClick={handleUpdateBitcoinBalance}
-                       className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
-                     >
-                       Update
-                     </button>
-                   </div>
-                 </div>
-               </div>
-             </div>
+                {/* USD Balance */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">USD Balance</label>
+                  <div className="flex gap-1">
+                    <select
+                      value={balanceAction}
+                      onChange={(e) => setBalanceAction(e.target.value as 'add' | 'subtract' | 'set')}
+                      className="w-20 bg-gray-700 border border-gray-600 text-white rounded px-2 py-2 text-sm"
+                    >
+                      <option value="add">Add</option>
+                      <option value="subtract">Sub</option>
+                      <option value="set">Set</option>
+                    </select>
+                    <input
+                      type="number"
+                      value={balanceAmount}
+                      onChange={(e) => setBalanceAmount(e.target.value)}
+                      placeholder="Amount"
+                      className="flex-1 bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
+                    />
+                    <button
+                      onClick={handleUpdateBalance}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
+                    >
+                      Update
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bitcoin Balance */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Bitcoin Balance</label>
+                  <div className="flex gap-1">
+                    <select
+                      value={bitcoinAction}
+                      onChange={(e) => setBitcoinAction(e.target.value as 'add' | 'subtract' | 'set')}
+                      className="w-20 bg-gray-700 border border-gray-600 text-white rounded px-2 py-2 text-sm"
+                    >
+                      <option value="add">Add</option>
+                      <option value="subtract">Sub</option>
+                      <option value="set">Set</option>
+                    </select>
+                    <input
+                      type="number"
+                      value={bitcoinAmount}
+                      onChange={(e) => setBitcoinAmount(e.target.value)}
+                      placeholder="BTC"
+                      className="flex-1 bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm"
+                    />
+                    <button
+                      onClick={handleUpdateBitcoinBalance}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
+                    >
+                      Update
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1221,11 +1220,11 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-gray-800 divide-y divide-gray-700">
-                                         {filteredData().map((item: TableItem) => (
-                       <tr key={item.id} className="hover:bg-gray-700">
-                         {renderTableRow(item)}
-                       </tr>
-                     ))}
+                    {filteredData().map((item: TableItem) => (
+                      <tr key={`${activeTab}-${item.id}`} className="hover:bg-gray-700">
+                        {renderTableRow(item)}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

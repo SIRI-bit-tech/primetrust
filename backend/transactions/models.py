@@ -210,13 +210,19 @@ class Loan(models.Model):
 
 class Bill(models.Model):
     """Model for bill payments."""
-    
-    BILL_TYPES = [
+
+    BILL_CATEGORIES = [
         ('utilities', 'Utilities'),
         ('insurance', 'Insurance'),
         ('subscription', 'Subscription'),
         ('credit_card', 'Credit Card'),
         ('other', 'Other'),
+    ]
+    
+    RECURRING_FREQUENCIES = [
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('yearly', 'Yearly'),
     ]
     
     STATUS_CHOICES = [
@@ -226,14 +232,27 @@ class Bill(models.Model):
     ]
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bills')
-    bill_type = models.CharField(max_length=20, choices=BILL_TYPES)
+    biller_name = models.CharField(max_length=200, default='Unknown Biller')
+    biller_category = models.CharField(max_length=50, choices=BILL_CATEGORIES, default='other')
+    bill_type = models.CharField(max_length=20, choices=BILL_CATEGORIES, blank=True, null=True) # Legacy field
+    account_number = models.CharField(max_length=100, blank=True, default='')
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     due_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    description = models.TextField()
+    description = models.TextField(blank=True, default='')
+    
+    # Recurring settings
+    is_recurring = models.BooleanField(default=False)
+    recurring_frequency = models.CharField(max_length=20, choices=RECURRING_FREQUENCIES, blank=True, null=True)
+    next_due_date = models.DateField(blank=True, null=True)
+    
+    # Payment tracking
+    paid_at = models.DateTimeField(blank=True, null=True)
+    paid_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'bills'

@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 
-import { 
-  CreditCard, 
-  Plus, 
+import {
+  CreditCard,
+  Plus,
   Shield,
   Clock,
   AlertCircle,
@@ -43,30 +43,30 @@ export default function CardsPage() {
     preferred_daily_limit: 1000,
     preferred_monthly_limit: 10000
   })
-  
+
   const isAccountLocked = user?.is_account_locked || false
 
   useEffect(() => {
     loadData()
-    
+
     // Listen for real-time card updates via Socket.IO
     const handleCardApplicationUpdate = () => {
       loadData()
     }
-    
+
     const handleCardCreated = () => {
       loadData()
     }
-    
+
     window.addEventListener('card-application-updated', handleCardApplicationUpdate as EventListener)
     window.addEventListener('card-created', handleCardCreated as EventListener)
-    
+
     return () => {
       window.removeEventListener('card-application-updated', handleCardApplicationUpdate as EventListener)
       window.removeEventListener('card-created', handleCardCreated as EventListener)
     }
   }, [])
-  
+
   // Auto-reload when application status changes to completed
   useEffect(() => {
     const hasCompletedApplication = applications.some(app => app.status === 'completed')
@@ -74,7 +74,7 @@ export default function CardsPage() {
       const timer = setTimeout(() => {
         loadData()
       }, 2000) // Reload after 2 seconds
-      
+
       return () => clearTimeout(timer)
     }
   }, [applications, cards])
@@ -170,7 +170,7 @@ export default function CardsPage() {
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
   }
-  
+
   const getStatusMessage = (status: string) => {
     switch (status) {
       case 'processing':
@@ -184,6 +184,11 @@ export default function CardsPage() {
       default:
         return ''
     }
+  }
+
+  const capitalize = (str: string) => {
+    if (!str) return ''
+    return str.charAt(0).toUpperCase() + str.slice(1)
   }
 
   const VirtualCard = ({ card }: { card: VirtualCard }) => {
@@ -251,10 +256,9 @@ export default function CardsPage() {
       <div className="space-y-4">
         {/* 3D Card Container */}
         <div className="relative w-full max-w-2xl mx-auto perspective-1000">
-          <div 
-            className={`relative w-full rounded-xl cursor-pointer transition-transform duration-700 transform-style-preserve-3d ${
-              isFlipped ? 'rotate-y-180' : ''
-            }`}
+          <div
+            className={`relative w-full rounded-[20px] cursor-pointer transition-transform duration-700 transform-style-preserve-3d ${isFlipped ? 'rotate-y-180' : ''
+              }`}
             style={{
               boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.3)',
               transformStyle: 'preserve-3d',
@@ -263,53 +267,62 @@ export default function CardsPage() {
             onClick={handleCardClick}
           >
             {/* Front of Card - Using Mockup */}
-            <div className="absolute inset-0 w-full h-full rounded-xl backface-hidden overflow-hidden">
-              <Image 
-                src="/images/card-front-mockup.png" 
-                alt="Card Front" 
+            <div className="absolute inset-0 w-full h-full rounded-[20px] backface-hidden overflow-hidden">
+              <Image
+                src="/images/card-front-mockup.png"
+                alt="Card Front"
                 fill
-                style={{ objectFit: 'contain' }}
-                className="rounded-xl"
+                style={{ objectFit: 'cover' }}
+                className="antialiased"
               />
-              
+
               {/* Dynamic Text Overlays */}
-              <div className="absolute inset-0 p-6">
-                {/* Card Number - Moved down from chip */}
-                <div className="absolute top-24 left-6 right-6">
-                  <div className="text-white text-xl font-mono tracking-wider font-bold">
+              <div className="absolute inset-0 p-6 flex flex-col justify-between">
+                <div className="h-10"></div>
+
+                {/* Card Number - Vertically Centered */}
+                <div className="absolute top-[48%] left-6 right-6 transform -translate-y-1/2">
+                  <div className="text-white text-xl md:text-2xl font-mono tracking-[0.2em] font-bold drop-shadow-md text-center md:text-left">
                     {formatCardNumber(card.card_number)}
                   </div>
                 </div>
 
-                {/* Expiry Date - Moved up from bottom */}
-                <div className="absolute bottom-20 left-6">
-                  <div className="text-white text-sm opacity-80 mb-0.5 font-medium">Valid Thru</div>
-                  <div className="text-white font-mono text-sm font-bold">{String(card.expiry_month).padStart(2, '0')}/{String(card.expiry_year).slice(-2)}</div>
-                </div>
+                {/* Footer Metadata - Cardholder and Expiry in a single row at the bottom */}
+                <div className="absolute bottom-6 left-6 flex items-end gap-8 md:gap-12">
+                  <div className="flex flex-col">
+                    <span className="text-white text-[8px] md:text-[10px] opacity-70 uppercase font-bold tracking-wider mb-1">Cardholder</span>
+                    <span className="text-white font-mono text-xs md:text-sm font-bold tracking-wider uppercase truncate max-w-[120px]">
+                      {card.user_name || 'Card Holder'}
+                    </span>
+                  </div>
 
-                {/* Cardholder Name - Moved up from bottom */}
-                <div className="absolute bottom-8 left-6">
-                  <div className="text-white text-sm opacity-80 mb-0.5 font-medium">Cardholder</div>
-                  <div className="text-white font-mono text-sm font-bold tracking-wide">{card.user_name || 'Card Holder'}</div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <div className="text-white text-[7px] md:text-[8px] opacity-70 uppercase font-bold leading-tight text-right">
+                      Valid<br />Thru
+                    </div>
+                    <span className="text-white font-mono text-xs md:text-sm font-bold">
+                      {String(card.expiry_month).padStart(2, '0')}/{String(card.expiry_year).slice(-2)}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Click hint */}
-                <div className="absolute top-6 left-1/2 transform -translate-x-1/2 text-white text-xs opacity-60 bg-black bg-opacity-50 px-2 py-1 rounded">
-                  Click to flip
+                <div className="absolute top-6 left-1/2 transform -translate-x-1/2 text-white text-[9px] font-medium opacity-50 bg-black/30 px-2 py-0.5 rounded-full backdrop-blur-sm border border-white/10">
+                  Click to Flip
                 </div>
               </div>
             </div>
 
             {/* Back of Card - Using Mockup */}
-            <div className="absolute inset-0 w-full h-full rounded-xl backface-hidden rotate-y-180 overflow-hidden">
-              <Image 
-                src="/images/card-back-mockup.png" 
-                alt="Card Back" 
+            <div className="absolute inset-0 w-full h-full rounded-[20px] backface-hidden rotate-y-180 overflow-hidden">
+              <Image
+                src="/images/card-back-mockup.png"
+                alt="Card Back"
                 fill
-                style={{ objectFit: 'contain' }}
-                className="rounded-xl"
+                style={{ objectFit: 'cover' }}
+                className="antialiased"
               />
-              
+
               {/* CVV - Inside the light blue box at bottom right */}
               <div className="absolute" style={{ bottom: '20%', right: '15%' }}>
                 <div className="flex items-center gap-1">
@@ -363,7 +376,7 @@ export default function CardsPage() {
               </>
             )}
           </Button>
-          
+
           <Button
             variant="destructive"
             size="sm"
@@ -430,7 +443,7 @@ export default function CardsPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-background rounded-lg p-6 w-full max-w-md">
               <h3 className="text-lg font-semibold text-foreground mb-4">Apply for Virtual Card</h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">Card Type</label>
@@ -511,28 +524,28 @@ export default function CardsPage() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm text-muted-foreground">
-                      {application.card_type.charAt(0).toUpperCase() + application.card_type.slice(1)} Card
+                      {capitalize(application.card_type)} Card
                     </span>
                     <div className="flex items-center space-x-2">
                       {getStatusIcon(application.status)}
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(application.status)}`}>
-                        {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                        {capitalize(application.status)}
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2 text-sm">
                     <div className="bg-muted/50 p-2 rounded text-xs">
                       {getStatusMessage(application.status)}
                     </div>
-                    
+
                     <div>
                       <span className="text-muted-foreground">Applied:</span>
                       <span className="text-foreground ml-2">
                         {application.created_at ? new Date(application.created_at).toLocaleDateString() : 'N/A'}
                       </span>
                     </div>
-                    
+
                     {application.estimated_completion_days !== undefined && !['declined', 'completed'].includes(application.status) && (
                       <div>
                         <span className="text-muted-foreground">Estimated completion:</span>
@@ -541,14 +554,14 @@ export default function CardsPage() {
                         </span>
                       </div>
                     )}
-                    
+
                     {application.admin_notes && (
                       <div>
                         <span className="text-muted-foreground">Note:</span>
                         <p className="text-foreground text-xs mt-1">{application.admin_notes}</p>
                       </div>
                     )}
-                    
+
                     {application.status === 'declined' as any && (
                       <button
                         onClick={() => setShowApplicationForm(true)}
@@ -606,43 +619,6 @@ export default function CardsPage() {
           </div>
         )}
 
-        {/* Security Information */}
-        <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-6 animate-in slide-in-from-bottom-4 duration-500 delay-300">
-          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4 flex items-center">
-            <Shield className="w-5 h-5 mr-2" />
-            Virtual Card Security
-          </h3>
-          <div className="grid md:grid-cols-2 gap-4 text-sm text-blue-800 dark:text-blue-200">
-            <div className="space-y-2">
-              <div key="unique-number" className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Each card has a unique number and CVV</span>
-              </div>
-              <div key="online-transactions" className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Cards can be used for online transactions</span>
-              </div>
-              <div key="no-physical" className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>No physical card needed</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div key="secure-encryption" className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Secure encryption protects your data</span>
-              </div>
-              <div key="real-time-monitor" className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Monitor transactions in real-time</span>
-              </div>
-              <div key="apply-anytime" className="flex items-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                <span>Apply for new cards anytime</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </DashboardLayout>
   )

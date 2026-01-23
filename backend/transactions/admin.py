@@ -14,9 +14,9 @@ class TransactionAdmin(admin.ModelAdmin):
 
 @admin.register(Bill)
 class BillAdmin(admin.ModelAdmin):
-    list_display = ('user', 'bill_type', 'amount', 'due_date', 'status', 'description')
-    list_filter = ('bill_type', 'status', 'created_at')
-    search_fields = ('user__email', 'description')
+    list_display = ('user', 'biller_name', 'biller_category', 'amount', 'due_date', 'status')
+    list_filter = ('biller_category', 'status', 'created_at')
+    search_fields = ('user__email', 'biller_name', 'description')
     readonly_fields = ('created_at',)
     raw_id_fields = ('user',)
     date_hierarchy = 'created_at'
