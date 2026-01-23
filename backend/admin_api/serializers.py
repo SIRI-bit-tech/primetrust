@@ -47,7 +47,9 @@ class VirtualCardSerializer(serializers.ModelSerializer):
         model = VirtualCard
         fields = [
             'id', 'user', 'user_name', 'card_number', 'card_number_display', 'card_type',
-            'status', 'daily_limit', 'monthly_limit', 'created_at'
+            'status', 'cvv', 'expiry_month', 'expiry_year', 
+            'daily_limit', 'monthly_limit', 'current_daily_spent', 'current_monthly_spent',
+            'created_at'
         ]
     
     def get_card_number_display(self, obj):
@@ -59,11 +61,14 @@ class CardApplicationSerializer(serializers.ModelSerializer):
     """Serializer for CardApplication model."""
     
     user_name = serializers.CharField(source='user.username', read_only=True)
+    estimated_completion_days = serializers.IntegerField(source='get_estimated_completion_days', read_only=True)
     
     class Meta:
         model = CardApplication
         fields = [
             'id', 'user', 'user_name', 'card_type', 'status',
+            'reason', 'preferred_daily_limit', 'preferred_monthly_limit',
+            'admin_notes', 'estimated_completion_days',
             'created_at', 'processed_at'
         ]
 

@@ -19,6 +19,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
+from transactions import views as transaction_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -35,9 +36,9 @@ urlpatterns = [
     path('api/admin/', include('admin_api.urls')),
     path('api/bitcoin-wallet/', include('bitcoin_wallet.urls')),
     
-    # Direct investment and bill endpoints (no namespace to avoid conflicts)
-    path('api/investments/', include(('transactions.urls', 'transactions'), namespace='investments_api')),
-    path('api/bills/', include(('transactions.urls', 'transactions'), namespace='bills_api')),
+    # Direct investment and bill endpoints (shortcut URLs)
+    path('api/investments/', transaction_views.InvestmentListView.as_view(), name='investment-shortcut'),
+    path('api/bills/', transaction_views.BillListView.as_view(), name='bill-shortcut'),
     
     # JWT token refresh
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

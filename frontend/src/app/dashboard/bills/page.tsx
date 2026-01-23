@@ -76,6 +76,7 @@ export default function BillsPage() {
   })
 
   const watchedIsRecurring = watch('is_recurring', false)
+  const watchedCategory = watch('biller_category')
 
   useEffect(() => {
     fetchBills()
@@ -298,46 +299,51 @@ export default function BillsPage() {
               {/* Biller Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Biller Name
                   </label>
                   <input
                     type="text"
                     {...register('biller_name')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
                     placeholder="e.g., Electric Company"
                   />
                   {errors.biller_name && (
-                    <p className="mt-1 text-sm text-red-600">{errors.biller_name.message}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.biller_name.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Account Number
                   </label>
                   <input
                     type="text"
                     {...register('account_number')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
                     placeholder="Enter account number"
                   />
                   {errors.account_number && (
-                    <p className="mt-1 text-sm text-red-600">{errors.account_number.message}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.account_number.message}</p>
                   )}
                 </div>
               </div>
 
               {/* Category Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Bill Category
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {billCategories.map((category) => (
                     <label
                       key={category.value}
-                      className="relative flex cursor-pointer rounded-lg border p-4 shadow-sm focus:outline-none"
+                      className={cn(
+                        "relative flex cursor-pointer rounded-xl border p-4 shadow-sm transition-all duration-200 group hover:scale-[1.02]",
+                        watchedCategory === category.value
+                          ? "border-primary-dark bg-primary-dark/5 dark:bg-primary-dark/10 ring-2 ring-primary-dark"
+                          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-primary-dark/50"
+                      )}
                     >
                       <input
                         type="radio"
@@ -346,52 +352,64 @@ export default function BillsPage() {
                         className="sr-only"
                       />
                       <div className="flex items-center">
-                        <category.icon className="w-6 h-6 text-primary-dark mr-3" />
+                        <div className={cn(
+                          "p-2 rounded-lg mr-3 transition-colors",
+                          watchedCategory === category.value
+                            ? "bg-primary-dark text-white"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 group-hover:text-primary-dark"
+                        )}>
+                          <category.icon className="w-5 h-5" />
+                        </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{category.label}</p>
-                          <p className="text-xs text-gray-500">{category.description}</p>
+                          <p className={cn(
+                            "text-sm font-bold",
+                            watchedCategory === category.value
+                              ? "text-primary-dark dark:text-blue-400"
+                              : "text-gray-900 dark:text-gray-100"
+                          )}>{category.label}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight mt-0.5">{category.description}</p>
                         </div>
                       </div>
                     </label>
                   ))}
                 </div>
                 {errors.biller_category && (
-                  <p className="mt-1 text-sm text-red-600">{errors.biller_category.message}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.biller_category.message}</p>
                 )}
               </div>
 
               {/* Amount and Due Date */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Amount
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
                     <input
                       type="number"
                       step="0.01"
                       {...register('amount', { valueAsNumber: true })}
-                      className="pl-8 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent"
+                      className="pl-8 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       placeholder="Enter amount"
                     />
                   </div>
                   {errors.amount && (
-                    <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.amount.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Due Date
                   </label>
                   <input
                     type="date"
                     {...register('due_date')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent"
                   />
                   {errors.due_date && (
-                    <p className="mt-1 text-sm text-red-600">{errors.due_date.message}</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.due_date.message}</p>
                   )}
                 </div>
               </div>
@@ -402,21 +420,21 @@ export default function BillsPage() {
                   <input
                     type="checkbox"
                     {...register('is_recurring')}
-                    className="h-4 w-4 text-primary-dark focus:ring-primary-dark border-gray-300 rounded"
+                    className="h-4 w-4 text-primary-dark focus:ring-primary-dark border-gray-300 dark:border-gray-600 rounded cursor-pointer"
                   />
-                  <label className="ml-2 block text-sm text-gray-900">
+                  <label className="ml-2 block text-sm text-gray-900 dark:text-gray-300 cursor-pointer">
                     This is a recurring bill
                   </label>
                 </div>
 
                 {watchedIsRecurring && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Recurring Frequency
                     </label>
                     <select
                       {...register('recurring_frequency')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-primary-dark focus:border-transparent"
                     >
                       <option value="">Select frequency</option>
                       {recurringFrequencies.map((frequency) => (
@@ -426,7 +444,7 @@ export default function BillsPage() {
                       ))}
                     </select>
                     {errors.recurring_frequency && (
-                      <p className="mt-1 text-sm text-red-600">{errors.recurring_frequency.message}</p>
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.recurring_frequency.message}</p>
                     )}
                   </div>
                 )}
@@ -440,7 +458,7 @@ export default function BillsPage() {
                     setEditingBill(null)
                     reset()
                   }}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancel
                 </button>
@@ -483,8 +501,8 @@ export default function BillsPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
-                          <CategoryIcon className="w-5 h-5 text-primary-dark" />
-                          <h3 className="text-lg font-medium text-gray-900">{bill.biller_name}</h3>
+                          <CategoryIcon className="w-5 h-5 text-primary-dark dark:text-blue-400" />
+                          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{bill.biller_name}</h3>
                           <span className={cn(
                             "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
                             getStatusColor(bill.status)
@@ -502,24 +520,24 @@ export default function BillsPage() {
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
-                            <p className="text-gray-500">Amount</p>
-                            <p className="font-medium">{formatCurrency(bill.amount)}</p>
+                            <p className="text-gray-500 dark:text-gray-400">Amount</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{formatCurrency(bill.amount)}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500">Due Date</p>
-                            <p className="font-medium">{formatDate(bill.due_date)}</p>
+                            <p className="text-gray-500 dark:text-gray-400">Due Date</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{formatDate(bill.due_date)}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500">Account</p>
-                            <p className="font-medium">{bill.account_number}</p>
+                            <p className="text-gray-500 dark:text-gray-400">Account</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{bill.account_number}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500">Category</p>
-                            <p className="font-medium capitalize">{bill.biller_category.replace('_', ' ')}</p>
+                            <p className="text-gray-500 dark:text-gray-400">Category</p>
+                            <p className="font-medium text-gray-900 dark:text-white capitalize">{bill.biller_category?.replace('_', ' ') || 'Other'}</p>
                           </div>
                         </div>
 
-                        <div className="mt-4 text-sm text-gray-500">
+                        <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
                           <p>Added on {formatDate(bill.created_at)}</p>
                           {bill.paid_at && <p>Paid on {formatDate(bill.paid_at)}</p>}
                           {bill.is_recurring && bill.recurring_frequency && (
@@ -539,13 +557,13 @@ export default function BillsPage() {
                         )}
                         <button
                           onClick={() => handleEdit(bill)}
-                          className="bg-gray-100 text-gray-700 px-3 py-2 rounded-md hover:bg-gray-200 transition-colors"
+                          className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(bill.id)}
-                          className="bg-red-100 text-red-700 px-3 py-2 rounded-md hover:bg-red-200 transition-colors"
+                          className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-3 py-2 rounded-md hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
