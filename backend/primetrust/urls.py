@@ -38,7 +38,8 @@ urlpatterns = [
     
     # Direct investment and bill endpoints (shortcut URLs)
     path('api/investments/', transaction_views.InvestmentListView.as_view(), name='investment-shortcut'),
-    path('api/bills/', transaction_views.BillListView.as_view(), name='bill-shortcut'),
+    path('api/bills/', transaction_views.BillListCreateView.as_view(), name='bill-shortcut'),
+    path('api/bills/pay/', transaction_views.BillPayShortcutView.as_view(), name='bill-pay-shortcut'),
     
     # JWT token refresh
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

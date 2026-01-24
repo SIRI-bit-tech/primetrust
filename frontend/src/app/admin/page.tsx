@@ -71,7 +71,7 @@ export default function AdminPage() {
   const [systemStatus, setSystemStatus] = useState<SystemStatus[]>([])
   const [currencySwaps, setCurrencySwaps] = useState<CurrencySwap[]>([])
   const [bitcoinTransactions, setBitcoinTransactions] = useState<BitcoinTransaction[]>([])
-  const [loans, setLoans] = useState<Loan[]>([])
+  const [loanApplications, setLoanApplications] = useState<any[]>([])
   const [bills, setBills] = useState<Bill[]>([])
   const [investments, setInvestments] = useState<Investment[]>([])
   const [checkDeposits, setCheckDeposits] = useState<any[]>([])
@@ -159,8 +159,8 @@ export default function AdminPage() {
           break
         }
         case 'loans': {
-          const loansData = await adminAPI.getAllLoans()
-          setLoans(loansData)
+          const loanApplicationsData = await adminAPI.getAllLoanApplications()
+          setLoanApplications(loanApplicationsData)
           break
         }
         case 'bills': {
@@ -332,13 +332,13 @@ export default function AdminPage() {
     }
   }
 
-  const handleUpdateLoanStatus = async (loanId: number, status: string) => {
+  const handleUpdateLoanStatus = async (loanApplicationId: number, status: string) => {
     try {
-      await adminAPI.updateLoanStatus(loanId, status)
+      await adminAPI.updateLoanStatus(loanApplicationId, status)
       loadData()
     } catch (err: unknown) {
       const error = err as AxiosError<{ error?: string }>
-      setError(error.response?.data?.error || 'Failed to update loan status')
+      setError(error.response?.data?.error || 'Failed to update loan application status')
     }
   }
 
@@ -390,7 +390,7 @@ export default function AdminPage() {
       notifications,
       'currency-swaps': currencySwaps,
       'bitcoin-transactions': bitcoinTransactions,
-      loans,
+      'loan-applications': loanApplications,
       bills,
       investments,
       'check-deposits': checkDeposits,
@@ -412,7 +412,7 @@ export default function AdminPage() {
       const systemStatusItem = item as SystemStatus
       const currencySwapItem = item as CurrencySwap
       const bitcoinTransactionItem = item as BitcoinTransaction
-      const loanItem = item as Loan
+      const loanAppItem = item as any
       const billItem = item as Bill
       const investmentItem = item as Investment
       const securityLogItem = item as SecurityAuditLog
@@ -425,7 +425,7 @@ export default function AdminPage() {
         notificationItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         currencySwapItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         bitcoinTransactionItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loanItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (loanItem as any).user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         billItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         investmentItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         securityLogItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -454,7 +454,7 @@ export default function AdminPage() {
       case 'bitcoin-transactions':
         return ['User', 'Type', 'Amount', 'Address', 'Status', 'Confirmations', 'Date']
       case 'loans':
-        return ['User', 'Type', 'Amount', 'Rate', 'Status', 'Purpose', 'Actions']
+        return ['User', 'Type', 'Requested Amount', 'Rate', 'Status', 'Purpose', 'Actions']
       case 'bills':
         return ['User', 'Type', 'Amount', 'Due Date', 'Status', 'Description']
       case 'investments':
@@ -769,40 +769,40 @@ export default function AdminPage() {
         )
       }
       case 'loans': {
-        const loanItem = item as Loan
+        const loanAppItem = item as any
         return (
           <>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-              {loanItem.user_name}
+              {loanAppItem.user?.email || loanAppItem.user_name || 'N/A'}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {loanItem.loan_type}
+              {loanAppItem.loan_type}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {formatCurrency(loanItem.amount)}
+              {formatCurrency(loanAppItem.requested_amount || loanAppItem.amount)}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {loanItem.interest_rate}%
+              N/A
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
-              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(loanItem.status)}`}>
-                {loanItem.status}
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(loanAppItem.status)}`}>
+                {loanAppItem.status?.replace('_', ' ')}
               </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {loanItem.purpose}
+              {loanAppItem.purpose}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
               <select
-                value={loanItem.status}
-                onChange={(e) => handleUpdateLoanStatus(loanItem.id, e.target.value)}
+                value={loanAppItem.status}
+                onChange={(e) => handleUpdateLoanStatus(loanAppItem.id, e.target.value)}
                 className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
               >
-                <option value="pending">Pending</option>
+                <option value="draft">Draft</option>
+                <option value="submitted">Submitted</option>
+                <option value="under_review">Under Review</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
               </select>
             </td>
           </>

@@ -260,6 +260,88 @@ class Bill(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.bill_type} - {self.amount}"
+    
+    def pay_bill(self, payment_amount, payment_method='account_balance'):
+        """Process bill payment and debit from account balance."""
+        from django.db import transaction as db_transaction
+        
+        # Check if bill is already paid
+        if self.status == 'paid':
+            return False, "Bill has already been paid"
+        
+        # Convert payment_amount to Decimal if it's a string
+        try:
+            if payment_amount is None:
+                return False, "Payment amount is required"
+            payment_amount = Decimal(str(payment_amount))
+        except (ValueError, TypeError):
+            return False, "Invalid payment amount"
+        
+        # Validate payment amount
+        if payment_amount <= 0:
+            return False, "Payment amount must be greater than zero"
+        
+        if payment_amount > self.amount:
+            return False, "Payment amount cannot exceed bill amount"
+        
+        try:
+            with db_transaction.atomic():
+                # Lock user row to prevent concurrent balance modifications
+                user = self.user.__class__.objects.select_for_update().get(pk=self.user.pk)
+                
+                # For account balance payments, check funds and debit
+                if payment_method == 'account_balance':
+                    if user.balance < payment_amount:
+                        return False, "Insufficient funds in account balance"
+                    
+                    # Create transaction record
+                    balance_before = user.balance
+                    user.balance -= payment_amount
+                    balance_after = user.balance
+                    user.save(update_fields=['balance'])
+                    
+                    # Create transaction record
+                    transaction = Transaction.objects.create(
+                        user=user,
+                        transaction_type='payment',
+                        amount=payment_amount,
+                        status='completed',
+                        description=f"Bill payment to {self.biller_name} - Account: {self.account_number}",
+                        merchant_name=self.biller_name,
+                        merchant_category=self.biller_category,
+                        balance_before=balance_before,
+                        balance_after=balance_after,
+                        completed_at=timezone.now()
+                    )
+                    
+                elif payment_method == 'virtual_card':
+                    # For virtual card payments, create transaction but don't debit from balance
+                    # (virtual card has its own balance)
+                    transaction = Transaction.objects.create(
+                        user=user,
+                        transaction_type='payment',
+                        amount=payment_amount,
+                        status='completed',
+                        description=f"Bill payment to {self.biller_name} via Virtual Card - Account: {self.account_number}",
+                        merchant_name=self.biller_name,
+                        merchant_category=self.biller_category,
+                        balance_before=user.balance,
+                        balance_after=user.balance,
+                        completed_at=timezone.now()
+                    )
+                else:
+                    return False, f"Invalid payment method: {payment_method}"
+                
+                # Update bill status
+                self.status = 'paid'
+                self.paid_at = timezone.now()
+                self.paid_amount = payment_amount
+                self.save()
+                
+                return True, "Bill payment processed successfully"
+                
+        except Exception as e:
+            return False, f"Payment failed: {str(e)}"
 
 
 class Investment(models.Model):
