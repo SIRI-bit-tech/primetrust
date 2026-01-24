@@ -4,11 +4,14 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Sum
 from django.utils import timezone
+import logging
 
 from .models import Loan, LoanApplication
 from .serializers import (
     LoanSerializer, LoanCreateSerializer, LoanApplicationSerializer, LoanPaymentSerializer
 )
+
+logger = logging.getLogger(__name__)
 
 
 class LoanListView(generics.ListAPIView):
@@ -86,6 +89,19 @@ class LoanApplicationListView(generics.ListCreateAPIView):
     
     def get_queryset(self):
         return LoanApplication.objects.filter(user=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        """Override create to log validation errors."""
+        logger.info(f"Loan application request data: {request.data}")
+        serializer = self.get_serializer(data=request.data)
+        
+        if not serializer.is_valid():
+            logger.error(f"Loan application validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

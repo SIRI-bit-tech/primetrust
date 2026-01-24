@@ -49,6 +49,7 @@ const employmentStatuses = [
 export default function LoansPage() {
   const { user } = useAuth()
   const [loans, setLoans] = useState<Loan[]>([])
+  const [loanApplications, setLoanApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showApplicationForm, setShowApplicationForm] = useState(false)
@@ -79,13 +80,18 @@ export default function LoansPage() {
   const fetchLoans = async () => {
     try {
       setLoading(true)
-      const data = await loansAPI.getLoans()
+      const [loansData, applicationsData] = await Promise.all([
+        loansAPI.getLoans(),
+        loansAPI.getLoanApplications()
+      ])
       // Ensure data is always an array
-      setLoans(Array.isArray(data) ? data : [])
+      setLoans(Array.isArray(loansData) ? loansData : [])
+      setLoanApplications(Array.isArray(applicationsData) ? applicationsData : [])
     } catch (err: unknown) {
       // Generic error message
       setError('Failed to load loans. Please try again.')
       setLoans([]) // Set empty array on error
+      setLoanApplications([])
     } finally {
       setLoading(false)
     }
@@ -384,6 +390,62 @@ export default function LoansPage() {
           </div>
         )}
 
+        {/* Loan Applications */}
+        {!showApplicationForm && loanApplications.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Your Loan Applications</h2>
+            </div>
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {loanApplications.map((app) => (
+                <div key={app.id} className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                          {app.loan_type?.charAt(0).toUpperCase() + app.loan_type?.slice(1)} Loan Application
+                        </h3>
+                        <span className={cn(
+                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                          app.status === 'approved' ? 'text-green-600 bg-green-100' :
+                          app.status === 'rejected' ? 'text-red-600 bg-red-100' :
+                          app.status === 'under_review' ? 'text-yellow-600 bg-yellow-100' :
+                          'text-blue-600 bg-blue-100'
+                        )}>
+                          {app.status === 'approved' ? <CheckCircle className="w-3 h-3" /> :
+                           app.status === 'rejected' ? <AlertCircle className="w-3 h-3" /> :
+                           <Clock className="w-3 h-3" />}
+                          <span className="ml-1">{app.status?.replace('_', ' ')}</span>
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">Requested Amount</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{formatCurrency(app.requested_amount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">Purpose</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{app.purpose}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">Applied Date</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{app.created_at ? formatDate(app.created_at) : 'N/A'}</p>
+                        </div>
+                        {app.credit_score && (
+                          <div>
+                            <p className="text-gray-500 dark:text-gray-400">Credit Score</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{app.credit_score}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Existing Loans */}
         {!showApplicationForm && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
@@ -391,7 +453,7 @@ export default function LoansPage() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Your Loans</h2>
             </div>
 
-            {loans.length === 0 ? (
+            {loans.length === 0 && loanApplications.length === 0 ? (
               <div className="p-8 text-center">
                 <DollarSign className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No loans yet</h3>

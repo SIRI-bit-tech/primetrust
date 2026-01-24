@@ -14,6 +14,7 @@ import requests
 
 from accounts.models import SecurityAuditLog
 from transactions.models import Transaction, Loan, Bill, Investment, BitcoinTransaction
+from loans.models import LoanApplication
 from banking.models import VirtualCard, CardApplication, Transfer, CheckDeposit
 from api.models import Notification, SystemStatus
 from bitcoin_wallet.models import CurrencySwap
@@ -896,59 +897,134 @@ class AdminLoanApplicationListView(generics.ListAPIView):
     """List all loan applications."""
     
     permission_classes = [permissions.IsAdminUser]
-    serializer_class = LoanSerializer
+    
+    def get_serializer_class(self):
+        from loans.serializers import LoanApplicationSerializer
+        return LoanApplicationSerializer
     
     def get_queryset(self):
-        return Loan.objects.filter(status='pending').order_by('-created_at')
+        return LoanApplication.objects.all().order_by('-created_at')
 
 
 class AdminLoanStatusView(APIView):
-    """Update loan application status."""
+    """Update loan application status and create loan if approved."""
     
     permission_classes = [permissions.IsAdminUser]
     
     def patch(self, request, loan_id):
+        from django.db import transaction as db_transaction
+        from decimal import Decimal
+        from datetime import timedelta
+        
         try:
-            loan = Loan.objects.get(id=loan_id)
+            application = LoanApplication.objects.get(id=loan_id)
             new_status = request.data.get('status')
             
-            if new_status in ['approved', 'rejected', 'active', 'completed']:
-                loan.status = new_status
-                if new_status == 'approved':
-                    loan.approved_at = timezone.now()
-                loan.save()
-                
-                # Send real-time notification
-                from utils.realtime import notify_loan_update, send_notification
-                notify_loan_update(loan.user.id, loan.id, loan.status)
-                
-                status_messages = {
-                    'approved': f'Your loan application for ${loan.amount} has been approved!',
-                    'rejected': 'Your loan application has been rejected.',
-                    'active': 'Your loan is now active.',
-                    'completed': 'Your loan has been completed.'
-                }
-                
-                notification_types = {
-                    'approved': 'success',
-                    'rejected': 'error',
-                    'active': 'info',
-                    'completed': 'success'
-                }
-                
-                send_notification(
-                    loan.user.id,
-                    'Loan Status Update',
-                    status_messages.get(new_status, 'Your loan status has been updated.'),
-                    notification_types.get(new_status, 'info')
-                )
-                
-                return Response({'message': 'Loan status updated successfully'}, status=status.HTTP_200_OK)
-            else:
+            if new_status not in ['approved', 'rejected', 'under_review']:
                 return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
-        except Loan.DoesNotExist:
-            return Response({'error': 'Loan not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            if application.status == new_status:
+                return Response({'error': f'Application is already {new_status}'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            with db_transaction.atomic():
+                # Update application status
+                application.status = new_status
+                application.reviewed_at = timezone.now()
+                application.save()
+                
+                # If approved, create Loan and disburse funds
+                if new_status == 'approved':
+                    # Get interest rate and term from request or use defaults
+                    interest_rate = Decimal(str(request.data.get('interest_rate', 5.0)))  # Default 5%
+                    term_months = int(request.data.get('term_months', 60))  # Default 60 months
+                    
+                    # Lock user row to prevent concurrent balance modifications
+                    User = application.user.__class__
+                    user = User.objects.select_for_update().get(pk=application.user.pk)
+                    
+                    # Calculate balance before and after
+                    balance_before = user.balance
+                    loan_amount = application.requested_amount
+                    balance_after = balance_before + loan_amount
+                    
+                    # Add loan amount to user balance
+                    user.balance += loan_amount
+                    user.save(update_fields=['balance'])
+                    
+                    # Create Loan object
+                    loan = Loan.objects.create(
+                        user=application.user,
+                        loan_type=application.loan_type,
+                        amount=loan_amount,
+                        interest_rate=interest_rate,
+                        term_months=term_months,
+                        status='active',
+                        purpose=application.purpose,
+                        employment_status=application.employment_status,
+                        annual_income=application.annual_income,
+                        monthly_payment=Decimal('0'),  # Will be calculated in save()
+                        remaining_balance=loan_amount,
+                        next_payment_date=timezone.now().date() + timedelta(days=30),
+                        start_date=timezone.now(),
+                        approval_date=timezone.now()
+                    )
+                    
+                    # Create transaction record for loan disbursement
+                    from transactions.models import Transaction
+                    Transaction.objects.create(
+                        user=application.user,
+                        transaction_type='loan',
+                        amount=loan_amount,
+                        status='completed',
+                        description=f"Loan disbursement - {application.loan_type} loan",
+                        balance_before=balance_before,
+                        balance_after=balance_after,
+                        completed_at=timezone.now()
+                    )
+                    
+                    # Send real-time notification
+                    try:
+                        from utils.realtime import notify_loan_update, send_notification
+                        notify_loan_update(application.user.id, loan.id, 'active')
+                        send_notification(
+                            application.user.id,
+                            'Loan Approved',
+                            f'Your {application.loan_type} loan application for ${loan_amount} has been approved and funds have been disbursed to your account!',
+                            'success'
+                        )
+                    except Exception:
+                        pass  # Don't fail if realtime service is unavailable
+                    
+                    return Response({
+                        'message': 'Loan application approved and funds disbursed',
+                        'loan_id': loan.id
+                    }, status=status.HTTP_200_OK)
+                
+                else:
+                    # Rejected or under review - just send notification
+                    try:
+                        from utils.realtime import send_notification
+                        status_messages = {
+                            'rejected': 'Your loan application has been rejected.',
+                            'under_review': 'Your loan application is under review.'
+                        }
+                        send_notification(
+                            application.user.id,
+                            'Loan Application Update',
+                            status_messages.get(new_status, 'Your loan application status has been updated.'),
+                            'info' if new_status == 'under_review' else 'error'
+                        )
+                    except Exception:
+                        pass
+                    
+                    return Response({'message': f'Loan application status updated to {new_status}'}, status=status.HTTP_200_OK)
+                    
+        except LoanApplication.DoesNotExist:
+            return Response({'error': 'Loan application not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error updating loan application status: {str(e)}", exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

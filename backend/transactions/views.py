@@ -110,6 +110,43 @@ class BillListView(generics.ListAPIView):
         return queryset.order_by('due_date')
 
 
+class BillListCreateView(generics.ListCreateAPIView):
+    """List all bills or create a new bill for the authenticated user."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return BillCreateSerializer
+        return BillSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Bill.objects.filter(user=user)
+        
+        # Filter by status
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        # Filter by category
+        category = self.request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(biller_category=category)
+        
+        # Filter by due date
+        due_before = self.request.query_params.get('due_before')
+        if due_before:
+            queryset = queryset.filter(due_date__lte=due_before)
+        
+        return queryset.order_by('due_date')
+    
+    def perform_create(self, serializer):
+        bill = serializer.save(user=self.request.user)
+        # Trigger notification for new bill
+        trigger_bill_notification(self.request.user, bill, 'added')
+
+
 class BillCreateView(generics.CreateAPIView):
     """Create a new bill."""
     
@@ -159,13 +196,41 @@ class BillPayView(APIView):
     def post(self, request, pk):
         bill = get_object_or_404(Bill, pk=pk, user=request.user)
         payment_amount = request.data.get('amount')
+        payment_method = request.data.get('payment_method', 'account_balance')
         
-        success, message = bill.pay_bill(payment_amount)
+        success, message = bill.pay_bill(payment_amount, payment_method)
         
         if success:
             # Trigger notification for bill payment
             trigger_bill_notification(request.user, bill, 'paid')
             return Response({'message': message}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BillPayShortcutView(APIView):
+    """Pay a bill using bill_id from request body (shortcut endpoint)."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        bill_id = request.data.get('bill_id')
+        if not bill_id:
+            return Response({'error': 'bill_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        bill = get_object_or_404(Bill, pk=bill_id, user=request.user)
+        payment_amount = request.data.get('amount')
+        payment_method = request.data.get('payment_method', 'account_balance')
+        
+        success, message = bill.pay_bill(payment_amount, payment_method)
+        
+        if success:
+            # Refresh bill from database to get updated fields
+            bill.refresh_from_db()
+            # Trigger notification for bill payment
+            trigger_bill_notification(request.user, bill, 'paid')
+            serializer = BillSerializer(bill)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
 

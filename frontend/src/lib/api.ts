@@ -413,8 +413,8 @@ export const adminAPI = {
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])
   },
 
-  updateLoanStatus: async (loanId: number, status: string) => {
-    const response = await api.patch(`/admin/loans/${loanId}/status/`, { status })
+  updateLoanStatus: async (loanApplicationId: number, status: string) => {
+    const response = await api.patch(`/admin/loan-applications/${loanApplicationId}/status/`, { status })
     return response.data
   },
 
@@ -531,12 +531,17 @@ export const loansAPI = {
     return response.data?.results || response.data || []
   },
 
+  getLoanApplications: async (): Promise<any[]> => {
+    const response = await api.get('/loans/apply/')
+    return response.data?.results || response.data || []
+  },
+
   getLoan: async (id: number): Promise<Loan> => {
     const response = await api.get(`/loans/${id}/`)
     return response.data
   },
 
-  applyForLoan: async (data: LoanApplication): Promise<Loan> => {
+  applyForLoan: async (data: LoanApplication): Promise<any> => {
     const response = await api.post('/loans/apply/', data)
     return response.data
   },

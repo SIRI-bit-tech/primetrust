@@ -327,7 +327,7 @@ export default function CardsPage() {
               <div className="absolute" style={{ bottom: '20%', right: '15%' }}>
                 <div className="flex items-center gap-1">
                   <span className="text-black font-mono text-xs font-bold">
-                    {showCVV ? card.cvv : '•••'}
+                    {showCVV ? (card.has_cvv ? 'SEC' : 'N/A') : '•••'}
                   </span>
                   <button
                     onClick={(e) => {

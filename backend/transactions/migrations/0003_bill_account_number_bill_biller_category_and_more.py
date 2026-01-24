@@ -3,6 +3,21 @@
 from django.db import migrations, models
 
 
+def backfill_biller_category(apps, schema_editor):
+    Bill = apps.get_model('transactions', 'Bill')
+    for bill in Bill.objects.all():
+        if bill.bill_type:
+            bill.biller_category = bill.bill_type
+            bill.save()
+
+def reverse_backfill_biller_category(apps, schema_editor):
+    Bill = apps.get_model('transactions', 'Bill')
+    for bill in Bill.objects.all():
+        if bill.biller_category:
+            bill.bill_type = bill.biller_category
+            bill.save()
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -20,6 +35,7 @@ class Migration(migrations.Migration):
             name='biller_category',
             field=models.CharField(choices=[('utilities', 'Utilities'), ('insurance', 'Insurance'), ('subscription', 'Subscription'), ('credit_card', 'Credit Card'), ('other', 'Other')], default='other', max_length=50),
         ),
+        migrations.RunPython(backfill_biller_category, reverse_backfill_biller_category),
         migrations.AddField(
             model_name='bill',
             name='biller_name',
