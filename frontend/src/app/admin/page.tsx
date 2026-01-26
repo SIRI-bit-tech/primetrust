@@ -159,8 +159,8 @@ export default function AdminPage() {
           break
         }
         case 'loans': {
-          const loanApplicationsData = await adminAPI.getAllLoanApplications()
-          setLoanApplications(loanApplicationsData)
+          const loansData = await adminAPI.getAllLoans()
+          setLoanApplications(loansData)
           break
         }
         case 'bills': {
@@ -391,6 +391,8 @@ export default function AdminPage() {
       'currency-swaps': currencySwaps,
       'bitcoin-transactions': bitcoinTransactions,
       'loan-applications': loanApplications,
+      // Support the 'loans' tab id which expects loan applications
+      'loans': loanApplications,
       bills,
       investments,
       'check-deposits': checkDeposits,
@@ -782,11 +784,11 @@ export default function AdminPage() {
               {formatCurrency(loanAppItem.requested_amount || loanAppItem.amount)}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              N/A
+              {loanAppItem.interest_rate ? `${loanAppItem.interest_rate}%` : 'N/A'}
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(loanAppItem.status)}`}>
-                {loanAppItem.status?.replace('_', ' ')}
+                {loanAppItem.status?.replace(/_/g, ' ')}
               </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
@@ -795,7 +797,19 @@ export default function AdminPage() {
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
               <select
                 value={loanAppItem.status}
-                onChange={(e) => handleUpdateLoanStatus(loanAppItem.id, e.target.value)}
+                onChange={(e) => {
+                  const newStatus = e.target.value
+                  // Map frontend display values to backend-accepted statuses
+                  const statusMap: Record<string, string> = {
+                    'draft': 'under_review',
+                    'submitted': 'under_review',
+                    'under_review': 'under_review',
+                    'approved': 'approved',
+                    'rejected': 'rejected',
+                  }
+                  const backendStatus = statusMap[newStatus] || newStatus
+                  handleUpdateLoanStatus(loanAppItem.id, backendStatus)
+                }}
                 className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
               >
                 <option value="draft">Draft</option>

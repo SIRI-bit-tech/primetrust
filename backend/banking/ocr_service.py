@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # Configuration: Maximum check amount for OCR validation
 # Can be overridden in settings.py with MAX_CHECK_AMOUNT
 # Set to None to disable upper limit validation
-MAX_CHECK_AMOUNT = getattr(settings, 'MAX_CHECK_AMOUNT', 100000)  # Default: $100,000
+MAX_CHECK_AMOUNT = getattr(settings, 'MAX_CHECK_AMOUNT', None)  # Default: Unlimited
 
 # Initialize EasyOCR reader (lazy loading with thread-safe double-checked locking)
 _reader = None
@@ -34,7 +34,8 @@ def get_reader():
         if _reader is None:
             import easyocr
             logger.info("Initializing EasyOCR reader (English)...")
-            _reader = easyocr.Reader(['en'], gpu=False)  # Use CPU, set gpu=True if you have CUDA
+            # gpu=False ensures we run on CPU which is standard for web servers
+            _reader = easyocr.Reader(['en'], gpu=False)
             logger.info("EasyOCR reader initialized successfully")
     
     return _reader
@@ -70,6 +71,7 @@ class CheckOCRService:
             results = reader.readtext(image_np)
             
             # Combine all detected text
+            # EasyOCR result format: ([[x,y], [x,y]...], 'text', confidence)
             text = ' '.join([result[1] for result in results])
             logger.info(f"EasyOCR extracted text: {text}")
             
@@ -77,7 +79,7 @@ class CheckOCRService:
             amount = CheckOCRService._extract_amount(text)
             check_number = CheckOCRService._extract_check_number(text)
             
-            # Calculate confidence based on what we found
+            # Calculate confidence based on what we found (business logic)
             confidence = 0.0
             if amount:
                 confidence += 0.6
@@ -122,10 +124,12 @@ class CheckOCRService:
         - $1234.56
         - 1,234.56
         - **$1,234.56**
+        - **500,000.00
         """
         # Pattern for dollar amounts
         patterns = [
-            r'\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',  # $1,234.56
+            r'\$[\*\s]*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',  # $**1,234.56 or $ 1,234.56
+            r'(?:^|\s)\*{1,}\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2}))', # **500,000.00
             r'(?:^|\s)(\d{1,3}(?:,\d{3})*\.\d{2})(?:\s|$)',  # 1,234.56
             r'\*+\s*\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*\*+',  # **$1,234.56**
         ]

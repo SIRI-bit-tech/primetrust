@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from accounts.models import SecurityAuditLog
-from transactions.models import Transaction, Loan, Bill, Investment, BitcoinTransaction
+from transactions.models import Transaction, Bill, Investment, BitcoinTransaction
+from loans.models import Loan as AppLoan
 from banking.models import VirtualCard, CardApplication, Transfer, CheckDeposit
 from api.models import Notification, SystemStatus
 from bitcoin_wallet.models import CurrencySwap
@@ -106,15 +107,24 @@ class SystemStatusSerializer(serializers.ModelSerializer):
 class LoanSerializer(serializers.ModelSerializer):
     """Serializer for Loan model."""
     
+    user = serializers.SerializerMethodField(read_only=True)
     user_name = serializers.CharField(source='user.username', read_only=True)
     
     class Meta:
-        model = Loan
+        model = AppLoan
         fields = [
-            'id', 'user', 'user_name', 'amount', 'interest_rate',
-            'term_months', 'status', 'purpose', 'created_at',
-            'approved_at', 'disbursed_at'
+            'id', 'user', 'user_name', 'loan_type', 'amount', 'interest_rate',
+            'term_months', 'status', 'purpose', 'monthly_payment', 'remaining_balance',
+            'next_payment_date', 'approval_date', 'start_date', 'created_at'
         ]
+    
+    def get_user(self, obj):
+        """Return user object with email and username."""
+        return {
+            'id': obj.user.id,
+            'username': obj.user.username,
+            'email': obj.user.email
+        }
 
 
 class BillSerializer(serializers.ModelSerializer):
@@ -134,12 +144,15 @@ class InvestmentSerializer(serializers.ModelSerializer):
     """Serializer for Investment model."""
     
     user_name = serializers.CharField(source='user.username', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
     
     class Meta:
         model = Investment
         fields = [
-            'id', 'user', 'user_name', 'investment_type', 'amount',
-            'status', 'return_rate', 'created_at'
+            'id', 'user', 'user_name', 'user_email', 'investment_type', 'name', 'symbol',
+            'balance_source', 'quantity', 'price_per_unit', 'amount_invested',
+            'current_price_per_unit', 'current_value', 'profit_loss', 'profit_loss_percentage',
+            'status', 'created_at', 'last_updated', 'sold_at'
         ]
 
 

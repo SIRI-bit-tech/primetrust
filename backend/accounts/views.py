@@ -126,7 +126,7 @@ class UserLoginView(APIView):
                     value=str(temp_token.access_token),
                     max_age=300,  # 5 minutes
                     httponly=True,
-                    secure=True,  # Only send over HTTPS in production
+                    secure=not settings.DEBUG,
                     samesite='Lax',
                     path='/'
                 )
@@ -168,7 +168,7 @@ class UserLoginView(APIView):
             value=str(refresh.access_token),
             max_age=3600,  # 1 hour
             httponly=True,
-            secure=True,
+            secure=not settings.DEBUG,
             samesite='Lax',
             path='/'
         )
@@ -177,7 +177,7 @@ class UserLoginView(APIView):
             value=str(refresh),
             max_age=86400 * 7,  # 7 days
             httponly=True,
-            secure=True,
+            secure=not settings.DEBUG,
             samesite='Lax',
             path='/'
         )
@@ -299,7 +299,7 @@ class EmailVerificationView(APIView):
                 value=str(refresh.access_token),
                 max_age=3600,  # 1 hour
                 httponly=True,
-                secure=True,
+                secure=not settings.DEBUG,
                 samesite='Lax',
                 path='/'
             )
@@ -308,7 +308,7 @@ class EmailVerificationView(APIView):
                 value=str(refresh),
                 max_age=86400 * 7,  # 7 days
                 httponly=True,
-                secure=True,
+                secure=not settings.DEBUG,
                 samesite='Lax',
                 path='/'
             )
@@ -833,7 +833,7 @@ class TwoFactorLoginVerifyView(APIView):
             value=str(refresh.access_token),
             max_age=3600,  # 1 hour
             httponly=True,
-            secure=True,
+            secure=not settings.DEBUG,
             samesite='Lax',
             path='/'
         )
@@ -842,7 +842,7 @@ class TwoFactorLoginVerifyView(APIView):
             value=str(refresh),
             max_age=86400 * 7,  # 7 days
             httponly=True,
-            secure=True,
+            secure=not settings.DEBUG,
             samesite='Lax',
             path='/'
         )
@@ -1180,7 +1180,7 @@ class TokenRefreshView(BaseTokenRefreshView):
                     value=access_token,
                     max_age=3600,  # 1 hour
                     httponly=True,
-                    secure=True,
+                    secure=not settings.DEBUG,
                     samesite='Lax',
                     path='/'
                 )
@@ -1191,7 +1191,7 @@ class TokenRefreshView(BaseTokenRefreshView):
                     value=new_refresh_token,
                     max_age=86400 * 7,  # 7 days
                     httponly=True,
-                    secure=True,
+                    secure=not settings.DEBUG,
                     samesite='Lax',
                     path='/'
                 )

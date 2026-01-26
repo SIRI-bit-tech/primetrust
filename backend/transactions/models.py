@@ -227,6 +227,7 @@ class Bill(models.Model):
     
     STATUS_CHOICES = [
         ('pending', 'Pending'),
+        ('partial', 'Partial Payment'),
         ('paid', 'Paid'),
         ('overdue', 'Overdue'),
     ]
@@ -261,11 +262,11 @@ class Bill(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.bill_type} - {self.amount}"
     
-    def pay_bill(self, payment_amount, payment_method='account_balance'):
-        """Process bill payment and debit from account balance."""
+    def pay_bill(self, payment_amount, payment_method='account_balance', card_id=None):
+        """Process bill payment and debit from account balance with race condition protection."""
         from django.db import transaction as db_transaction
         
-        # Check if bill is already paid
+        # Early fast-fail checks (before atomic block)
         if self.status == 'paid':
             return False, "Bill has already been paid"
         
@@ -286,6 +287,21 @@ class Bill(models.Model):
         
         try:
             with db_transaction.atomic():
+                # Lock bill row to prevent concurrent payments (definitive check)
+                bill = self.__class__.objects.select_for_update().get(pk=self.pk)
+                
+                # Re-check bill status inside transaction with lock
+                if bill.status == 'paid':
+                    return False, "Bill has already been paid"
+                
+                # Calculate remaining balance after this payment
+                new_paid_amount = bill.paid_amount + payment_amount
+                balance_due = bill.amount - new_paid_amount
+                
+                # Validate that cumulative payment doesn't exceed bill amount
+                if new_paid_amount > bill.amount:
+                    return False, f"Payment exceeds remaining balance of {bill.amount - bill.paid_amount}"
+                
                 # Lock user row to prevent concurrent balance modifications
                 user = self.user.__class__.objects.select_for_update().get(pk=self.user.pk)
                 
@@ -294,14 +310,14 @@ class Bill(models.Model):
                     if user.balance < payment_amount:
                         return False, "Insufficient funds in account balance"
                     
-                    # Create transaction record
+                    # Debit from user balance
                     balance_before = user.balance
                     user.balance -= payment_amount
                     balance_after = user.balance
                     user.save(update_fields=['balance'])
                     
                     # Create transaction record
-                    transaction = Transaction.objects.create(
+                    Transaction.objects.create(
                         user=user,
                         transaction_type='payment',
                         amount=payment_amount,
@@ -315,33 +331,73 @@ class Bill(models.Model):
                     )
                     
                 elif payment_method == 'virtual_card':
-                    # For virtual card payments, create transaction but don't debit from balance
-                    # (virtual card has its own balance)
-                    transaction = Transaction.objects.create(
+                    # Virtual card payment - validate and charge the card
+                    if not card_id:
+                        return False, "Card ID is required for virtual card payments"
+                    
+                    # Import here to avoid circular imports
+                    from banking.models import VirtualCard
+                    
+                    # Lock and load the virtual card
+                    try:
+                        card = VirtualCard.objects.select_for_update().get(pk=card_id, user=user)
+                    except VirtualCard.DoesNotExist:
+                        return False, "Card not found or does not belong to user"
+                    
+                    # Validate card can make transaction
+                    can_transact, validation_message = card.can_make_transaction(payment_amount)
+                    if not can_transact:
+                        return False, f"Card transaction denied: {validation_message}"
+                    
+                    # Update card spending counters
+                    card.current_daily_spent += payment_amount
+                    card.current_monthly_spent += payment_amount
+                    card.save(update_fields=['current_daily_spent', 'current_monthly_spent'])
+                    
+                    # Create transaction record with card metadata
+                    Transaction.objects.create(
                         user=user,
                         transaction_type='payment',
                         amount=payment_amount,
                         status='completed',
-                        description=f"Bill payment to {self.biller_name} via Virtual Card - Account: {self.account_number}",
+                        description=f"Bill payment to {self.biller_name} via {card.mask_card_number()} - Account: {self.account_number}",
                         merchant_name=self.biller_name,
                         merchant_category=self.biller_category,
                         balance_before=user.balance,
                         balance_after=user.balance,
-                        completed_at=timezone.now()
+                        completed_at=timezone.now(),
+                        virtual_card=card
                     )
                 else:
                     return False, f"Invalid payment method: {payment_method}"
                 
-                # Update bill status
-                self.status = 'paid'
-                self.paid_at = timezone.now()
-                self.paid_amount = payment_amount
-                self.save()
+                # Determine new status based on payment progress
+                # Set status to 'paid' only when bill is fully paid
+                if balance_due <= 0:
+                    new_status = 'paid'
+                    bill.paid_at = timezone.now()
+                    status_message = "Bill paid in full"
+                else:
+                    # Partial payment
+                    new_status = 'partial'
+                    # paid_at only set when fully paid
+                    status_message = f"Partial payment received. Remaining balance: {balance_due}"
                 
-                return True, "Bill payment processed successfully"
+                # Update bill with new payment information (all inside atomic transaction)
+                bill.status = new_status
+                bill.paid_amount = new_paid_amount
+                if new_status == 'paid':
+                    bill.paid_at = timezone.now()
+                
+                bill.save(update_fields=['status', 'paid_amount', 'paid_at'])
+                
+                return True, status_message
                 
         except Exception as e:
-            return False, f"Payment failed: {str(e)}"
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Bill payment failed: Error processing payment (bill_id={self.pk}, method={payment_method})", exc_info=True)
+            return False, "Payment failed"
 
 
 class Investment(models.Model):

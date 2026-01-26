@@ -51,7 +51,8 @@ class LoanApplicationSerializer(serializers.ModelSerializer):
     
     def to_internal_value(self, data):
         """Convert frontend field names to backend field names before validation."""
-        logger.info(f"LoanApplicationSerializer.to_internal_value - Input data: {data}")
+        # Log only field names at DEBUG level, not values
+        logger.debug(f"LoanApplicationSerializer.to_internal_value - Processing fields: {list(data.keys())}")
         
         # Create a copy to avoid modifying the original
         internal_data = data.copy()
@@ -59,35 +60,35 @@ class LoanApplicationSerializer(serializers.ModelSerializer):
         # Add converted fields BEFORE validation (keep originals for now)
         if 'amount' in internal_data:
             internal_data['requested_amount'] = internal_data['amount']
-            logger.info(f"Added 'requested_amount' from 'amount': {internal_data.get('requested_amount')}")
+            logger.debug("LoanApplicationSerializer: Mapped 'amount' to 'requested_amount'")
         
         if 'monthly_income' in internal_data:
             try:
                 monthly = Decimal(str(internal_data['monthly_income']))
                 internal_data['annual_income'] = monthly * Decimal('12')
-                logger.info(f"Added 'annual_income' from 'monthly_income': {internal_data.get('annual_income')}")
+                logger.debug("LoanApplicationSerializer: Converted 'monthly_income' to 'annual_income'")
             except (ValueError, TypeError) as e:
-                logger.error(f"Error converting monthly_income: {e}")
+                logger.error("LoanApplicationSerializer: Error converting monthly_income field (invalid format)")
         
-        logger.info(f"LoanApplicationSerializer.to_internal_value - After adding converted fields: {internal_data}")
+        logger.debug(f"LoanApplicationSerializer.to_internal_value - Converted fields: {list(internal_data.keys())}")
         
         try:
             result = super().to_internal_value(internal_data)
-            logger.info(f"LoanApplicationSerializer.to_internal_value - Validated data: {result}")
+            logger.debug(f"LoanApplicationSerializer.to_internal_value - Validation successful, processed fields: {list(result.keys())}")
             return result
         except Exception as e:
-            logger.error(f"LoanApplicationSerializer.to_internal_value - Validation error: {e}")
+            logger.error(f"LoanApplicationSerializer.to_internal_value - Validation error (field: {getattr(e, 'field_name', 'unknown')})")
             raise
     
     def validate(self, data):
         """Remove frontend field names after validation."""
-        logger.info(f"LoanApplicationSerializer.validate - Input data: {data}")
+        logger.debug(f"LoanApplicationSerializer.validate - Processing fields: {list(data.keys())}")
         
         # Remove the frontend field names (they've been converted)
         data.pop('amount', None)
         data.pop('monthly_income', None)
         
-        logger.info(f"LoanApplicationSerializer.validate - After removing frontend fields: {data}")
+        logger.debug(f"LoanApplicationSerializer.validate - Finalized fields: {list(data.keys())}")
         return data
 
 
