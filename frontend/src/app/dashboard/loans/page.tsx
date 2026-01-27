@@ -403,7 +403,11 @@ export default function LoansPage() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                          {app.loan_type?.charAt(0).toUpperCase() + app.loan_type?.slice(1)} Loan Application
+                          {(() => {
+                            if (!app.loan_type) return 'Loan Application'
+                            const displayLoanType = app.loan_type.charAt(0).toUpperCase() + app.loan_type.slice(1)
+                            return `${displayLoanType} Loan Application`
+                          })()}
                         </h3>
                         <span className={cn(
                           "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
@@ -415,7 +419,7 @@ export default function LoansPage() {
                           {app.status === 'approved' ? <CheckCircle className="w-3 h-3" /> :
                            app.status === 'rejected' ? <AlertCircle className="w-3 h-3" /> :
                            <Clock className="w-3 h-3" />}
-                          <span className="ml-1">{app.status?.replace('_', ' ')}</span>
+                          <span className="ml-1">{app.status?.replace(/_/g, ' ')}</span>
                         </span>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">

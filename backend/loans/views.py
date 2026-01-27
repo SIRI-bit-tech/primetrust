@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q, Sum
 from django.utils import timezone
 import logging
+from typing import Dict, Any
 
 from .models import Loan, LoanApplication
 from .serializers import (
@@ -12,6 +13,36 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+# List of sensitive fields that should not be logged
+SENSITIVE_FIELDS = {
+    'amount', 'monthly_income', 'annual_income', 'credit_score', 'ssn',
+    'bank_account', 'routing_number', 'password', 'pin', 'cvv', 'card_number',
+    'requested_amount', 'income', 'balance'
+}
+
+
+def sanitize_payload(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Redact sensitive fields from a payload for logging purposes.
+    
+    Args:
+        data: Dictionary containing request data
+        
+    Returns:
+        Dictionary with sensitive values replaced with [REDACTED]
+    """
+    if not isinstance(data, dict):
+        return data
+    
+    sanitized = {}
+    for key, value in data.items():
+        if key.lower() in SENSITIVE_FIELDS:
+            sanitized[key] = "[REDACTED]"
+        else:
+            sanitized[key] = value
+    
+    return sanitized
 
 
 class LoanListView(generics.ListAPIView):
@@ -91,16 +122,23 @@ class LoanApplicationListView(generics.ListCreateAPIView):
         return LoanApplication.objects.filter(user=self.request.user)
     
     def create(self, request, *args, **kwargs):
-        """Override create to log validation errors."""
-        logger.info(f"Loan application request data: {request.data}")
+        """Override create to log validation errors with sanitized data."""
+        # Log only field names and sanitized data (no sensitive values)
+        sanitized_data = sanitize_payload(request.data)
+        logger.debug(f"Loan application request fields: {list(request.data.keys())}")
+        logger.debug(f"Loan application sanitized payload: {sanitized_data}")
+        
         serializer = self.get_serializer(data=request.data)
         
         if not serializer.is_valid():
-            logger.error(f"Loan application validation errors: {serializer.errors}")
+            # Log validation errors without exposing sensitive data
+            logger.warning(f"Loan application validation failed for fields: {list(serializer.errors.keys())}")
+            logger.debug(f"Validation errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
+        logger.debug("Loan application created successfully")
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     def perform_create(self, serializer):

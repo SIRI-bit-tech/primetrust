@@ -221,8 +221,9 @@ class BillPayShortcutView(APIView):
         bill = get_object_or_404(Bill, pk=bill_id, user=request.user)
         payment_amount = request.data.get('amount')
         payment_method = request.data.get('payment_method', 'account_balance')
+        card_id = request.data.get('card_id')  # Required for virtual_card payments
         
-        success, message = bill.pay_bill(payment_amount, payment_method)
+        success, message = bill.pay_bill(payment_amount, payment_method, card_id=card_id)
         
         if success:
             # Refresh bill from database to get updated fields

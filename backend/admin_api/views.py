@@ -13,8 +13,8 @@ import time
 import requests
 
 from accounts.models import SecurityAuditLog
-from transactions.models import Transaction, Loan, Bill, Investment, BitcoinTransaction
-from loans.models import LoanApplication
+from transactions.models import Transaction, Bill, Investment, BitcoinTransaction
+from loans.models import Loan as AppLoan, LoanApplication
 from banking.models import VirtualCard, CardApplication, Transfer, CheckDeposit
 from api.models import Notification, SystemStatus
 from bitcoin_wallet.models import CurrencySwap
@@ -510,9 +510,9 @@ class AdminDashboardView(APIView):
         total_pending = pending_transactions + pending_transfers
         
         # Loan statistics
-        total_loans = Loan.objects.count()
-        active_loans = Loan.objects.filter(status='active').count()
-        total_loan_amount = Loan.objects.aggregate(total=Sum('amount'))['total'] or 0
+        total_loans = AppLoan.objects.count()
+        active_loans = AppLoan.objects.filter(status='active').count()
+        total_loan_amount = AppLoan.objects.aggregate(total=Sum('amount'))['total'] or 0
         
         # Card statistics
         total_cards = VirtualCard.objects.count()
@@ -890,7 +890,7 @@ class AdminLoanListView(generics.ListAPIView):
     serializer_class = LoanSerializer
     
     def get_queryset(self):
-        return Loan.objects.all().order_by('-created_at')
+        return AppLoan.objects.all().order_by('-created_at')
 
 
 class AdminLoanApplicationListView(generics.ListAPIView):
@@ -951,8 +951,9 @@ class AdminLoanStatusView(APIView):
                     user.balance += loan_amount
                     user.save(update_fields=['balance'])
                     
-                    # Create Loan object
-                    loan = Loan.objects.create(
+                    # Create Loan object in the loans app (avoid name collision with transactions.Loan)
+                    from loans.models import Loan as AppLoan
+                    loan = AppLoan.objects.create(
                         user=application.user,
                         loan_type=application.loan_type,
                         amount=loan_amount,
