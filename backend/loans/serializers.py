@@ -67,8 +67,8 @@ class LoanApplicationSerializer(serializers.ModelSerializer):
                 monthly = Decimal(str(internal_data['monthly_income']))
                 internal_data['annual_income'] = monthly * Decimal('12')
                 logger.debug("LoanApplicationSerializer: Converted 'monthly_income' to 'annual_income'")
-            except (ValueError, TypeError) as e:
-                logger.error("LoanApplicationSerializer: Error converting monthly_income field (invalid format)")
+            except (ValueError, TypeError):
+                logger.exception("LoanApplicationSerializer: Error converting monthly_income field (invalid format)")
         
         logger.debug(f"LoanApplicationSerializer.to_internal_value - Converted fields: {list(internal_data.keys())}")
         
