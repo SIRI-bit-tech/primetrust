@@ -13,10 +13,10 @@ class BankLookupService:
     @classmethod
     def validate_routing_number(cls, routing_number):
         """
-        Validate routing number using ABA checksum algorithm.
+        Validate routing number for US (ABA checksum) and Canada (Transit/EFT).
         
         Args:
-            routing_number (str): 9-digit routing number
+            routing_number (str): 8 or 9-digit routing number
             
         Returns:
             dict: Validation result with 'is_valid' and 'message' keys
@@ -30,11 +30,11 @@ class BankLookupService:
         # Remove any spaces or dashes
         routing_number = routing_number.replace(' ', '').replace('-', '')
         
-        # Check length
-        if len(routing_number) != 9:
+        # Check length (US=9, Canada=8 or 9)
+        if len(routing_number) not in [8, 9]:
             return {
                 'is_valid': False,
-                'message': 'Routing number must be exactly 9 digits'
+                'message': 'Routing number must be 8 digits (Canada) or 9 digits (US/Canada)'
             }
         
         # Check if all characters are digits
@@ -44,30 +44,51 @@ class BankLookupService:
                 'message': 'Routing number must contain only digits'
             }
         
-        try:
-            # ABA routing number checksum validation
-            digits = [int(d) for d in routing_number]
-            checksum = (
-                3 * (digits[0] + digits[3] + digits[6]) +
-                7 * (digits[1] + digits[4] + digits[7]) +
-                (digits[2] + digits[5] + digits[8])
-            )
-            
-            if checksum % 10 == 0:
-                return {
-                    'is_valid': True,
-                    'message': 'Valid routing number format'
-                }
-            else:
+        # Validation for 9 digits (US ABA or Canadian EFT)
+        if len(routing_number) == 9:
+            try:
+                # ABA routing number checksum validation (US)
+                digits = [int(d) for d in routing_number]
+                checksum = (
+                    3 * (digits[0] + digits[3] + digits[6]) +
+                    7 * (digits[1] + digits[4] + digits[7]) +
+                    (digits[2] + digits[5] + digits[8])
+                )
+                
+                if checksum % 10 == 0:
+                    return {
+                        'is_valid': True,
+                        'message': 'Valid US routing number'
+                    }
+                
+                # Canadian EFT format: 0YYYXXXXX (0 + 3-digit institution + 5-digit transit)
+                if routing_number.startswith('0'):
+                    return {
+                        'is_valid': True,
+                        'message': 'Valid Canadian EFT routing number'
+                    }
+                
                 return {
                     'is_valid': False,
-                    'message': 'Invalid routing number checksum'
+                    'message': 'Invalid US routing number checksum'
                 }
-        except (ValueError, IndexError) as e:
+            except (ValueError, IndexError) as e:
+                return {
+                    'is_valid': False,
+                    'message': f'Error validating routing number: {str(e)}'
+                }
+        
+        # Validation for 8 digits (Canadian paper format XXXXXYYY)
+        if len(routing_number) == 8:
             return {
-                'is_valid': False,
-                'message': f'Error validating routing number: {str(e)}'
+                'is_valid': True,
+                'message': 'Valid Canadian transit number format'
             }
+
+        return {
+            'is_valid': False,
+            'message': 'Invalid routing number format'
+        }
 
 
 class TransferFeeService:

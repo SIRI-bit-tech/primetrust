@@ -49,16 +49,16 @@ export default function BankAccountInput({
 
   useEffect(() => {
     const validateRoutingNumber = async () => {
-      if (routingNumber.length === 9 && routingNumber !== lastValidatedRef.current) {
+      if ((routingNumber.length === 8 || routingNumber.length === 9) && routingNumber !== lastValidatedRef.current) {
         setIsValidating(true)
         setValidationError('')
         setIsRoutingValid(false)
-        
+
         try {
           // Import bankingAPI dynamically to avoid circular dependencies
           const { bankingAPI } = await import('@/lib/api')
           const response = await bankingAPI.validateRoutingNumber(routingNumber)
-          
+
           if (response.is_valid) {
             setIsRoutingValid(true)
             lastValidatedRef.current = routingNumber
@@ -75,7 +75,7 @@ export default function BankAccountInput({
         } finally {
           setIsValidating(false)
         }
-      } else if (routingNumber.length < 9) {
+      } else if (routingNumber.length < 8) {
         setIsRoutingValid(false)
         setValidationError('')
         lastValidatedRef.current = ''
@@ -91,7 +91,7 @@ export default function BankAccountInput({
       {/* Routing Number */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Routing Number
+          Routing Number (US/Canada)
         </label>
         <div className="relative">
           <input
@@ -102,7 +102,7 @@ export default function BankAccountInput({
               onRoutingNumberChange(value)
             }}
             maxLength={9}
-            placeholder="9-digit routing number"
+            placeholder="8 digits (Canada) or 9 digits (US)"
             className={cn(
               "w-full px-4 py-3 pr-10 border rounded-lg",
               "focus:ring-2 focus:ring-primary-dark focus:border-transparent",

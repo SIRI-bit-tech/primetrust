@@ -136,7 +136,7 @@ export const authAPI = {
   },
 
   updateProfile: async (data: Partial<User>): Promise<User> => {
-    const response = await api.put('/auth/update/', data)
+    const response = await api.patch('/auth/update/', data)
     return response.data
   },
 

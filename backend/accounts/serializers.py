@@ -154,18 +154,46 @@ class UserSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating user information."""
     
-    profile = UserProfileSerializer()
+    profile = UserProfileSerializer(required=False)
+    full_name = serializers.CharField(write_only=True, required=False)
     
     class Meta:
         model = User
         fields = [
-            'first_name', 'last_name', 'phone_number', 'address', 'city',
-            'state', 'zip_code', 'country', 'profile'
+            'id', 'email', 'username', 'first_name', 'last_name', 'full_name',
+            'phone_number', 'address', 'city', 'state', 'zip_code', 'country',
+            'account_number', 'routing_number', 'balance', 'bitcoin_balance', 'is_verified',
+            'email_verified', 'phone_verified', 'two_factor_enabled',
+            'is_staff', 'is_superuser', 'is_active', 'date_joined', 'last_login',
+            'created_at', 'last_activity', 'profile', 'is_account_locked',
+            'account_locked_until', 'account_lock_reason', 'unlock_request_pending'
         ]
+        read_only_fields = [
+            'id', 'username', 'account_number', 'routing_number', 'balance', 
+            'bitcoin_balance', 'is_verified', 'email_verified', 'phone_verified',
+            'is_staff', 'is_superuser', 'is_active', 'date_joined', 'last_login',
+            'created_at', 'last_activity', 'is_account_locked', 'account_locked_until',
+            'account_lock_reason', 'unlock_request_pending'
+        ]
+        extra_kwargs = {
+            'first_name': {'required': False},
+            'last_name': {'required': False},
+            'email': {'required': False},
+        }
     
+    def validate(self, attrs):
+        """Handle full_name splitting if provided."""
+        full_name = attrs.pop('full_name', None)
+        if full_name:
+            name_parts = full_name.strip().split(' ', 1)
+            attrs['first_name'] = name_parts[0]
+            if len(name_parts) > 1:
+                attrs['last_name'] = name_parts[1]
+        return attrs
+
     def update(self, instance, validated_data):
         """Update user and profile information."""
-        profile_data = validated_data.pop('profile', {})
+        profile_data = validated_data.pop('profile', None)
         
         # Update user fields
         for attr, value in validated_data.items():
@@ -174,7 +202,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         
         # Update profile fields
         if profile_data:
-            profile = instance.profile
+            profile, created = UserProfile.objects.get_or_create(user=instance)
             for attr, value in profile_data.items():
                 setattr(profile, attr, value)
             profile.save()

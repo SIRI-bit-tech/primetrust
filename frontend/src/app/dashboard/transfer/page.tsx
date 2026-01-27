@@ -31,7 +31,7 @@ const internalTransferSchema = z.object({
 // ACH transfer schema
 const achTransferSchema = z.object({
   recipient_name: z.string().min(2, 'Recipient name is required'),
-  routing_number: z.string().length(9, 'Routing number must be 9 digits'),
+  routing_number: z.string().min(8, 'Routing number must be 8 or 9 digits').max(9, 'Routing number must be 8 or 9 digits'),
   account_number: z.string().min(4, 'Account number is required'),
   bank_name: z.string().min(2, 'Bank name is required'),
   account_type: z.enum(['checking', 'savings']),
@@ -44,7 +44,7 @@ const achTransferSchema = z.object({
 // Wire transfer schema
 const wireTransferSchema = z.object({
   recipient_name: z.string().min(2, 'Recipient name is required'),
-  routing_number: z.string().length(9, 'Routing number must be 9 digits'),
+  routing_number: z.string().min(8, 'Routing number must be 8 or 9 digits').max(9, 'Routing number must be 8 or 9 digits'),
   account_number: z.string().min(4, 'Account number is required'),
   bank_name: z.string().min(2, 'Bank name is required'),
   bank_address: z.string().optional(),
@@ -62,6 +62,7 @@ const internationalWireSchema = z.object({
   recipient_city: z.string().min(2, 'City is required'),
   recipient_country: z.string().min(2, 'Country is required'),
   swift_code: z.string().min(8, 'SWIFT/BIC code is required'),
+  routing_number: z.string().min(8, 'Routing number must be 8 or 9 digits').max(9, 'Routing number must be 8 or 9 digits').optional(),
   iban: z.string().optional(),
   bank_name: z.string().min(2, 'Bank name is required'),
   bank_address: z.string().min(5, 'Bank address is required'),
@@ -81,7 +82,7 @@ type InternationalWireFormData = z.infer<typeof internationalWireSchema>
 export default function TransferPage() {
   const { user } = useAuth()
   const router = useRouter()
-  
+
   // State
   const [transferType, setTransferType] = useState<TransferType>('internal')
   const [isLoading, setIsLoading] = useState(false)
@@ -95,7 +96,7 @@ export default function TransferPage() {
   const [saveRecipient, setSaveRecipient] = useState(false)
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null)
   const [showReceipt, setShowReceipt] = useState(false)
-  
+
   const isAccountLocked = user?.is_account_locked || false
 
   // Get schema based on transfer type
@@ -140,6 +141,23 @@ export default function TransferPage() {
     }
   }, [transferType, accountType, setValue])
 
+  // Real-time receipt updates
+  useEffect(() => {
+    const handleTransferUpdate = (event: CustomEvent) => {
+      const data = event.detail
+      if (receiptData && receiptData.id === data.transfer_id) {
+        setReceiptData(prev => prev ? {
+          ...prev,
+          status: data.status === 'completed' ? 'completed' :
+            (data.status === 'failed' || data.status === 'cancelled') ? 'failed' : 'pending'
+        } : null)
+      }
+    }
+
+    window.addEventListener('transfer-updated', handleTransferUpdate as EventListener)
+    return () => window.removeEventListener('transfer-updated', handleTransferUpdate as EventListener)
+  }, [receiptData])
+
   const amount = watch('amount', 0)
 
   // Calculate fees based on transfer type
@@ -150,12 +168,12 @@ export default function TransferPage() {
       wire_domestic: { base: 25, percentage: 0, time: 'Same day', completion: 'Today by 5 PM EST' },
       wire_international: { base: 45, percentage: 0.5, time: '1-5 business days', completion: 'Within 5 business days' },
     }
-    
+
     const feeConfig = fees[transferType]
     const baseFee = feeConfig.base
     const percentageFee = (amount * feeConfig.percentage) / 100
     const totalFee = baseFee + percentageFee
-    
+
     return {
       fee: totalFee,
       totalAmount: amount + totalFee,
@@ -177,11 +195,11 @@ export default function TransferPage() {
         save_recipient: saveRecipient,
         recipient_nickname: saveRecipient ? (data.recipient_nickname || data.recipient_name) : undefined,
       }
-      
+
       // Store fee info separately for receipt (not sent to backend)
       transferData._feeInfo = feeInfo
       transferData._transferType = transferType
-      
+
       // Store pending transfer and show PIN modal
       setPendingTransfer(transferData)
       setShowPinModal(true)
@@ -201,14 +219,14 @@ export default function TransferPage() {
 
     try {
       let response: any
-      
+
       // Extract stored values
       const storedTransferType = pendingTransfer._transferType || transferType
       const storedFeeInfo = pendingTransfer._feeInfo || feeInfo
-      
+
       // Remove internal fields before sending to API
       const { _feeInfo, _transferType, ...apiData } = pendingTransfer
-      
+
       // Call appropriate API based on transfer type
       switch (storedTransferType) {
         case 'internal':
@@ -226,26 +244,28 @@ export default function TransferPage() {
         default:
           throw new Error('Invalid transfer type')
       }
-      
+
       // Prepare receipt data - show as pending since it needs admin approval
       const receipt: ReceiptData = {
+        id: response.id,
         type: 'transfer',
-        status: response.status === 'completed' ? 'completed' : 'pending',
+        status: response.status === 'completed' ? 'completed' :
+          (response.status === 'failed' || response.status === 'cancelled') ? 'failed' : 'pending',
         amount: pendingTransfer.amount,
         currency: pendingTransfer.currency || 'USD',
         sender: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.email || 'You',
         recipient: pendingTransfer.recipient_name || pendingTransfer.recipient_email,
         transferType: getTransferTypeLabel(storedTransferType),
-        date: new Date().toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
+        date: new Date().toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
           year: 'numeric',
           hour: 'numeric',
           minute: 'numeric'
         }),
         referenceId: response.reference_number || generateReferenceId(storedTransferType),
       }
-      
+
       setReceiptData(receipt)
       setShowPinModal(false)
       setShowReceipt(true)
@@ -253,10 +273,10 @@ export default function TransferPage() {
       reset()
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string; error?: string } } }
-      
+
       // Extract stored values for failed receipt
       const storedTransferType = pendingTransfer._transferType || transferType
-      
+
       // Show failed receipt
       const receipt: ReceiptData = {
         type: 'transfer',
@@ -266,16 +286,16 @@ export default function TransferPage() {
         sender: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.email || 'You',
         recipient: pendingTransfer.recipient_name || pendingTransfer.recipient_email,
         transferType: getTransferTypeLabel(storedTransferType),
-        date: new Date().toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
+        date: new Date().toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
           year: 'numeric',
           hour: 'numeric',
           minute: 'numeric'
         }),
         referenceId: generateReferenceId(storedTransferType),
       }
-      
+
       setReceiptData(receipt)
       setShowPinModal(false)
       setShowReceipt(true)
@@ -528,16 +548,34 @@ export default function TransferPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      IBAN (Optional)
-                    </label>
-                    <input
-                      {...register('iban')}
-                      type="text"
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      placeholder="International Bank Account Number"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        IBAN (Optional)
+                      </label>
+                      <input
+                        {...register('iban')}
+                        type="text"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        placeholder="International Bank Account Number"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Routing Number (Optional)
+                      </label>
+                      <input
+                        {...register('routing_number')}
+                        type="text"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        placeholder="8-digit (Canada) or 9-digit"
+                      />
+                      {errors.routing_number && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                          {errors.routing_number.message as string}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   <div>

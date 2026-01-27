@@ -22,6 +22,9 @@ from admin_api.serializers import (
     VirtualCardSerializer, CardApplicationSerializer
 )
 
+from .transfer_services import ACHTransferService, WireTransferService, TransferFeeService
+from utils.realtime import notify_transfer_update, notify_balance_update, send_notification
+
 logger = logging.getLogger(__name__)
 
 
@@ -351,17 +354,20 @@ def validate_routing_number(request):
     
     routing_number = serializer.validated_data['routing_number']
     
-    # Basic validation - just check format
-    if len(routing_number) != 9 or not routing_number.isdigit():
+    # Use BankLookupService for checksum validation
+    from .transfer_services import BankLookupService
+    result = BankLookupService.validate_routing_number(routing_number)
+    
+    if not result['is_valid']:
         return Response({
             'is_valid': False,
-            'message': 'Routing number must be 9 digits'
+            'message': result['message']
         }, status=status.HTTP_400_BAD_REQUEST)
     
     # Return success - user will enter bank name manually
     return Response({
         'is_valid': True,
-        'message': 'Routing number format is valid',
+        'message': 'Routing number is valid',
         'routing_number': routing_number,
         'note': 'Please enter your bank name manually'
     }, status=status.HTTP_200_OK)
@@ -401,10 +407,26 @@ def create_ach_transfer(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    return Response({
-        'message': 'ACH transfer endpoint not yet implemented',
-        'error': 'Feature coming soon'
-    }, status=status.HTTP_501_NOT_IMPLEMENTED)
+    try:
+        with transaction.atomic():
+            transfer = ACHTransferService.create_transfer(request.user, serializer.validated_data)
+            
+            # Send real-time notifications
+            notify_transfer_update(request.user.id, transfer.id, transfer.status, transfer.transfer_type)
+            notify_balance_update(request.user.id, request.user.balance)
+            send_notification(
+                request.user.id,
+                'ACH Transfer Initiated',
+                f'Your ACH transfer of ${transfer.amount} to {transfer.recipient_name} is pending approval.',
+                'info'
+            )
+            
+            return Response(TransferSerializer(transfer).data, status=status.HTTP_201_CREATED)
+    except ValueError as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Error creating ACH transfer: {str(e)}")
+        return Response({'error': 'An internal error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
@@ -415,10 +437,26 @@ def create_wire_transfer(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    return Response({
-        'message': 'Wire transfer endpoint not yet implemented',
-        'error': 'Feature coming soon'
-    }, status=status.HTTP_501_NOT_IMPLEMENTED)
+    try:
+        with transaction.atomic():
+            transfer = WireTransferService.create_transfer(request.user, serializer.validated_data, is_international=False)
+            
+            # Send real-time notifications
+            notify_transfer_update(request.user.id, transfer.id, transfer.status, transfer.transfer_type)
+            notify_balance_update(request.user.id, request.user.balance)
+            send_notification(
+                request.user.id,
+                'Wire Transfer Initiated',
+                f'Your domestic wire transfer of ${transfer.amount} to {transfer.recipient_name} is pending approval.',
+                'info'
+            )
+            
+            return Response(TransferSerializer(transfer).data, status=status.HTTP_201_CREATED)
+    except ValueError as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Error creating Wire transfer: {str(e)}")
+        return Response({'error': 'An internal error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
@@ -429,10 +467,26 @@ def create_international_wire_transfer(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    return Response({
-        'message': 'International wire transfer endpoint not yet implemented',
-        'error': 'Feature coming soon'
-    }, status=status.HTTP_501_NOT_IMPLEMENTED)
+    try:
+        with transaction.atomic():
+            transfer = WireTransferService.create_transfer(request.user, serializer.validated_data, is_international=True)
+            
+            # Send real-time notifications
+            notify_transfer_update(request.user.id, transfer.id, transfer.status, transfer.transfer_type)
+            notify_balance_update(request.user.id, request.user.balance)
+            send_notification(
+                request.user.id,
+                'International Wire Transfer Initiated',
+                f'Your international wire transfer of ${transfer.amount} to {transfer.recipient_name} is pending approval.',
+                'info'
+            )
+            
+            return Response(TransferSerializer(transfer).data, status=status.HTTP_201_CREATED)
+    except ValueError as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Error creating International Wire transfer: {str(e)}")
+        return Response({'error': 'An internal error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Check Deposit Views
