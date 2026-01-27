@@ -159,8 +159,8 @@ export default function AdminPage() {
           break
         }
         case 'loans': {
-          const loansData = await adminAPI.getAllLoans()
-          setLoanApplications(loansData)
+          const loanApplicationsData = await adminAPI.getAllLoanApplications()
+          setLoanApplications(loanApplicationsData)
           break
         }
         case 'bills': {
@@ -427,7 +427,7 @@ export default function AdminPage() {
         notificationItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         currencySwapItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         bitcoinTransactionItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (loanItem as any).user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (loanAppItem as any).user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         billItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         investmentItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         securityLogItem.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -974,8 +974,8 @@ export default function AdminPage() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
-                      ? 'border-blue-500 text-blue-400'
-                      : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
                     }`}
                 >
                   <Icon className="w-4 h-4" />

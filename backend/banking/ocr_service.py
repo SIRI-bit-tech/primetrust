@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 # Configuration: Maximum check amount for OCR validation
 # Can be overridden in settings.py with MAX_CHECK_AMOUNT
 # Set to None to disable upper limit validation
-MAX_CHECK_AMOUNT = getattr(settings, 'MAX_CHECK_AMOUNT', None)  # Default: Unlimited
+DEFAULT_MAX_CHECK_AMOUNT = 10000000
+MAX_CHECK_AMOUNT = getattr(settings, 'MAX_CHECK_AMOUNT', DEFAULT_MAX_CHECK_AMOUNT)
 
 # Initialize EasyOCR reader (lazy loading with thread-safe double-checked locking)
 _reader = None
