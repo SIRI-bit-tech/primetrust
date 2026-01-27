@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  CreditCard, 
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  CreditCard,
   Send,
   Eye,
   EyeOff,
@@ -34,6 +34,8 @@ import { formatCurrency } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import TransferReceipt from '@/components/receipt/TransferReceipt'
+import { ReceiptData } from '@/types'
 
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -50,7 +52,9 @@ export default function DashboardPage() {
   const [exchangeRate, setExchangeRate] = useState<number | null>(null)
   const [toasts, setToasts] = useState<{ id: number; title: string; description: string; variant?: 'default' | 'destructive' }[]>([])
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
-  
+  const [showReceipt, setShowReceipt] = useState(false)
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null)
+
   // Check if account is locked
   const isAccountLocked = user?.is_account_locked || false
 
@@ -72,41 +76,41 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true)
-      
+
       // Fetch current user ID if not already loaded
       if (!currentUserId && user?.id) {
         setCurrentUserId(user.id)
       }
-      
+
       // Fetch account information
       const accountData = await bankingAPI.getAccountInfo()
       setAccount(accountData)
-      
+
       // Fetch recent transactions and transfers
       const [transactionsData, transfersData] = await Promise.all([
         transactionsAPI.getTransactions().catch(() => []),
         transactionsAPI.getTransfers().catch(() => [])
       ])
-      
+
       const transactionsArray = Array.isArray(transactionsData) ? transactionsData : (transactionsData as any)?.results || []
       const transfersArray = Array.isArray(transfersData) ? transfersData : (transfersData as any)?.results || []
-      
+
       // Combine and sort by date, then take the 5 most recent
       const combined = [...transactionsArray, ...transfersArray]
       combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       setTransactions(combined.slice(0, 5))
-      
+
       // Fetch virtual cards
       const cardsData = await virtualCardAPI.getCards()
       setCards(cardsData)
-      
+
       // Fetch Bitcoin balance and exchange rate
       try {
         const [bitcoinBalanceData, exchangeRateData] = await Promise.all([
           bankingAPI.getBitcoinBalance(),
           bitcoinAPI.getExchangeRate()
         ])
-        
+
         // Safely parse Bitcoin balance with fallback to 0
         const balance = parseFloat(bitcoinBalanceData.bitcoin_balance || '0')
         setBitcoinBalance(isNaN(balance) ? 0 : balance)
@@ -117,7 +121,7 @@ export default function DashboardPage() {
         setBitcoinBalance(0)
         setExchangeRate(null)
       }
-      
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
@@ -139,12 +143,12 @@ export default function DashboardPage() {
         bankingAPI.getBitcoinBalance(),
         bitcoinAPI.getExchangeRate()
       ])
-      
+
       // Safely parse Bitcoin balance with fallback to 0
       const balance = parseFloat(bitcoinBalanceData.bitcoin_balance || '0')
       setBitcoinBalance(isNaN(balance) ? 0 : balance)
       setExchangeRate(exchangeRateData.exchange_rate)
-      
+
       // Also update account info to get latest USD balance
       const accountData = await bankingAPI.getAccountInfo()
       setAccount(accountData)
@@ -214,7 +218,7 @@ export default function DashboardPage() {
     const isSender = currentUserId && (transaction as any).sender === currentUserId
     const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
     const description = transaction.description || ''
-    
+
     // Status-based icons (override type-based icons)
     if (status === 'failed' || status === 'cancelled' || status === 'declined') {
       return <XCircle className="w-5 h-5 text-red-500" />
@@ -247,14 +251,14 @@ export default function DashboardPage() {
         return <TrendingUp className="w-5 h-5 text-red-500" />
       }
     }
-    
+
     // Default
     return <DollarSign className="w-5 h-5 text-gray-500" />
   }
 
   const getTransactionIconBgColor = (transaction: any) => {
     const status = transaction.status
-    
+
     if (status === 'failed' || status === 'cancelled' || status === 'declined') {
       return 'bg-red-100 dark:bg-red-900/20'
     }
@@ -265,7 +269,7 @@ export default function DashboardPage() {
       const type = transaction.transaction_type || transaction.transfer_type
       const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
       const description = transaction.description || ''
-      
+
       if (type === 'investment') {
         // Check description to determine if purchase or sale
         const isSale = description.toLowerCase().includes('sale')
@@ -279,7 +283,7 @@ export default function DashboardPage() {
       }
       return 'bg-blue-100 dark:bg-blue-900/20'
     }
-    
+
     return 'bg-gray-100 dark:bg-gray-700'
   }
 
@@ -288,7 +292,7 @@ export default function DashboardPage() {
     const isSender = currentUserId && (transaction as any).sender === currentUserId
     const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
     const description = transaction.description || ''
-    
+
     // For transfers, color based on direction
     if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
       if (isReceiver && !isSender) {
@@ -296,13 +300,13 @@ export default function DashboardPage() {
       }
       return 'text-red-600 dark:text-red-400'
     }
-    
+
     // For investments, check description
     if (type === 'investment') {
       const isSale = description.toLowerCase().includes('sale')
       return isSale ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
     }
-    
+
     switch (type) {
       case 'deposit':
         return 'text-green-600 dark:text-green-400'
@@ -317,7 +321,7 @@ export default function DashboardPage() {
     const type = transaction.transaction_type || transaction.transfer_type
     const recipientName = transaction.recipient_name || transaction.recipient?.full_name || ''
     const description = transaction.description || ''
-    
+
     // If we have a recipient name, use it
     if (recipientName) {
       if (type === 'internal') return `Internal Transfer to ${recipientName}`
@@ -325,21 +329,57 @@ export default function DashboardPage() {
       if (type === 'wire_domestic') return `Wire Transfer to ${recipientName}`
       if (type === 'wire_international') return `International Wire to ${recipientName}`
     }
-    
+
     // Fallback to description or type
     if (description) return description
-    
+
     // Last resort - just show the type
     if (type === 'internal') return 'Internal Transfer'
     if (type === 'ach') return 'ACH Transfer'
     if (type === 'wire_domestic') return 'Wire Transfer'
     if (type === 'wire_international') return 'International Wire Transfer'
-    
+
     return type || 'Transaction'
   }
 
   const getTransactionType = (transaction: any) => {
     return transaction.transaction_type || transaction.transfer_type || 'transfer'
+  }
+
+  const handleTransactionClick = (transaction: any) => {
+    const type = getTransactionType(transaction)
+    const isBitcoin = type === 'bitcoin' || (transaction as any).currency_from === 'BTC' || (transaction as any).currency_to === 'BTC'
+    const status = transaction.status === 'completed' || transaction.status === 'approved' ? 'completed' :
+      (transaction.status === 'failed' || transaction.status === 'cancelled' || transaction.status === 'declined') ? 'failed' : 'pending'
+
+    const senderName = (transaction as any).sender_name || (transaction as any).sender?.full_name || (type === 'deposit' ? (transaction.description || 'External') : 'You')
+    const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name || (type === 'deposit' ? 'You' : 'External')
+
+    const receipt: ReceiptData = {
+      id: transaction.id,
+      type: isBitcoin ? 'bitcoin' : 'transfer',
+      status: status,
+      amount: transaction.amount,
+      currency: transaction.currency || 'USD',
+      btcAmount: (transaction as any).btc_amount || (transaction as any).amount_from_btc || (transaction as any).amount_to_btc,
+      usdAmount: (transaction as any).usd_amount || (transaction as any).amount_from_usd || (transaction as any).amount_to_usd,
+      sender: senderName,
+      recipient: recipientName,
+      transferType: getTransactionDescription(transaction),
+      date: new Date(transaction.created_at).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric'
+      }),
+      referenceId: transaction.reference_number || transaction.transaction_id || `#${transaction.id}`,
+      transactionHash: (transaction as any).transaction_hash,
+      networkFee: (transaction as any).fee
+    }
+
+    setSelectedReceipt(receipt)
+    setShowReceipt(true)
   }
 
   const getStatusColor = (status: string) => {
@@ -387,11 +427,11 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <Badge variant="secondary" className="text-sm">
               <Calendar className="w-3 h-3 mr-1" />
-              {new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
               })}
             </Badge>
           </div>
@@ -432,7 +472,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Bitcoin Balance Section */}
               <div className="border-t border-white/20 pt-3">
                 <div className="flex items-center justify-between">
@@ -463,7 +503,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Real-time Exchange Rate */}
                 {exchangeRate && (
                   <div className="mt-2 pt-2 border-t border-white/10">
@@ -571,8 +611,8 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Button 
-                    className="h-20 flex-col gap-2 bg-blue-500 hover:bg-blue-600 text-white border-blue-500" 
+                  <Button
+                    className="h-20 flex-col gap-2 bg-blue-500 hover:bg-blue-600 text-white border-blue-500"
                     asChild
                   >
                     <Link href="/dashboard/transfer">
@@ -580,9 +620,9 @@ export default function DashboardPage() {
                       <span className="text-sm">Send Money</span>
                     </Link>
                   </Button>
-                  
-                  <Button 
-                    className="h-20 flex-col gap-2 bg-orange-500 hover:bg-orange-600 text-white border-orange-500" 
+
+                  <Button
+                    className="h-20 flex-col gap-2 bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
                     asChild
                   >
                     <Link href="/dashboard/send-bitcoin">
@@ -590,16 +630,16 @@ export default function DashboardPage() {
                       <span className="text-sm">Send Bitcoin</span>
                     </Link>
                   </Button>
-                  
-                  <Button 
+
+                  <Button
                     className="h-20 flex-col gap-2 bg-green-500 hover:bg-green-600 text-white border-green-500"
                     onClick={() => setIsReceiveBitcoinModalOpen(true)}
                   >
                     <ArrowDownUp className="w-6 h-6" />
                     <span className="text-sm">Receive Bitcoin</span>
                   </Button>
-                  
-                  <Button 
+
+                  <Button
                     className="h-20 flex-col gap-2 bg-purple-500 hover:bg-purple-600 text-white border-purple-500"
                     onClick={() => setIsSwapBitcoinModalOpen(true)}
                   >
@@ -649,11 +689,11 @@ export default function DashboardPage() {
                   const type = getTransactionType(transaction)
                   const isSender = currentUserId && (transaction as any).sender === currentUserId
                   const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
-                  
+
                   // Determine if this is a debit (money out) or credit (money in)
                   let isDebit = false
                   const description = transaction.description || ''
-                  
+
                   if (type === 'withdrawal') {
                     isDebit = true
                   } else if (type === 'investment') {
@@ -665,9 +705,13 @@ export default function DashboardPage() {
                     // For transfers, it's a debit if user is the sender
                     isDebit = !!(isSender && !isReceiver)
                   }
-                  
+
                   return (
-                    <div key={transaction.id} className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
+                    <div
+                      key={`${type}-${transaction.id}`}
+                      className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => handleTransactionClick(transaction)}
+                    >
                       <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 ${getTransactionIconBgColor(transaction)} rounded-full flex items-center justify-center`}>
                           {getTransactionIcon(transaction)}
@@ -711,28 +755,35 @@ export default function DashboardPage() {
       </div>
 
       {/* Receive Bitcoin Modal */}
-              <ReceiveBitcoinModal
-          isOpen={isReceiveBitcoinModalOpen}
-          onClose={() => setIsReceiveBitcoinModalOpen(false)}
-        />
+      <ReceiveBitcoinModal
+        isOpen={isReceiveBitcoinModalOpen}
+        onClose={() => setIsReceiveBitcoinModalOpen(false)}
+      />
 
-        <SwapBitcoinModal
-          isOpen={isSwapBitcoinModalOpen}
-          onClose={() => setIsSwapBitcoinModalOpen(false)}
-          userBalance={{
-            usd: parseFloat(account?.balance || '0'),
-            bitcoin: bitcoinBalance
-          }}
-          onSwapComplete={() => {
-            // Wait for swap to complete (30 seconds) plus buffer time
-            setTimeout(() => {
-              updateBalances()
-            }, 35000)
-          }}
-        />
+      <SwapBitcoinModal
+        isOpen={isSwapBitcoinModalOpen}
+        onClose={() => setIsSwapBitcoinModalOpen(false)}
+        userBalance={{
+          usd: parseFloat(account?.balance || '0'),
+          bitcoin: bitcoinBalance
+        }}
+        onSwapComplete={() => {
+          // Wait for swap to complete (30 seconds) plus buffer time
+          setTimeout(() => {
+            updateBalances()
+          }, 35000)
+        }}
+      />
 
-        {/* Toast Container */}
-        <ToastContainer toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
+
+      {showReceipt && selectedReceipt && (
+        <TransferReceipt
+          {...selectedReceipt}
+          onClose={() => setShowReceipt(false)}
+        />
+      )}
     </DashboardLayout>
   )
-} 
+}

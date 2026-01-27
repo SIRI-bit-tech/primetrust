@@ -26,6 +26,10 @@ app.conf.beat_schedule = {
         'task': 'banking.tasks.detect_duplicate_checks',
         'schedule': crontab(hour='*/6'),  # Run every 6 hours
     },
+    'auto-approve-pending-transfers': {
+        'task': 'banking.tasks.auto_approve_pending_transfers',
+        'schedule': crontab(minute='*'),  # Run every minute
+    },
 }
 
 app.conf.timezone = 'UTC'

@@ -45,9 +45,9 @@ export async function GET(request: NextRequest) {
     }
 
     // 3. ClientID Validation: Ensure the requester matches the supplied clientId
-    const verifiedUserId = user.id.toString();
+    const verifiedUserId = user.id.toString().trim();
     const searchParams = request.nextUrl.searchParams;
-    const requestedClientId = searchParams.get('clientId');
+    const requestedClientId = searchParams.get('clientId')?.trim();
 
     // If a clientId is provided, it MUST match the authenticated user's ID
     if (requestedClientId && requestedClientId !== verifiedUserId) {

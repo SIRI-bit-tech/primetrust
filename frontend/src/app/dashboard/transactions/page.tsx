@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Send, 
-  Download, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Send,
+  Download,
   Search,
   ArrowLeft,
   Calendar,
@@ -20,6 +20,9 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { transactionsAPI } from '@/lib/api'
 import { Transaction } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import TransferReceipt from '@/components/receipt/TransferReceipt'
+import { ReceiptData } from '@/types'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -29,6 +32,9 @@ export default function TransactionsPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [currentUserId, setCurrentUserId] = useState<number | null>(null)
+  const [showReceipt, setShowReceipt] = useState(false)
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null)
+  const { user } = useAuth()
 
   useEffect(() => {
     const initializePage = async () => {
@@ -88,20 +94,20 @@ export default function TransactionsPage() {
           return []
         })
       ])
-      
+
       // Extract arrays from responses
-      const transactionsArray = Array.isArray(transactionsData) 
-        ? transactionsData 
+      const transactionsArray = Array.isArray(transactionsData)
+        ? transactionsData
         : ((transactionsData as any)?.results || [])
-      
-      const transfersArray = Array.isArray(transfersData) 
-        ? transfersData 
+
+      const transfersArray = Array.isArray(transfersData)
+        ? transfersData
         : ((transfersData as any)?.results || [])
-      
+
       // Combine and sort by date
       const combined = [...transactionsArray, ...transfersArray]
       combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      
+
       setTransactions(combined)
     } catch (error) {
       console.error('Error loading transactions:', error)
@@ -119,9 +125,9 @@ export default function TransactionsPage() {
         const desc = transaction.description?.toLowerCase() || ''
         const senderName = (transaction as any).sender_name?.toLowerCase() || (transaction as any).sender?.full_name?.toLowerCase() || ''
         const recipientName = (transaction as any).recipient_name?.toLowerCase() || (transaction as any).recipient?.full_name?.toLowerCase() || ''
-        return desc.includes(searchTerm.toLowerCase()) || 
-               senderName.includes(searchTerm.toLowerCase()) || 
-               recipientName.includes(searchTerm.toLowerCase())
+        return desc.includes(searchTerm.toLowerCase()) ||
+          senderName.includes(searchTerm.toLowerCase()) ||
+          recipientName.includes(searchTerm.toLowerCase())
       })
     }
 
@@ -148,7 +154,7 @@ export default function TransactionsPage() {
     const isSender = currentUserId && transaction.sender === currentUserId
     const isReceiver = currentUserId && transaction.recipient === currentUserId
     const description = transaction.description || ''
-    
+
     // Status-based icons (override type-based icons)
     if (status === 'failed' || status === 'cancelled' || status === 'declined') {
       return <XCircle className="w-5 h-5 text-red-500" />
@@ -183,14 +189,14 @@ export default function TransactionsPage() {
         }
       }
     }
-    
+
     // Default
     return <DollarSign className="w-5 h-5 text-gray-500" />
   }
 
   const getTransactionIconBgColor = (transaction: Transaction | any) => {
     const status = transaction.status
-    
+
     if (status === 'failed' || status === 'cancelled' || status === 'declined') {
       return 'bg-red-100 dark:bg-red-900/20'
     }
@@ -202,7 +208,7 @@ export default function TransactionsPage() {
       const isSender = currentUserId && transaction.sender === currentUserId
       const isReceiver = currentUserId && transaction.recipient === currentUserId
       const description = transaction.description || ''
-      
+
       if (type === 'investment') {
         // Check description to determine if purchase or sale
         const isSale = description.toLowerCase().includes('sale')
@@ -225,7 +231,7 @@ export default function TransactionsPage() {
       }
       return 'bg-blue-100 dark:bg-blue-900/20'
     }
-    
+
     return 'bg-gray-100 dark:bg-gray-700'
   }
 
@@ -235,13 +241,13 @@ export default function TransactionsPage() {
       const isSale = description.toLowerCase().includes('sale')
       return isSale ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
     }
-    
+
     // For transfers, use ID-based logic only
     if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
       if (transaction && currentUserId) {
         const isSender = transaction.sender === currentUserId
         const isReceiver = transaction.recipient === currentUserId
-        
+
         // If receiver only (incoming), show green
         if (isReceiver && !isSender) {
           return 'text-green-600 dark:text-green-400'
@@ -251,11 +257,11 @@ export default function TransactionsPage() {
           return 'text-red-600 dark:text-red-400'
         }
       }
-      
+
       // If currentUserId not loaded yet, return gray
       return 'text-gray-600 dark:text-gray-400'
     }
-    
+
     switch (type) {
       case 'deposit':
         return 'text-green-600 dark:text-green-400'
@@ -274,7 +280,7 @@ export default function TransactionsPage() {
     const type = getTransactionType(transaction)
     const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name || ''
     const description = transaction.description || ''
-    
+
     // If we have a recipient name, use it
     if (recipientName) {
       if (type === 'internal') return `Internal Transfer to ${recipientName}`
@@ -282,16 +288,16 @@ export default function TransactionsPage() {
       if (type === 'wire_domestic') return `Wire Transfer to ${recipientName}`
       if (type === 'wire_international') return `International Wire to ${recipientName}`
     }
-    
+
     // Fallback to description or type
     if (description) return description
-    
+
     // Last resort - just show the type
     if (type === 'internal') return 'Internal Transfer'
     if (type === 'ach') return 'ACH Transfer'
     if (type === 'wire_domestic') return 'Wire Transfer'
     if (type === 'wire_international') return 'International Wire Transfer'
-    
+
     return type
   }
 
@@ -310,6 +316,42 @@ export default function TransactionsPage() {
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
     }
+  }
+
+  const handleTransactionClick = (transaction: any) => {
+    const type = getTransactionType(transaction)
+    const isBitcoin = type === 'bitcoin' || transaction.currency_from === 'BTC' || transaction.currency_to === 'BTC'
+    const status = transaction.status === 'completed' || transaction.status === 'approved' ? 'completed' :
+      (transaction.status === 'failed' || transaction.status === 'cancelled' || transaction.status === 'declined') ? 'failed' : 'pending'
+
+    const senderName = (transaction as any).sender_name || (transaction as any).sender?.full_name || (type === 'deposit' ? (transaction.description || 'External') : 'You')
+    const recipientName = (transaction as any).recipient_name || (transaction as any).recipient?.full_name || (type === 'deposit' ? 'You' : 'External')
+
+    const receipt: ReceiptData = {
+      id: transaction.id,
+      type: isBitcoin ? 'bitcoin' : 'transfer',
+      status: status,
+      amount: transaction.amount,
+      currency: transaction.currency || 'USD',
+      btcAmount: transaction.btc_amount || transaction.amount_from_btc || transaction.amount_to_btc,
+      usdAmount: transaction.usd_amount || transaction.amount_from_usd || transaction.amount_to_usd,
+      sender: senderName,
+      recipient: recipientName,
+      transferType: getTransactionDescription(transaction),
+      date: new Date(transaction.created_at).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric'
+      }),
+      referenceId: transaction.reference_number || transaction.transaction_id || `#${transaction.id}`,
+      transactionHash: transaction.transaction_hash,
+      networkFee: (transaction as any).fee
+    }
+
+    setSelectedReceipt(receipt)
+    setShowReceipt(true)
   }
 
   const exportTransactions = () => {
@@ -459,10 +501,11 @@ export default function TransactionsPage() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredTransactions.map((transaction) => {
                       const type = getTransactionType(transaction)
+                      const uniqueKey = `${type}-${transaction.id}`
                       // For deposits, sender is external (merchant_name/payer), recipient is user
                       const isDeposit = type === 'deposit'
                       const merchantName = (transaction as any).merchant_name
-                      const senderName = isDeposit 
+                      const senderName = isDeposit
                         ? (merchantName || 'External Account')
                         : ((transaction as any).sender_name || (transaction as any).sender?.full_name || 'You')
                       const recipientName = isDeposit
@@ -470,9 +513,13 @@ export default function TransactionsPage() {
                         : ((transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'External Account')
                       const fee = (transaction as any).fee || 0
                       const refNumber = (transaction as any).reference_number
-                      
+
                       return (
-                        <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <tr
+                          key={uniqueKey}
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                          onClick={() => handleTransactionClick(transaction)}
+                        >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className={`w-10 h-10 ${getTransactionIconBgColor(transaction)} rounded-full flex items-center justify-center mr-3`}>
@@ -493,10 +540,10 @@ export default function TransactionsPage() {
                               {(() => {
                                 // Show minus sign for withdrawals
                                 if (type === 'withdrawal') return '-'
-                                
+
                                 // Show minus sign for investment purchases
                                 if (type === 'investment' && !transaction.description?.toLowerCase().includes('sale')) return '-'
-                                
+
                                 // Show minus sign for outgoing transfers (use ID-based logic only)
                                 if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
                                   if (currentUserId) {
@@ -506,7 +553,7 @@ export default function TransactionsPage() {
                                     if (isSender && !isReceiver) return '-'
                                   }
                                 }
-                                
+
                                 return ''
                               })()}
                               {formatCurrency(transaction.amount)}
@@ -554,10 +601,11 @@ export default function TransactionsPage() {
               <div className="lg:hidden divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredTransactions.map((transaction) => {
                   const type = getTransactionType(transaction)
+                  const uniqueKey = `${type}-${transaction.id}`
                   // For deposits, sender is external (merchant_name/payer), recipient is user
                   const isDeposit = type === 'deposit'
                   const merchantName = (transaction as any).merchant_name
-                  const senderName = isDeposit 
+                  const senderName = isDeposit
                     ? (merchantName || 'External Account')
                     : ((transaction as any).sender_name || (transaction as any).sender?.full_name || 'You')
                   const recipientName = isDeposit
@@ -565,9 +613,13 @@ export default function TransactionsPage() {
                     : ((transaction as any).recipient_name || (transaction as any).recipient?.full_name || 'External Account')
                   const fee = (transaction as any).fee || 0
                   const refNumber = (transaction as any).reference_number
-                  
+
                   return (
-                    <div key={transaction.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div
+                      key={uniqueKey}
+                      className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                      onClick={() => handleTransactionClick(transaction)}
+                    >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center flex-1 min-w-0">
                           <div className={`w-10 h-10 ${getTransactionIconBgColor(transaction)} rounded-full flex items-center justify-center mr-3 flex-shrink-0`}>
@@ -586,10 +638,10 @@ export default function TransactionsPage() {
                           {(() => {
                             // Show minus sign for withdrawals
                             if (type === 'withdrawal') return '-'
-                            
+
                             // Show minus sign for investment purchases
                             if (type === 'investment' && !transaction.description?.toLowerCase().includes('sale')) return '-'
-                            
+
                             // Show minus sign for outgoing transfers (use ID-based logic only)
                             if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
                               if (currentUserId) {
@@ -599,13 +651,13 @@ export default function TransactionsPage() {
                                 if (isSender && !isReceiver) return '-'
                               }
                             }
-                            
+
                             return ''
                           })()}
                           {formatCurrency(transaction.amount)}
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center justify-between">
                           <span className="text-gray-500 dark:text-gray-400">Status:</span>
@@ -613,7 +665,7 @@ export default function TransactionsPage() {
                             {transaction.status}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center justify-between">
                           <span className="text-gray-500 dark:text-gray-400">Date:</span>
                           <span className="text-gray-900 dark:text-white flex items-center">
@@ -621,28 +673,28 @@ export default function TransactionsPage() {
                             {formatDate(transaction.created_at)}
                           </span>
                         </div>
-                        
+
                         {type !== 'investment' && (
                           <>
                             <div className="flex items-center justify-between">
                               <span className="text-gray-500 dark:text-gray-400">From:</span>
                               <span className="text-gray-900 dark:text-white truncate ml-2">{senderName}</span>
                             </div>
-                            
+
                             <div className="flex items-center justify-between">
                               <span className="text-gray-500 dark:text-gray-400">To:</span>
                               <span className="text-gray-900 dark:text-white truncate ml-2">{recipientName}</span>
                             </div>
                           </>
                         )}
-                        
+
                         {fee > 0 && (
                           <div className="flex items-center justify-between">
                             <span className="text-gray-500 dark:text-gray-400">Fee:</span>
                             <span className="text-gray-900 dark:text-white">{formatCurrency(fee)}</span>
                           </div>
                         )}
-                        
+
                         {refNumber && (
                           <div className="flex items-center justify-between">
                             <span className="text-gray-500 dark:text-gray-400">Ref:</span>
@@ -662,7 +714,7 @@ export default function TransactionsPage() {
               </div>
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Transactions Found</h3>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                {transactions.length === 0 
+                {transactions.length === 0
                   ? "You haven't made any transactions yet."
                   : "No transactions match your current filters."
                 }
@@ -699,22 +751,22 @@ export default function TransactionsPage() {
                   {filteredTransactions.filter(t => {
                     // Only count completed/approved transactions
                     if (t.status !== 'completed' && t.status !== 'approved') return false
-                    
+
                     // Count withdrawals
                     if (t.transaction_type === 'withdrawal') return true
-                    
+
                     // Count investment purchases (money going out)
                     if (t.transaction_type === 'investment') {
                       const desc = t.description?.toLowerCase() || ''
                       return !desc.includes('sale') // Purchase, not sale
                     }
-                    
+
                     // For transfers, check if current user is the sender (ID-based only)
                     const transfer = t as any
                     if (transfer.transfer_type && currentUserId) {
                       return transfer.sender === currentUserId
                     }
-                    
+
                     return false
                   }).length}
                 </div>
@@ -725,20 +777,20 @@ export default function TransactionsPage() {
                   {filteredTransactions.filter(t => {
                     // Only count completed/approved transactions
                     if (t.status !== 'completed' && t.status !== 'approved') return false
-                    
+
                     // Count investment sales (money coming in)
                     if (t.transaction_type === 'investment') {
                       const desc = t.description?.toLowerCase() || ''
                       return desc.includes('sale') // Sale, not purchase
                     }
-                    
+
                     // Count incoming transfers (where current user is recipient, ID-based only)
                     const transfer = t as any
                     if (transfer.transfer_type && currentUserId && transfer.recipient) {
                       // Check if recipient ID matches current user
                       return transfer.recipient === currentUserId
                     }
-                    
+
                     return false
                   }).length}
                 </div>
@@ -748,6 +800,13 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
+
+      {showReceipt && selectedReceipt && (
+        <TransferReceipt
+          {...selectedReceipt}
+          onClose={() => setShowReceipt(false)}
+        />
+      )}
     </DashboardLayout>
   )
-} 
+}

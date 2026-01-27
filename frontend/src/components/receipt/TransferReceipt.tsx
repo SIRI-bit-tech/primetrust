@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, X, Clock, Copy, Share2, Download, ArrowLeft } from 'lucide-react'
+import { Check, X, Clock, Copy, Share2, Download, ArrowLeft, DollarSign } from 'lucide-react'
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -78,9 +78,32 @@ export default function TransferReceipt({
     setTimeout(() => setCopied(null), 2000)
   }
 
-  const handleDownload = () => {
-    // Create a simple text receipt
-    const receiptText = `
+  const handleDownload = async () => {
+    const element = document.getElementById('receipt-content')
+    if (!element) return
+
+    try {
+      // Import html2canvas dynamically to avoid SSR issues
+      const html2canvas = (await import('html2canvas')).default
+
+      const canvas = await html2canvas(element, {
+        backgroundColor: isBitcoin ? '#1a1d29' : '#ffffff',
+        scale: 3, // High quality
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+      })
+
+      const dataUrl = canvas.toDataURL('image/png')
+      const link = document.createElement('a')
+      link.download = `receipt-${referenceId}.png`
+      link.href = dataUrl
+      link.click()
+    } catch (error) {
+      console.error('Error generating receipt image:', error)
+
+      // Fallback to text receipt
+      const receiptText = `
 ═══════════════════════════════════════
            TRANSFER RECEIPT
 ═══════════════════════════════════════
@@ -103,15 +126,16 @@ Reference ID: ${referenceId}
 ${isBitcoin && transactionHash ? `Transaction Hash: ${transactionHash}` : ''}
 
 ═══════════════════════════════════════
-    `
-    
-    const blob = new Blob([receiptText], { type: 'text/plain' })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.download = `receipt-${referenceId}.txt`
-    link.href = url
-    link.click()
-    window.URL.revokeObjectURL(url)
+      `
+
+      const blob = new Blob([receiptText], { type: 'text/plain' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = `receipt-${referenceId}.txt`
+      link.href = url
+      link.click()
+      window.URL.revokeObjectURL(url)
+    }
   }
 
   const handleShare = async () => {
@@ -124,241 +148,286 @@ ${isBitcoin && transactionHash ? `Transaction Hash: ${transactionHash}` : ''}
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-3xl">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="w-full max-w-[360px] my-auto">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          className="relative"
         >
-        <div
-          className={cn(
-            'w-full rounded-2xl shadow-2xl overflow-hidden',
-            isBitcoin ? 'bg-[#1a1d29]' : 'bg-white'
-          )}
-        >
-        {/* Header */}
-        <div className={cn('px-6 py-4 flex items-center justify-between', isBitcoin ? 'bg-[#1a1d29]' : 'bg-white')}>
-          <button
-            onClick={onClose}
+          <div
+            id="receipt-content"
             className={cn(
-              'p-2 rounded-full transition-colors',
-              isBitcoin ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-100 text-gray-900'
+              'relative w-full rounded-[24px] overflow-hidden shadow-2xl border',
+              isBitcoin
+                ? 'bg-[#0a0c14] border-white/5'
+                : 'bg-white border-gray-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]'
             )}
           >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h2 className={cn('text-lg font-semibold', isBitcoin ? 'text-white' : 'text-gray-900')}>Receipt</h2>
-          <button
-            onClick={handleShare}
-            className={cn(
-              'p-2 rounded-full transition-colors',
-              isBitcoin ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-100 text-gray-900'
-            )}
-          >
-            <Share2 className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div id="receipt-content" className={cn('px-8 pb-8', isBitcoin ? 'bg-[#1a1d29]' : 'bg-white')}>
-          {/* Top Section: Status Icon, Title, and Amount in a row */}
-          <div className="grid grid-cols-3 gap-6 items-center mb-8">
-            {/* Status Icon */}
-            <div className="flex justify-center">
-              <div className={cn('relative')}>
-                <div className={cn('absolute inset-0 rounded-full animate-ping', statusConfig.iconRing)} />
-                <div className={cn('relative w-20 h-20 rounded-full flex items-center justify-center', statusConfig.iconBg)}>
-                  <StatusIcon className="w-10 h-10 text-white" />
-                </div>
-              </div>
-            </div>
-
-            {/* Title & Date */}
-            <div className="text-center">
-              <h3 className={cn('text-2xl font-bold mb-2', isBitcoin ? 'text-white' : 'text-gray-900')}>
-                {statusConfig.title}
-              </h3>
-              <p className={cn('text-sm', isBitcoin ? 'text-gray-400' : 'text-gray-500')}>{date}</p>
-              {isPending && !isBitcoin && (
-                <p className={cn('text-xs mt-2', 'text-yellow-600 dark:text-yellow-500')}>
-                  Your account has been debited. Transfer will complete in 3-5 minutes.
-                </p>
-              )}
-            </div>
-
-            {/* Amount */}
-            <div className="text-center">
-              {isBitcoin ? (
-                <>
-                  <div className="text-4xl font-bold text-white mb-1">{btcAmount?.toFixed(5)} BTC</div>
-                  <div className="text-gray-400 text-sm">~{formatCurrency(usdAmount || 0)}</div>
-                </>
-              ) : (
-                <>
-                  <div className={cn('text-4xl font-bold mb-1', isBitcoin ? 'text-white' : 'text-gray-900')}>
-                    {formatCurrency(amount)}
-                  </div>
-                  <div className={cn('text-sm', isBitcoin ? 'text-gray-400' : 'text-gray-500')}>{currency}</div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Details - Two Column Layout */}
-          <div className={cn('rounded-xl p-6 mb-6', isBitcoin ? 'bg-[#252936]' : 'bg-gray-50')}>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-              {/* Left Column */}
-              <div className="space-y-4">
-                {/* Sender */}
-                <div>
-                  <span className={cn('text-sm block mb-1', isBitcoin ? 'text-gray-400' : 'text-gray-600')}>
-                    {isBitcoin ? 'From' : 'Sender'}
-                  </span>
-                  <div className={cn('font-medium', isBitcoin ? 'text-white' : 'text-gray-900')}>{sender}</div>
-                  {isBitcoin && senderWallet && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-gray-400 font-mono">{senderWallet}</span>
-                      <button
-                        onClick={() => copyToClipboard(senderWallet, 'sender')}
-                        className="text-blue-400 hover:text-blue-300"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Transfer Type (Non-Bitcoin) */}
-                {!isBitcoin && transferType && (
-                  <div>
-                    <span className={cn('text-sm block mb-1', isBitcoin ? 'text-gray-400' : 'text-gray-600')}>Transfer Type</span>
-                    <span className={cn('font-medium', isBitcoin ? 'text-white' : 'text-gray-900')}>{transferType}</span>
-                  </div>
-                )}
-
-                {/* Network Fee (Bitcoin only) */}
-                {isBitcoin && networkFee !== undefined && (
-                  <div>
-                    <span className="text-sm block mb-1 text-gray-400">Network Fee</span>
-                    <div className="text-white font-medium">{networkFee.toFixed(5)} BTC</div>
-                    <div className="text-xs text-gray-400">~{formatCurrency(networkFee * (usdAmount || 0) / (btcAmount || 1))}</div>
-                  </div>
-                )}
-
-                {/* Reference ID */}
-                <div>
-                  <span className={cn('text-sm block mb-1', isBitcoin ? 'text-gray-400' : 'text-gray-600')}>Reference ID</span>
-                  <div className="flex items-center gap-2">
-                    <span className={cn('font-medium font-mono', isBitcoin ? 'text-white' : 'text-gray-900')}>
-                      #{referenceId}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(referenceId, 'reference')}
-                      className={cn('transition-colors', isBitcoin ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700')}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column */}
-              <div className="space-y-4">
-                {/* Recipient */}
-                <div>
-                  <span className={cn('text-sm block mb-1', isBitcoin ? 'text-gray-400' : 'text-gray-600')}>
-                    {isBitcoin ? 'To' : 'Recipient'}
-                  </span>
-                  <div className={cn('font-medium', isBitcoin ? 'text-white' : 'text-gray-900')}>{recipient}</div>
-                  {isBitcoin && recipientWallet && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-gray-400 font-mono">{recipientWallet}</span>
-                      <button
-                        onClick={() => copyToClipboard(recipientWallet, 'recipient')}
-                        className="text-blue-400 hover:text-blue-300"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Date */}
-                <div>
-                  <span className={cn('text-sm block mb-1', isBitcoin ? 'text-gray-400' : 'text-gray-600')}>Date</span>
-                  <span className={cn('font-medium', isBitcoin ? 'text-white' : 'text-gray-900')}>{date}</span>
-                </div>
-
-                {/* Status */}
-                <div>
-                  <span className={cn('text-sm block mb-1', isBitcoin ? 'text-gray-400' : 'text-gray-600')}>Status</span>
-                  <span className={cn('px-3 py-1 rounded-full text-xs font-medium inline-block', statusConfig.statusBg)}>
-                    {statusConfig.statusText}
-                  </span>
-                </div>
-
-                {/* Transaction Hash (Bitcoin only) */}
-                {isBitcoin && transactionHash && (
-                  <div>
-                    <span className="text-sm block mb-1 text-gray-400">Transaction Hash</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-blue-400 font-mono">{transactionHash}</span>
-                      <button
-                        onClick={() => copyToClipboard(transactionHash, 'hash')}
-                        className="text-blue-400 hover:text-blue-300"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Copy notification */}
-          {copied && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="text-center mb-4">
-                <span className={cn('text-sm', isBitcoin ? 'text-green-400' : 'text-green-600')}>
-                  Copied to clipboard!
-                </span>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <button
-              onClick={handleShare}
-              className={cn(
-                'flex-1 py-3 px-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2',
-                isBitcoin
-                  ? 'bg-white/10 text-white hover:bg-white/20'
-                  : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-              )}
-            >
-              <Share2 className="w-5 h-5" />
-              Share
-            </button>
+            {/* Close Button (Integrated into Header) - Hidden on Print */}
             <button
               onClick={onClose}
               className={cn(
-                'flex-1 py-3 px-4 rounded-xl font-semibold transition-all',
-                isBitcoin
-                  ? 'bg-orange-500 text-white hover:bg-orange-600'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                "absolute top-4 right-4 z-20 p-2 rounded-full transition-colors print:hidden",
+                isBitcoin ? "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white" : "bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
               )}
             >
-              Done
+              <X className="w-4 h-4" />
             </button>
+
+            {/* Watermark Circle Element */}
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none overflow-hidden select-none">
+              <div className={cn(
+                "relative w-[320px] h-[320px] rounded-full border flex items-center justify-center",
+                isBitcoin ? "border-white/[0.02]" : "border-gray-100"
+              )}>
+                <div className={cn(
+                  "text-[24px] font-black tracking-[0.4em] opacity-[0.02] uppercase",
+                  isBitcoin ? "text-white" : "text-black"
+                )}>
+                  PRIMETRUST
+                </div>
+              </div>
+            </div>
+
+            {/* Main Content Container */}
+            <div className="relative z-10 p-5 pt-8 flex flex-col items-center">
+
+              {/* Status Icon with Glow */}
+              <div className="mb-3">
+                <div className="relative">
+                  <div className={cn(
+                    'absolute inset-0 rounded-full blur-xl opacity-50 animate-pulse',
+                    statusConfig.iconBg
+                  )} />
+                  <div className={cn(
+                    'relative w-12 h-12 rounded-full flex items-center justify-center shadow-lg',
+                    statusConfig.iconBg
+                  )}>
+                    <StatusIcon className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Title & Info */}
+              <div className="text-center mb-4">
+                <h3 className={cn(
+                  'text-lg font-bold mb-0.5',
+                  isBitcoin ? 'text-white' : 'text-gray-900'
+                )}>
+                  {statusConfig.title}
+                </h3>
+                <p className={cn(
+                  'text-[9px] font-mono tracking-widest opacity-40 uppercase',
+                  isBitcoin ? 'text-white' : 'text-gray-500'
+                )}>
+                  ID: #{referenceId}
+                </p>
+              </div>
+
+              {/* Amount Section */}
+              <div className="text-center mb-6">
+                <span className={cn(
+                  'text-[8px] font-bold tracking-[0.2em] uppercase opacity-40 block mb-1',
+                  isBitcoin ? 'text-white' : 'text-gray-600'
+                )}>
+                  Amount Transferred
+                </span>
+                <div className="flex flex-col items-center">
+                  {isBitcoin ? (
+                    <>
+                      <div className="text-3xl font-black text-white mb-1.5 tracking-tight">
+                        {btcAmount?.toFixed(5)} <span className="text-lg font-medium text-white/40">BTC</span>
+                      </div>
+                      <div className="px-2.5 py-1 bg-white/5 rounded-full backdrop-blur-sm">
+                        <span className="text-white/60 text-[10px] font-medium">
+                          ≈ {formatCurrency(usdAmount || 0)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className={cn(
+                      'text-4xl font-black tracking-tight',
+                      isBitcoin ? 'text-white' : 'text-gray-900'
+                    )}>
+                      {formatCurrency(amount)}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Transaction Details List */}
+              <div className="w-full space-y-3 mb-5">
+                {/* Date Row */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.05] dark:border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("p-1.5 rounded-lg", isBitcoin ? "bg-white/5" : "bg-gray-50")}>
+                      <Clock className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
+                    </div>
+                    <span className={cn("text-xs font-medium", isBitcoin ? "text-white/40" : "text-gray-500")}>Date</span>
+                  </div>
+                  <span className={cn("text-xs font-semibold", isBitcoin ? "text-white" : "text-gray-900")}>
+                    {date}
+                  </span>
+                </div>
+
+                {/* Sender Row */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.05] dark:border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("p-1.5 rounded-lg", isBitcoin ? "bg-white/5" : "bg-gray-50")}>
+                      <Check className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
+                    </div>
+                    <span className={cn("text-xs font-medium", isBitcoin ? "text-white/40" : "text-gray-500")}>From</span>
+                  </div>
+                  <div className="text-right">
+                    <div className={cn("text-xs font-semibold", isBitcoin ? "text-white" : "text-gray-900")}>{sender}</div>
+                    {isBitcoin && senderWallet ? (
+                      <div className="text-[9px] font-mono text-white/30 truncate max-w-[120px]">{senderWallet}</div>
+                    ) : (
+                      <div className={cn("text-[8px] font-mono opacity-30", isBitcoin ? "text-white" : "text-gray-500")}>
+                        Personal Account
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recipient Row */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.05] dark:border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("p-1.5 rounded-lg", isBitcoin ? "bg-white/5" : "bg-gray-50")}>
+                      <Share2 className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
+                    </div>
+                    <span className={cn("text-xs font-medium", isBitcoin ? "text-white/40" : "text-gray-500")}>To</span>
+                  </div>
+                  <div className="text-right">
+                    <div className={cn("text-xs font-semibold", isBitcoin ? "text-white" : "text-gray-900")}>{recipient}</div>
+                    {isBitcoin && recipientWallet ? (
+                      <div className="text-[9px] font-mono text-white/30 truncate max-w-[120px]">{recipientWallet}</div>
+                    ) : (
+                      <div className={cn("text-[8px] font-mono opacity-30 uppercase", isBitcoin ? "text-white" : "text-gray-500")}>
+                        Ref: {referenceId.slice(-8)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Network Fee Row (Bitcoin Only) */}
+                {isBitcoin && networkFee !== undefined && (
+                  <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.05]">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-white/5 rounded-lg">
+                        <DollarSign className="w-3.5 h-3.5 text-white/40" />
+                      </div>
+                      <span className="text-xs font-medium text-white/40">Network Fee</span>
+                    </div>
+                    <div className="text-right text-xs font-semibold text-white">
+                      {networkFee.toFixed(5)} BTC
+                    </div>
+                  </div>
+                )}
+
+                {/* Transaction Hash Row (Bitcoin Only) */}
+                {isBitcoin && transactionHash && (
+                  <div className="flex flex-col pb-2.5 border-b border-white/[0.05]">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="p-1.5 bg-white/5 rounded-lg">
+                        <Copy className="w-3.5 h-3.5 text-white/40" />
+                      </div>
+                      <span className="text-xs font-medium text-white/40">Hash</span>
+                    </div>
+                    <div className="text-[8px] font-mono text-blue-400 break-all bg-white/5 p-1.5 rounded-lg">
+                      {transactionHash}
+                    </div>
+                  </div>
+                )}
+
+                {/* Transfer Type Row */}
+                <div className="flex flex-col pb-2.5 border-b border-white/[0.05] dark:border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={cn("p-1.5 rounded-lg", isBitcoin ? "bg-white/5" : "bg-gray-50")}>
+                        <Share2 className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
+                      </div>
+                      <span className={cn("text-xs font-medium", isBitcoin ? "text-white/40" : "text-gray-500")}>Type</span>
+                    </div>
+                    <span className={cn("text-[10px] font-bold tracking-widest uppercase opacity-60", isBitcoin ? "text-white" : "text-gray-700")}>
+                      {transferType || (isBitcoin ? 'Bitcoin' : 'Transfer')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status Row */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("p-1.5 rounded-lg", isBitcoin ? "bg-white/5" : "bg-gray-50")}>
+                      <Check className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
+                    </div>
+                    <span className={cn("text-xs font-medium", isBitcoin ? "text-white/40" : "text-gray-500")}>Status</span>
+                  </div>
+                  <span className={cn(
+                    'px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter',
+                    statusConfig.statusBg
+                  )}>
+                    • {statusConfig.statusText}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons - Hidden during Export/Print */}
+              <div className="w-full space-y-2.5 print:hidden" data-html2canvas-ignore="true">
+                <button
+                  onClick={handleDownload}
+                  className={cn(
+                    "w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all transform hover:scale-[1.01] active:scale-[0.99]",
+                    isBitcoin
+                      ? "bg-orange-500 text-white shadow-[0_4px_16px_-4px_rgba(249,115,22,0.4)]"
+                      : "bg-[#00ff84] text-[#0a0c14] shadow-[0_4px_16px_-4px_rgba(0,255,132,0.4)]"
+                  )}
+                >
+                  <Download className="w-4 h-4" />
+                  Download Receipt
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={handleShare}
+                    className={cn(
+                      "py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition-all",
+                      isBitcoin
+                        ? "bg-white/5 text-white hover:bg-white/10"
+                        : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+                    )}
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    Share
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className={cn(
+                      "py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition-all text-sm",
+                      isBitcoin
+                        ? "bg-white/5 text-white hover:bg-white/10"
+                        : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+                    )}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Print
+                  </button>
+                </div>
+              </div>
+
+              {/* Encryption Footer */}
+              <div className="mt-6 flex items-center gap-1.5 opacity-25">
+                <div className={cn("w-2 h-2 border rounded-sm flex items-center justify-center", isBitcoin ? "border-white" : "border-black")}>
+                  <div className={cn("w-1 h-1 rounded-[1px]", isBitcoin ? "bg-white" : "bg-black")} />
+                </div>
+                <span className={cn("text-[7px] font-bold tracking-[0.2em] uppercase", isBitcoin ? "text-white" : "text-black")}>
+                  End-to-End Encrypted
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-        </div>
         </motion.div>
       </div>
     </div>

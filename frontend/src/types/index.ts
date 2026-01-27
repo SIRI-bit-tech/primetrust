@@ -627,6 +627,7 @@ export interface SavedBeneficiary {
 
 // Receipt data
 export interface ReceiptData {
+  id?: number
   type: 'transfer' | 'bitcoin'
   status: 'completed' | 'pending' | 'failed'
   amount: number

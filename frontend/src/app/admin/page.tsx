@@ -442,7 +442,7 @@ export default function AdminPage() {
       case 'users':
         return ['User', 'Email', 'Balance', 'Status', 'Actions']
       case 'transactions':
-        return ['User', 'Type', 'Amount', 'Status', 'Date', 'Actions']
+        return ['User', 'Type', 'Amount', 'Status', 'Date']
       case 'cards':
         return ['User', 'Card Number', 'Type', 'Status', 'Daily Limit', 'Actions']
       case 'applications':
@@ -552,24 +552,6 @@ export default function AdminPage() {
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
               {formatDate(transactionItem.created_at)}
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-              {transactionItem.status === 'pending' || transactionItem.status === 'processing' ? (
-                <select
-                  value={transactionItem.status}
-                  onChange={(e) => handleUpdateTransactionStatus(transactionItem.id, e.target.value, itemType)}
-                  className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="processing">Processing</option>
-                  <option value="completed">Completed</option>
-                  <option value="failed">Failed</option>
-                </select>
-              ) : (
-                <span className="text-gray-500 text-xs">
-                  {transactionItem.status === 'completed' ? '✓ Completed' : '✗ ' + transactionItem.status}
-                </span>
-              )}
             </td>
           </>
         )
@@ -1234,8 +1216,8 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-gray-800 divide-y divide-gray-700">
-                    {filteredData().map((item: TableItem) => (
-                      <tr key={`${activeTab}-${item.id}`} className="hover:bg-gray-700">
+                    {filteredData().map((item: any) => (
+                      <tr key={`${activeTab}-${item.type || 'item'}-${item.id}`} className="hover:bg-gray-700">
                         {renderTableRow(item)}
                       </tr>
                     ))}

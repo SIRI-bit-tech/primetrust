@@ -96,11 +96,27 @@ class User(AbstractUser):
                 return account_number
     
     def generate_routing_number(self):
-        """Generate a unique 9-digit routing number."""
+        """Generate a unique 9-digit routing number with a valid ABA checksum."""
         import random
         while True:
-            # Generate a 9-digit routing number starting with 1-9 (not 0)
-            routing_number = str(random.randint(100000000, 999999999))
+            # Generate first 8 digits randomly
+            # Traditional routing numbers start with 01-12 or 21-32
+            # We'll just generate a 8-digit number
+            digits = [random.randint(0, 9) for _ in range(8)]
+            
+            # Calculate the 9th digit (checksum digit)
+            # Formula: 3(d1+d4+d7) + 7(d2+d5+d8) + (d3+d6+d9) mod 10 = 0
+            partial_sum = (
+                3 * (digits[0] + digits[3] + digits[6]) +
+                7 * (digits[1] + digits[4] + digits[7]) +
+                (digits[2] + digits[5])
+            )
+            
+            check_digit = (10 - (partial_sum % 10)) % 10
+            digits.append(check_digit)
+            
+            routing_number = "".join(map(str, digits))
+            
             if not User.objects.filter(routing_number=routing_number).exists():
                 return routing_number
     

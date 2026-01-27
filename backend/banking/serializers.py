@@ -48,9 +48,27 @@ class CheckDepositCreateSerializer(serializers.ModelSerializer):
 
 # Stub serializers for existing models (to be expanded)
 class TransferSerializer(serializers.ModelSerializer):
+    sender_name = serializers.SerializerMethodField()
+    sender_email = serializers.CharField(source='sender.email', read_only=True)
+    recipient_name = serializers.SerializerMethodField()
+    recipient_email = serializers.SerializerMethodField()
+    
     class Meta:
         model = Transfer
         fields = '__all__'
+        
+    def get_sender_name(self, obj):
+        return f"{obj.sender.first_name} {obj.sender.last_name}".strip()
+        
+    def get_recipient_name(self, obj):
+        if obj.recipient:
+            return f"{obj.recipient.first_name} {obj.recipient.last_name}".strip()
+        return obj.recipient_name
+        
+    def get_recipient_email(self, obj):
+        if obj.recipient:
+            return obj.recipient.email
+        return obj.recipient_email
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
@@ -96,6 +114,13 @@ class ACHTransferSerializer(serializers.Serializer):
     account_number = serializers.CharField()
     routing_number = serializers.CharField()
     description = serializers.CharField(required=False)
+    
+    def validate_routing_number(self, value):
+        from .transfer_services import BankLookupService
+        result = BankLookupService.validate_routing_number(value)
+        if not result['is_valid']:
+            raise serializers.ValidationError(result['message'])
+        return value
 
 
 class WireTransferSerializer(serializers.Serializer):
@@ -106,14 +131,29 @@ class WireTransferSerializer(serializers.Serializer):
     bank_name = serializers.CharField()
     description = serializers.CharField(required=False)
 
+    def validate_routing_number(self, value):
+        from .transfer_services import BankLookupService
+        result = BankLookupService.validate_routing_number(value)
+        if not result['is_valid']:
+            raise serializers.ValidationError(result['message'])
+        return value
+
 
 class InternationalWireTransferSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=15, decimal_places=2)
     recipient_name = serializers.CharField()
     swift_code = serializers.CharField()
     iban = serializers.CharField(required=False)
+    routing_number = serializers.CharField(required=False)
     bank_name = serializers.CharField()
     description = serializers.CharField(required=False)
+
+    def validate_routing_number(self, value):
+        from .transfer_services import BankLookupService
+        result = BankLookupService.validate_routing_number(value)
+        if not result['is_valid']:
+            raise serializers.ValidationError(result['message'])
+        return value
 
 
 class BankLookupSerializer(serializers.Serializer):
