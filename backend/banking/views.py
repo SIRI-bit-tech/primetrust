@@ -411,6 +411,9 @@ def create_ach_transfer(request):
         with transaction.atomic():
             transfer = ACHTransferService.create_transfer(request.user, serializer.validated_data)
             
+            # Refresh user from DB to get updated balance after debit
+            request.user.refresh_from_db()
+            
             # Send real-time notifications
             notify_transfer_update(request.user.id, transfer.id, transfer.status, transfer.transfer_type)
             notify_balance_update(request.user.id, request.user.balance)
@@ -441,6 +444,9 @@ def create_wire_transfer(request):
         with transaction.atomic():
             transfer = WireTransferService.create_transfer(request.user, serializer.validated_data, is_international=False)
             
+            # Refresh user from DB to get updated balance after debit
+            request.user.refresh_from_db()
+            
             # Send real-time notifications
             notify_transfer_update(request.user.id, transfer.id, transfer.status, transfer.transfer_type)
             notify_balance_update(request.user.id, request.user.balance)
@@ -470,6 +476,9 @@ def create_international_wire_transfer(request):
     try:
         with transaction.atomic():
             transfer = WireTransferService.create_transfer(request.user, serializer.validated_data, is_international=True)
+            
+            # Refresh user from DB to get updated balance after debit
+            request.user.refresh_from_db()
             
             # Send real-time notifications
             notify_transfer_update(request.user.id, transfer.id, transfer.status, transfer.transfer_type)

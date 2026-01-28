@@ -58,11 +58,11 @@ class TransferSerializer(serializers.ModelSerializer):
         fields = '__all__'
         
     def get_sender_name(self, obj):
-        return f"{obj.sender.first_name} {obj.sender.last_name}".strip()
+        return f"{obj.sender.first_name or ''} {obj.sender.last_name or ''}".strip()
         
     def get_recipient_name(self, obj):
         if obj.recipient:
-            return f"{obj.recipient.first_name} {obj.recipient.last_name}".strip()
+            return f"{obj.recipient.first_name or ''} {obj.recipient.last_name or ''}".strip()
         return obj.recipient_name
         
     def get_recipient_email(self, obj):
@@ -149,6 +149,8 @@ class InternationalWireTransferSerializer(serializers.Serializer):
     description = serializers.CharField(required=False)
 
     def validate_routing_number(self, value):
+        if not value or value.strip() == "":
+            return value
         from .transfer_services import BankLookupService
         result = BankLookupService.validate_routing_number(value)
         if not result['is_valid']:

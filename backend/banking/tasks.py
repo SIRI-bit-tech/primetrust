@@ -3,7 +3,7 @@ Celery tasks for banking operations
 """
 from celery import shared_task
 from django.utils import timezone
-from django.db.models import Q
+from django.db import transaction, Q
 from .models import CheckDeposit, Transfer
 import logging
 
@@ -263,15 +263,24 @@ def auto_approve_pending_transfers():
     count = 0
     for transfer in pending_transfers:
         try:
-            success, message = transfer.admin_approve_transfer(
-                admin_user=admin_user, 
-                notes="Auto-approved by system after 2 minutes."
-            )
-            if success:
-                count += 1
-                logger.info(f"Auto-approved transfer {transfer.id} (Ref: {transfer.reference_number})")
-            else:
-                logger.error(f"Failed to auto-approve transfer {transfer.id}: {message}")
+            with transaction.atomic():
+                # Re-fetch with row lock and re-check conditions
+                locked_transfer = Transfer.objects.select_for_update().get(pk=transfer.pk)
+                
+                if (locked_transfer.status == 'pending' and 
+                    locked_transfer.requires_admin_approval and 
+                    not locked_transfer.admin_approved):
+                    
+                    success, message = locked_transfer.admin_approve_transfer(
+                        admin_user=admin_user, 
+                        notes="Auto-approved by system after 2 minutes."
+                    )
+                    
+                    if success:
+                        count += 1
+                        logger.info(f"Auto-approved transfer {locked_transfer.id} (Ref: {locked_transfer.reference_number})")
+                    else:
+                        logger.error(f"Failed to auto-approve transfer {locked_transfer.id}: {message}")
         except Exception as e:
             logger.error(f"Exception during auto-approval of transfer {transfer.id}: {str(e)}")
             
