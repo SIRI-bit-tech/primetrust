@@ -45,7 +45,7 @@ export default function MaintenanceBanner() {
   const tickerText = `⚠️ Bank Maintenance in Progress • ${maintenance.message} • Duration: ${maintenance.estimated_duration} • All transactions will be on hold • `
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md h-8 flex items-center overflow-hidden">
+    <div className="sticky top-0 left-0 right-0 z-40 bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md h-8 flex items-center overflow-hidden">
       <style>{`
         @keyframes scroll-ticker {
           0% {

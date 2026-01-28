@@ -29,10 +29,23 @@ export default function MaintenanceSettings() {
     const fetchMaintenance = async () => {
       try {
         const response = await api.get('maintenance/maintenance/status/')
+        
+        // Convert ISO dates to datetime-local format (YYYY-MM-DDTHH:mm)
+        const convertToDatetimeLocal = (isoString: string | null): string => {
+          if (!isoString) return ''
+          const date = new Date(isoString)
+          const year = date.getFullYear()
+          const month = String(date.getMonth() + 1).padStart(2, '0')
+          const day = String(date.getDate()).padStart(2, '0')
+          const hours = String(date.getHours()).padStart(2, '0')
+          const minutes = String(date.getMinutes()).padStart(2, '0')
+          return `${year}-${month}-${day}T${hours}:${minutes}`
+        }
+        
         setMaintenance({
           ...response.data,
-          start_date: response.data.start_date || '',
-          end_date: response.data.end_date || ''
+          start_date: convertToDatetimeLocal(response.data.start_date),
+          end_date: convertToDatetimeLocal(response.data.end_date)
         })
         setError('')
       } catch (err) {
@@ -74,8 +87,20 @@ export default function MaintenanceSettings() {
     setSuccess(false)
 
     try {
+      // Convert datetime-local strings back to ISO format
+      const convertToISO = (datetimeLocal: string): string | null => {
+        if (!datetimeLocal) return null
+        return new Date(datetimeLocal).toISOString()
+      }
+      
+      const payload = {
+        ...maintenance,
+        start_date: convertToISO(maintenance.start_date),
+        end_date: convertToISO(maintenance.end_date)
+      }
+      
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
-      await api.post('maintenance/maintenance/update_maintenance/', maintenance)
+      await api.post('maintenance/maintenance/update_maintenance/', payload)
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {

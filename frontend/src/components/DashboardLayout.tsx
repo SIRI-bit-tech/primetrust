@@ -85,6 +85,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider>
+      {/* Maintenance Banner - Sticky at top, above all content */}
+      <MaintenanceBanner />
       <div className="grid w-full lg:grid-cols-[auto_1fr]">
         <Sidebar>
           <SidebarHeader>
@@ -161,9 +163,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-            {/* Maintenance Banner - Shows on all pages when active */}
-            <MaintenanceBanner />
-            
             {/* Account Locked Banner - Shows on all pages */}
             {isAccountLocked && user && (
               <AccountLockedBanner
