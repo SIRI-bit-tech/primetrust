@@ -40,6 +40,7 @@ import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ThemeToggle } from './theme-toggle'
+import MaintenanceBanner from './MaintenanceBanner'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -160,6 +161,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+            {/* Maintenance Banner - Shows on all pages when active */}
+            <MaintenanceBanner />
+            
             {/* Account Locked Banner - Shows on all pages */}
             {isAccountLocked && user && (
               <AccountLockedBanner

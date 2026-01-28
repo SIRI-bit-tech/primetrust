@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, X, Clock, Copy, Share2, Download, ArrowLeft, DollarSign } from 'lucide-react'
+import { Check, X, Clock, Copy, Share2, Download, ArrowLeft, DollarSign, User, Shuffle, CheckCircle2, CreditCard } from 'lucide-react'
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -165,9 +165,10 @@ ${isBitcoin && transactionHash ? `Transaction Hash: ${transactionHash}` : ''}
                 : 'bg-white border-gray-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]'
             )}
           >
-            {/* Close Button (Integrated into Header) - Hidden on Print */}
+            {/* Close Button (Integrated into Header) - Hidden on Export */}
             <button
               onClick={onClose}
+              data-html2canvas-ignore="true"
               className={cn(
                 "absolute top-4 right-4 z-20 p-2 rounded-full transition-colors print:hidden",
                 isBitcoin ? "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white" : "bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
@@ -276,7 +277,7 @@ ${isBitcoin && transactionHash ? `Transaction Hash: ${transactionHash}` : ''}
                 <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.05] dark:border-gray-100">
                   <div className="flex items-center gap-2">
                     <div className={cn("p-1.5 rounded-lg", isBitcoin ? "bg-white/5" : "bg-gray-50")}>
-                      <Check className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
+                      <User className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
                     </div>
                     <span className={cn("text-xs font-medium", isBitcoin ? "text-white/40" : "text-gray-500")}>From</span>
                   </div>
@@ -296,7 +297,7 @@ ${isBitcoin && transactionHash ? `Transaction Hash: ${transactionHash}` : ''}
                 <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.05] dark:border-gray-100">
                   <div className="flex items-center gap-2">
                     <div className={cn("p-1.5 rounded-lg", isBitcoin ? "bg-white/5" : "bg-gray-50")}>
-                      <Share2 className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
+                      <User className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
                     </div>
                     <span className={cn("text-xs font-medium", isBitcoin ? "text-white/40" : "text-gray-500")}>To</span>
                   </div>
@@ -344,14 +345,17 @@ ${isBitcoin && transactionHash ? `Transaction Hash: ${transactionHash}` : ''}
 
                 {/* Transfer Type Row */}
                 <div className="flex flex-col pb-2.5 border-b border-white/[0.05] dark:border-gray-100">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <div className={cn("p-1.5 rounded-lg", isBitcoin ? "bg-white/5" : "bg-gray-50")}>
-                        <Share2 className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
+                        <CreditCard className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
                       </div>
-                      <span className={cn("text-xs font-medium", isBitcoin ? "text-white/40" : "text-gray-500")}>Type</span>
+                      <span className={cn("text-xs font-medium", isBitcoin ? "text-white/40" : "text-gray-500")}>Method</span>
                     </div>
-                    <span className={cn("text-[10px] font-bold tracking-widest uppercase opacity-60", isBitcoin ? "text-white" : "text-gray-700")}>
+                    <span className={cn("text-[8px] font-bold tracking-[0.1em] uppercase opacity-40")}>Transfer Type</span>
+                  </div>
+                  <div className="text-right">
+                    <span className={cn("text-[10px] font-bold tracking-tight uppercase", isBitcoin ? "text-white" : "text-gray-700")}>
                       {transferType || (isBitcoin ? 'Bitcoin' : 'Transfer')}
                     </span>
                   </div>
@@ -361,7 +365,7 @@ ${isBitcoin && transactionHash ? `Transaction Hash: ${transactionHash}` : ''}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className={cn("p-1.5 rounded-lg", isBitcoin ? "bg-white/5" : "bg-gray-50")}>
-                      <Check className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
+                      <CheckCircle2 className={cn("w-3.5 h-3.5", isBitcoin ? "text-white/40" : "text-gray-400")} />
                     </div>
                     <span className={cn("text-xs font-medium", isBitcoin ? "text-white/40" : "text-gray-500")}>Status</span>
                   </div>

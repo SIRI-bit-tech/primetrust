@@ -62,7 +62,6 @@ const internationalWireSchema = z.object({
   recipient_city: z.string().min(2, 'City is required'),
   recipient_country: z.string().min(2, 'Country is required'),
   swift_code: z.string().min(8, 'SWIFT/BIC code is required'),
-  routing_number: z.string().min(8, 'Routing number must be 8 or 9 digits').max(9, 'Routing number must be 8 or 9 digits').optional(),
   iban: z.string().optional(),
   bank_name: z.string().min(2, 'Bank name is required'),
   bank_address: z.string().min(5, 'Bank address is required'),
@@ -534,6 +533,11 @@ export default function TransferPage() {
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                         placeholder="Full name"
                       />
+                      {errors.recipient_name && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                          {errors.recipient_name.message as string}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -545,6 +549,63 @@ export default function TransferPage() {
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                         placeholder="e.g., CHASUS33"
                       />
+                      {errors.swift_code && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                          {errors.swift_code.message as string}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Recipient Address
+                    </label>
+                    <input
+                      {...register('recipient_address')}
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      placeholder="Street address"
+                    />
+                    {errors.recipient_address && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {errors.recipient_address.message as string}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        City
+                      </label>
+                      <input
+                        {...register('recipient_city')}
+                        type="text"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        placeholder="City"
+                      />
+                      {errors.recipient_city && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                          {errors.recipient_city.message as string}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Country
+                      </label>
+                      <input
+                        {...register('recipient_country')}
+                        type="text"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        placeholder="Country"
+                      />
+                      {errors.recipient_country && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                          {errors.recipient_country.message as string}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -562,17 +623,17 @@ export default function TransferPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Routing Number (Optional)
+                        Bank Name
                       </label>
                       <input
-                        {...register('routing_number')}
+                        {...register('bank_name')}
                         type="text"
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        placeholder="8-digit (Canada) or 9-digit"
+                        placeholder="Recipient's bank name"
                       />
-                      {errors.routing_number && (
+                      {errors.bank_name && (
                         <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                          {errors.routing_number.message as string}
+                          {errors.bank_name.message as string}
                         </p>
                       )}
                     </div>
@@ -580,14 +641,19 @@ export default function TransferPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Bank Name
+                      Bank Address
                     </label>
                     <input
-                      {...register('bank_name')}
+                      {...register('bank_address')}
                       type="text"
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      placeholder="Recipient's bank name"
+                      placeholder="Bank's address"
                     />
+                    {errors.bank_address && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {errors.bank_address.message as string}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -600,6 +666,11 @@ export default function TransferPage() {
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       placeholder="e.g., Family support, Business payment"
                     />
+                    {errors.purpose && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {errors.purpose.message as string}
+                      </p>
+                    )}
                   </div>
                 </>
               )}

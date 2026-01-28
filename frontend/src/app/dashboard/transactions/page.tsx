@@ -439,6 +439,7 @@ export default function TransactionsPage() {
               <option value="completed">Completed</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
+              <option value="failed">Failed</option>
               <option value="declined">Declined</option>
             </select>
 
