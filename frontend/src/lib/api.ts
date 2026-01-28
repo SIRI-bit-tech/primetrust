@@ -37,6 +37,16 @@ api.interceptors.request.use(
   (config) => {
     // Ensure credentials are included to send cookies
     config.withCredentials = true
+
+    // Fallback: If we have a temp 2FA token in session storage, send it in header
+    // This helps in environments where cookies are blocked or domain-restricted
+    if (typeof window !== 'undefined') {
+      const tempToken = sessionStorage.getItem('temp_2fa_token')
+      if (tempToken && config.url?.includes('auth/')) {
+        config.headers.Authorization = `Bearer ${tempToken}`
+      }
+    }
+
     return config
   },
   (error) => {
@@ -44,10 +54,21 @@ api.interceptors.request.use(
   }
 )
 
+const isDev = process.env.NODE_ENV === 'development'
+
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Only log errors to console in development
+    if (isDev) {
+      console.error('API Error:', {
+        status: error.response?.status,
+        url: error.config?.url,
+        data: error.response?.data
+      })
+    }
+
     const originalRequest = error.config
 
     // Check for account lock (403 with account_locked flag)
@@ -66,7 +87,7 @@ api.interceptors.response.use(
     }
 
     // Don't try to refresh tokens for public endpoints
-    const publicEndpoints = ['/auth/register/', '/auth/login/', '/auth/verify-email/', '/auth/password-reset-request/', '/auth/password-reset/', '/auth/refresh/']
+    const publicEndpoints = ['/auth/register/', '/auth/login/', '/auth/verify-email/', '/auth/password-reset-request/', '/auth/password-reset/', '/auth/refresh/', '/auth/two-factor-login-verify/']
     const isPublicEndpoint = publicEndpoints.some(endpoint => originalRequest.url?.includes(endpoint))
 
     if (error.response?.status === 401 && !originalRequest._retry && !isPublicEndpoint) {

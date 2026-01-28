@@ -29,7 +29,7 @@ export default function MaintenanceSettings() {
     const fetchMaintenance = async () => {
       try {
         const response = await api.get('maintenance/maintenance/status/')
-        
+
         // Convert ISO dates to datetime-local format (YYYY-MM-DDTHH:mm)
         const convertToDatetimeLocal = (isoString: string | null): string => {
           if (!isoString) return ''
@@ -41,11 +41,14 @@ export default function MaintenanceSettings() {
           const minutes = String(date.getMinutes()).padStart(2, '0')
           return `${year}-${month}-${day}T${hours}:${minutes}`
         }
-        
+
+        const data = response.data
         setMaintenance({
-          ...response.data,
-          start_date: convertToDatetimeLocal(response.data.start_date),
-          end_date: convertToDatetimeLocal(response.data.end_date)
+          is_active: !!data.is_active,
+          start_date: convertToDatetimeLocal(data.start_date),
+          end_date: convertToDatetimeLocal(data.end_date),
+          message: data.message ?? '',
+          estimated_duration: data.estimated_duration ?? ''
         })
         setError('')
       } catch (err) {
@@ -92,13 +95,13 @@ export default function MaintenanceSettings() {
         if (!datetimeLocal) return null
         return new Date(datetimeLocal).toISOString()
       }
-      
+
       const payload = {
         ...maintenance,
         start_date: convertToISO(maintenance.start_date),
         end_date: convertToISO(maintenance.end_date)
       }
-      
+
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
       await api.post('maintenance/maintenance/update_maintenance/', payload)
       setSuccess(true)
@@ -116,7 +119,13 @@ export default function MaintenanceSettings() {
 
     try {
       const response = await api.post('maintenance/maintenance/toggle/')
-      setMaintenance(response.data)
+      const data = response.data
+      setMaintenance(prev => ({
+        ...prev,
+        is_active: !!data.is_active,
+        message: data.message ?? prev.message,
+        estimated_duration: data.estimated_duration ?? prev.estimated_duration
+      }))
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
@@ -144,9 +153,8 @@ export default function MaintenanceSettings() {
           </div>
           <h2 className="text-3xl font-bold text-white">Maintenance Mode</h2>
         </div>
-        <div className={`px-6 py-2 rounded-full font-bold text-white ${
-          maintenance.is_active ? 'bg-red-600' : 'bg-green-600'
-        }`}>
+        <div className={`px-6 py-2 rounded-full font-bold text-white ${maintenance.is_active ? 'bg-red-600' : 'bg-green-600'
+          }`}>
           {maintenance.is_active ? 'ACTIVE' : 'INACTIVE'}
         </div>
       </div>
@@ -179,11 +187,10 @@ export default function MaintenanceSettings() {
           <button
             onClick={handleToggle}
             disabled={saving}
-            className={`px-6 py-3 rounded-lg font-bold text-white transition-all whitespace-nowrap ml-4 ${
-              maintenance.is_active
+            className={`px-6 py-3 rounded-lg font-bold text-white transition-all whitespace-nowrap ml-4 ${maintenance.is_active
                 ? 'bg-red-600 hover:bg-red-700'
                 : 'bg-green-600 hover:bg-green-700'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {saving ? (
               <Loader2 className="w-4 h-4 animate-spin inline mr-2" />

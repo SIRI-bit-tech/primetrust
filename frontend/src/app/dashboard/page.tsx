@@ -418,11 +418,8 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">
-              {getGreeting()}, {user?.first_name || 'User'}! 👋
+              {getGreeting()}, {user?.first_name || 'User'}!
             </h1>
-            <p className="text-muted-foreground mt-1">
-              Here&apos;s your financial overview for today
-            </p>
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="secondary" className="text-sm">

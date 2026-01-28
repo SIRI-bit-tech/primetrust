@@ -15,12 +15,41 @@ collect_static() {
   python manage.py collectstatic --noinput
 }
 
+# Function to create superuser
+create_superuser() {
+  if [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+    echo "Checking/creating superuser..."
+    python manage.py shell <<EOF
+from django.contrib.auth import get_user_model
+import os
+User = get_user_model()
+email = os.environ.get('DJANGO_SUPERUSER_EMAIL')
+password = os.environ.get('DJANGO_SUPERUSER_PASSWORD')
+username = os.environ.get('DJANGO_SUPERUSER_USERNAME', email.split('@')[0])
+if not User.objects.filter(email=email).exists():
+    User.objects.create_superuser(
+        username=username, 
+        email=email, 
+        password=password,
+        first_name=os.environ.get('DJANGO_SUPERUSER_FIRST_NAME', 'Admin'),
+        last_name=os.environ.get('DJANGO_SUPERUSER_LAST_NAME', 'User')
+    )
+    print(f"Superuser {email} created successfully.")
+else:
+    print(f"Superuser {email} already exists.")
+EOF
+  else
+    echo "Skipping superuser creation (missing DJANGO_SUPERUSER_EMAIL or DJANGO_SUPERUSER_PASSWORD)"
+  fi
+}
+
 # Process type based on argument
 PROCESS_TYPE=$1
 
 case "$PROCESS_TYPE" in
   "web")
     run_migrations
+    create_superuser
     collect_static
     echo "Starting Gunicorn..."
     exec gunicorn primetrust.wsgi:application \

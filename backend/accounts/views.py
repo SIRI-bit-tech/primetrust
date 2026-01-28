@@ -12,6 +12,9 @@ from datetime import timedelta
 import uuid
 import random
 from rest_framework_simplejwt.views import TokenRefreshView as BaseTokenRefreshView
+import logging
+
+logger = logging.getLogger(__name__)
 
 from .models import User, UserProfile, EmailVerification, PasswordReset, BitcoinTransaction
 from .serializers import (
@@ -91,7 +94,7 @@ class UserRegistrationView(APIView):
             )
         except Exception as e:
             # Log the error but don't fail the registration
-            print(f"Failed to send verification email: {e}")
+            logger.error(f"Failed to send verification email: {e}")
 
 
 class UserLoginView(APIView):
@@ -115,21 +118,26 @@ class UserLoginView(APIView):
                 temp_token = RefreshToken.for_user(user)
                 
                 # Create response
+                # We return the token in the body as well to allow the frontend to use it 
+                # as a fallback if HTTP-only cookies are restricted in the user's browser.
                 response = Response({
                     'requires_2fa': True,
-                    'message': 'Please enter your 2FA code to complete login'
+                    'message': 'Two-factor authentication required',
+                    'temp_token': str(temp_token.access_token)
                 }, status=status.HTTP_200_OK)
                 
-                # Set temp token as HTTP-only cookie (expires in 5 minutes)
-                response.set_cookie(
-                    key='temp_2fa_token',
-                    value=str(temp_token.access_token),
-                    max_age=300,  # 5 minutes
-                    httponly=True,
-                    secure=not settings.DEBUG,
-                    samesite='Lax',
-                    path='/'
-                )
+                # Set temp token as HTTP-only cookie
+                # In production, we use samesite='None' and secure=True to ensure it works across Render services
+                cookie_settings = {
+                    'key': 'temp_2fa_token',
+                    'value': str(temp_token.access_token),
+                    'max_age': 300,
+                    'httponly': True,
+                    'secure': not settings.DEBUG,
+                    'samesite': 'None' if not settings.DEBUG else 'Lax',
+                    'path': '/'
+                }
+                response.set_cookie(**cookie_settings)
                 
                 return response
             
@@ -163,23 +171,24 @@ class UserLoginView(APIView):
         }, status=status.HTTP_200_OK)
         
         # Set tokens as HTTP-only cookies
+        cookie_base = {
+            'httponly': True,
+            'secure': not settings.DEBUG,
+            'samesite': 'None' if not settings.DEBUG else 'Lax',
+            'path': '/'
+        }
+        
         response.set_cookie(
             key='access_token',
             value=str(refresh.access_token),
-            max_age=3600,  # 1 hour
-            httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax',
-            path='/'
+            max_age=3600,
+            **cookie_base
         )
         response.set_cookie(
             key='refresh_token',
             value=str(refresh),
-            max_age=86400 * 7,  # 7 days
-            httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax',
-            path='/'
+            max_age=86400 * 7,
+            **cookie_base
         )
         
         return response
@@ -201,9 +210,6 @@ class UserLogoutView(APIView):
     
     def post(self, request):
         """Logout user and blacklist refresh token."""
-        print(f"Logout request received. Data: {request.data}")
-        print(f"Headers: {request.headers}")
-        
         try:
             # Try to get refresh token from cookie first, then from request body
             refresh_token = request.COOKIES.get('refresh_token') or request.data.get('refresh_token')
@@ -211,9 +217,9 @@ class UserLogoutView(APIView):
                 try:
                     token = RefreshToken(refresh_token)
                     token.blacklist()
-                    print("Token blacklisted successfully")
+                    logger.info("Token blacklisted successfully")
                 except Exception as e:
-                    print(f"Token blacklist failed: {e}")
+                    logger.error(f"Token blacklist failed: {e}")
                     # Token might be invalid, but that's okay for logout
                     pass
             
@@ -226,11 +232,12 @@ class UserLogoutView(APIView):
             
             return response
         except Exception as e:
-            print(f"Logout exception: {e}")
+            logger.error(f"Logout exception: {e}")
             # Always return success for logout, even if token is invalid
             response = Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
             response.delete_cookie('access_token', path='/')
             response.delete_cookie('refresh_token', path='/')
+            return response
             return response
 
 
@@ -294,23 +301,24 @@ class EmailVerificationView(APIView):
             }, status=status.HTTP_200_OK)
             
             # Set tokens as HTTP-only cookies
+            cookie_base = {
+                'httponly': True,
+                'secure': not settings.DEBUG,
+                'samesite': 'None' if not settings.DEBUG else 'Lax',
+                'path': '/'
+            }
+            
             response.set_cookie(
                 key='access_token',
                 value=str(refresh.access_token),
-                max_age=3600,  # 1 hour
-                httponly=True,
-                secure=not settings.DEBUG,
-                samesite='Lax',
-                path='/'
+                max_age=3600,
+                **cookie_base
             )
             response.set_cookie(
                 key='refresh_token',
                 value=str(refresh),
-                max_age=86400 * 7,  # 7 days
-                httponly=True,
-                secure=not settings.DEBUG,
-                samesite='Lax',
-                path='/'
+                max_age=86400 * 7,
+                **cookie_base
             )
             
             return response
@@ -388,7 +396,7 @@ class PasswordResetRequestView(APIView):
                 fail_silently=False,
             )
         except Exception as e:
-            print(f"Failed to send reset email: {e}")
+            logger.error(f"Failed to send reset email: {e}")
 
 
 class PasswordResetView(APIView):
@@ -757,22 +765,28 @@ class TwoFactorLoginVerifyView(APIView):
     
     def post(self, request):
         """Verify 2FA code during login."""
-        # Get user from temp 2FA token cookie
+        # Get user from temp 2FA token cookie or Authorization header
         temp_token = request.COOKIES.get('temp_2fa_token')
+        
+        # Fallback to header if cookie is missing (less secure but more compatible)
+        if not temp_token:
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header.startswith('Bearer '):
+                temp_token = auth_header.split(' ')[1]
+        
         if not temp_token:
             return Response({
-                'error': 'Authentication required'
+                'error': 'Authentication session expired. Please login again.'
             }, status=status.HTTP_401_UNAUTHORIZED)
         
         try:
-            # Validate temp token and get user
             from rest_framework_simplejwt.tokens import AccessToken
             token = AccessToken(temp_token)
             user_id = token.get('user_id')
             user = User.objects.get(id=user_id)
         except Exception:
             return Response({
-                'error': 'Invalid or expired session'
+                'error': 'Invalid or expired session. Please login again.'
             }, status=status.HTTP_401_UNAUTHORIZED)
         
         serializer = TwoFactorLoginSerializer(data=request.data, context={'request': request})
@@ -828,23 +842,24 @@ class TwoFactorLoginVerifyView(APIView):
         }, status=status.HTTP_200_OK)
         
         # Set tokens as HTTP-only cookies
+        cookie_base = {
+            'httponly': True,
+            'secure': not settings.DEBUG,
+            'samesite': 'None' if not settings.DEBUG else 'Lax',
+            'path': '/'
+        }
+        
         response.set_cookie(
             key='access_token',
             value=str(refresh.access_token),
-            max_age=3600,  # 1 hour
-            httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax',
-            path='/'
+            max_age=3600,
+            **cookie_base
         )
         response.set_cookie(
             key='refresh_token',
             value=str(refresh),
-            max_age=86400 * 7,  # 7 days
-            httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax',
-            path='/'
+            max_age=86400 * 7,
+            **cookie_base
         )
         
         # Clear the temp 2FA token cookie

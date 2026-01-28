@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkAuth = async () => {
     try {
       const storedUser = localStorage.getItem('user')
-      
+
       if (storedUser) {
         try {
           // Try to fetch fresh user data (token is in cookie)
@@ -102,21 +102,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Tokens are now in HTTP-only cookies, just store user data
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
+    // Clear temp token after successful 2FA
+    sessionStorage.removeItem('temp_2fa_token')
   }
 
   const login = async (email: string, password: string) => {
     try {
       const response = await authAPI.login({ email, password })
-      
+
       // Check if 2FA is required
       if (response.requires_2fa) {
-        return { requires_2fa: true }
+        // Store temp token in session storage as fallback for cookie-blocked environments
+        if (response.temp_token) {
+          sessionStorage.setItem('temp_2fa_token', response.temp_token)
+        }
+        return { requires_2fa: true, temp_token: response.temp_token }
       }
-      
+
       // Normal login flow - tokens are in HTTP-only cookies
       localStorage.setItem('user', JSON.stringify(response.user))
       setUser(response.user)
-      
+
       return { requires_2fa: false }
     } catch (error) {
       throw error

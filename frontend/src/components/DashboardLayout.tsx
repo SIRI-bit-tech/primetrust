@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  Home, 
-  CreditCard, 
-  Send, 
-  History, 
-  User, 
-  Settings, 
-  LogOut, 
+import {
+  Home,
+  CreditCard,
+  Send,
+  History,
+  User,
+  Settings,
+  LogOut,
   Search,
   DollarSign,
   TrendingUp,
@@ -63,7 +63,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const { unreadCount } = useNotifications()
-  
+
   // Account lock state
   const [showLockModal, setShowLockModal] = useState(false)
   const isAccountLocked = user?.is_account_locked || false
@@ -84,10 +84,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <SidebarProvider>
+    <div className="flex flex-col h-screen w-full overflow-hidden">
       {/* Maintenance Banner - Sticky at top, above all content */}
       <MaintenanceBanner />
-      <div className="grid w-full lg:grid-cols-[auto_1fr]">
+
+      <SidebarProvider className="flex-1 overflow-hidden">
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center gap-2 px-2">
@@ -140,13 +141,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </SidebarGroup>
           </SidebarFooter>
         </Sidebar>
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-            <div className="flex items-center gap-2 px-4">
+
+        <SidebarInset className="flex flex-col overflow-hidden">
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+            <div className="flex items-center gap-2">
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-2 h-4" />
             </div>
-            <div className="flex items-center gap-2 px-4 ml-auto">
+            <div className="flex items-center gap-2 ml-auto">
               <NotificationDropdown />
               <Separator orientation="vertical" className="h-4" />
               <div className="flex items-center gap-2">
@@ -162,7 +164,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
             </div>
           </header>
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+
+          <main className="flex-1 overflow-y-auto p-4 md:p-6">
             {/* Account Locked Banner - Shows on all pages */}
             {isAccountLocked && user && (
               <AccountLockedBanner
@@ -175,26 +178,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 }}
               />
             )}
-            
-            {children}
-          </div>
-        </SidebarInset>
-      </div>
 
-      {/* Account Locked Modal */}
-      {isAccountLocked && user && (
-        <AccountLockedModal
-          isOpen={showLockModal}
-          lockedUntil={user.account_locked_until || ''}
-          lockReason={user.account_lock_reason || ''}
-          unlockRequestPending={user.unlock_request_pending || false}
-          userEmail={user.email}
-          onClose={() => setShowLockModal(false)}
-          onUnlockRequested={() => {
-            // Modal will auto-update when user data refreshes
-          }}
-        />
-      )}
-    </SidebarProvider>
+            {children}
+          </main>
+        </SidebarInset>
+
+        {/* Account Locked Modal */}
+        {isAccountLocked && user && (
+          <AccountLockedModal
+            isOpen={showLockModal}
+            lockedUntil={user.account_locked_until || ''}
+            lockReason={user.account_lock_reason || ''}
+            unlockRequestPending={user.unlock_request_pending || false}
+            userEmail={user.email}
+            onClose={() => setShowLockModal(false)}
+            onUnlockRequested={() => {
+              // Modal will auto-update when user data refreshes
+            }}
+          />
+        )}
+      </SidebarProvider>
+    </div>
   )
-} 
+}

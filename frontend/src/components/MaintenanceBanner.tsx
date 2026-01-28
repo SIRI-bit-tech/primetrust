@@ -45,7 +45,7 @@ export default function MaintenanceBanner() {
   const tickerText = `⚠️ Bank Maintenance in Progress • ${maintenance.message} • Duration: ${maintenance.estimated_duration} • All transactions will be on hold • `
 
   return (
-    <div className="sticky top-0 left-0 right-0 z-40 bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md h-8 flex items-center overflow-hidden">
+    <div className="relative z-50 bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-md h-8 flex items-center overflow-hidden shrink-0">
       <style>{`
         @keyframes scroll-ticker {
           0% {
@@ -61,7 +61,7 @@ export default function MaintenanceBanner() {
           display: inline-block;
         }
       `}</style>
-      
+
       <div className="flex items-center gap-2 px-4 w-full">
         <Wrench className="w-4 h-4 flex-shrink-0" />
         <div className="overflow-hidden flex-1">

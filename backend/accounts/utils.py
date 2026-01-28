@@ -44,23 +44,24 @@ def generate_qr_code(uri, size=200):
         return None
 
 
-def verify_totp_code(secret, code, window=1):
+def verify_totp_code(secret, code, window=2):
     """
     Verify TOTP code.
     
     Args:
         secret (str): TOTP secret key
         code (str): 6-digit code to verify
-        window (int): Time window tolerance
+        window (int): Time window tolerance (number of 30s intervals)
     
     Returns:
         bool: True if code is valid, False otherwise
     """
     try:
         totp = pyotp.TOTP(secret)
+        # We use a slightly generous window to accommodate for time drift between phone and server
         return totp.verify(code, valid_window=window)
-    except Exception as e:
-        print(f"Error verifying TOTP code: {e}")
+    except Exception:
+        # Avoid logging the actual error to keep security high
         return False
 
 
