@@ -8,7 +8,7 @@ import { AlertTriangle } from 'lucide-react'
 export default function MaintenancePage() {
   const { user } = useAuth()
 
-  if (!user?.is_staff) {
+  if (!(user?.is_staff || user?.is_superuser)) {
     return (
       <AdminLayout>
         <div className="p-8 text-center">

@@ -23,3 +23,7 @@ django-filter
 psycopg2-binary
 qrcode[pil]
 pyotp
+gunicorn
+uvicorn
+whitenoise
+
