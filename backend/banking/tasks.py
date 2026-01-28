@@ -3,7 +3,8 @@ Celery tasks for banking operations
 """
 from celery import shared_task
 from django.utils import timezone
-from django.db import transaction, Q
+from django.db import transaction
+from django.db.models import Q
 from .models import CheckDeposit, Transfer
 import logging
 

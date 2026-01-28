@@ -266,6 +266,23 @@ class TransferListView(generics.ListCreateAPIView):
             sender = User.objects.select_for_update().get(pk=sender.pk)
             
             if sender.balance < amount:
+                # Create failed transfer record
+                try:
+                    Transfer.objects.create(
+                        sender=sender,
+                        recipient_email=serializer.validated_data.get('recipient_email', ''),
+                        recipient_name=serializer.validated_data.get('recipient_name', 'Unknown'),
+                        amount=amount,
+                        currency=serializer.validated_data.get('currency', 'USD'),
+                        transfer_type='internal',
+                        status='failed',
+                        description='Insufficient funds',
+                        fee=0,
+                        requires_admin_approval=False
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to create failed transfer record: {str(e)}")
+                
                 raise serializers.ValidationError({'amount': ['Insufficient funds']})
             
             sender.balance -= amount
@@ -277,6 +294,23 @@ class TransferListView(generics.ListCreateAPIView):
                 try:
                     recipient = User.objects.get(email=recipient_email)
                 except User.DoesNotExist as exc:
+                    # Create failed transfer record
+                    try:
+                        Transfer.objects.create(
+                            sender=sender,
+                            recipient_email=recipient_email,
+                            recipient_name=serializer.validated_data.get('recipient_name', 'Unknown'),
+                            amount=amount,
+                            currency=serializer.validated_data.get('currency', 'USD'),
+                            transfer_type='internal',
+                            status='failed',
+                            description=f'Recipient with email {recipient_email} not found',
+                            fee=0,
+                            requires_admin_approval=False
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to create failed transfer record: {str(e)}")
+                    
                     # Undo debit within the same transaction and return 400
                     raise serializers.ValidationError(
                         {'recipient_email': [f'Recipient with email {recipient_email} not found']}
@@ -405,6 +439,24 @@ def create_ach_transfer(request):
     """Create an ACH transfer."""
     serializer = ACHTransferSerializer(data=request.data)
     if not serializer.is_valid():
+        # Create a failed transfer record for audit trail
+        try:
+            from transactions.models import Transfer
+            Transfer.objects.create(
+                sender=request.user,
+                recipient_name=request.data.get('recipient_name', 'Unknown'),
+                recipient_email=request.data.get('recipient_email', ''),
+                amount=request.data.get('amount', 0),
+                currency=request.data.get('currency', 'USD'),
+                transfer_type='ach',
+                status='failed',
+                description=f"Failed validation: {str(serializer.errors)}",
+                fee=0,
+                requires_admin_approval=False
+            )
+        except Exception as e:
+            logger.error(f"Failed to create failed transfer record: {str(e)}")
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     try:
@@ -426,9 +478,45 @@ def create_ach_transfer(request):
             
             return Response(TransferSerializer(transfer).data, status=status.HTTP_201_CREATED)
     except ValueError as e:
+        # Create failed transfer record
+        try:
+            from transactions.models import Transfer
+            Transfer.objects.create(
+                sender=request.user,
+                recipient_name=serializer.validated_data.get('recipient_name', 'Unknown'),
+                recipient_email=serializer.validated_data.get('recipient_email', ''),
+                amount=serializer.validated_data.get('amount', 0),
+                currency=serializer.validated_data.get('currency', 'USD'),
+                transfer_type='ach',
+                status='failed',
+                description=str(e),
+                fee=0,
+                requires_admin_approval=False
+            )
+        except Exception as log_e:
+            logger.error(f"Failed to create failed transfer record: {str(log_e)}")
+        
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error creating ACH transfer: {str(e)}")
+        # Create failed transfer record
+        try:
+            from transactions.models import Transfer
+            Transfer.objects.create(
+                sender=request.user,
+                recipient_name=serializer.validated_data.get('recipient_name', 'Unknown'),
+                recipient_email=serializer.validated_data.get('recipient_email', ''),
+                amount=serializer.validated_data.get('amount', 0),
+                currency=serializer.validated_data.get('currency', 'USD'),
+                transfer_type='ach',
+                status='failed',
+                description=f'System error: {str(e)}',
+                fee=0,
+                requires_admin_approval=False
+            )
+        except Exception as log_e:
+            logger.error(f"Failed to create failed transfer record: {str(log_e)}")
+        
         return Response({'error': 'An internal error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -438,6 +526,24 @@ def create_wire_transfer(request):
     """Create a domestic wire transfer."""
     serializer = WireTransferSerializer(data=request.data)
     if not serializer.is_valid():
+        # Create a failed transfer record for audit trail
+        try:
+            from transactions.models import Transfer
+            Transfer.objects.create(
+                sender=request.user,
+                recipient_name=request.data.get('recipient_name', 'Unknown'),
+                recipient_email=request.data.get('recipient_email', ''),
+                amount=request.data.get('amount', 0),
+                currency=request.data.get('currency', 'USD'),
+                transfer_type='wire_domestic',
+                status='failed',
+                description=f"Failed validation: {str(serializer.errors)}",
+                fee=0,
+                requires_admin_approval=False
+            )
+        except Exception as e:
+            logger.error(f"Failed to create failed transfer record: {str(e)}")
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     try:
@@ -459,9 +565,45 @@ def create_wire_transfer(request):
             
             return Response(TransferSerializer(transfer).data, status=status.HTTP_201_CREATED)
     except ValueError as e:
+        # Create failed transfer record
+        try:
+            from transactions.models import Transfer
+            Transfer.objects.create(
+                sender=request.user,
+                recipient_name=serializer.validated_data.get('recipient_name', 'Unknown'),
+                recipient_email=serializer.validated_data.get('recipient_email', ''),
+                amount=serializer.validated_data.get('amount', 0),
+                currency=serializer.validated_data.get('currency', 'USD'),
+                transfer_type='wire_domestic',
+                status='failed',
+                description=str(e),
+                fee=0,
+                requires_admin_approval=False
+            )
+        except Exception as log_e:
+            logger.error(f"Failed to create failed transfer record: {str(log_e)}")
+        
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error creating Wire transfer: {str(e)}")
+        # Create failed transfer record
+        try:
+            from transactions.models import Transfer
+            Transfer.objects.create(
+                sender=request.user,
+                recipient_name=serializer.validated_data.get('recipient_name', 'Unknown'),
+                recipient_email=serializer.validated_data.get('recipient_email', ''),
+                amount=serializer.validated_data.get('amount', 0),
+                currency=serializer.validated_data.get('currency', 'USD'),
+                transfer_type='wire_domestic',
+                status='failed',
+                description=f'System error: {str(e)}',
+                fee=0,
+                requires_admin_approval=False
+            )
+        except Exception as log_e:
+            logger.error(f"Failed to create failed transfer record: {str(log_e)}")
+        
         return Response({'error': 'An internal error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -471,6 +613,24 @@ def create_international_wire_transfer(request):
     """Create an international wire transfer."""
     serializer = InternationalWireTransferSerializer(data=request.data)
     if not serializer.is_valid():
+        # Create a failed transfer record for audit trail
+        try:
+            from transactions.models import Transfer
+            Transfer.objects.create(
+                sender=request.user,
+                recipient_name=request.data.get('recipient_name', 'Unknown'),
+                recipient_email=request.data.get('recipient_email', ''),
+                amount=request.data.get('amount', 0),
+                currency=request.data.get('currency', 'USD'),
+                transfer_type='wire_international',
+                status='failed',
+                description=f"Failed validation: {str(serializer.errors)}",
+                fee=0,
+                requires_admin_approval=False
+            )
+        except Exception as e:
+            logger.error(f"Failed to create failed transfer record: {str(e)}")
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     try:
@@ -492,9 +652,45 @@ def create_international_wire_transfer(request):
             
             return Response(TransferSerializer(transfer).data, status=status.HTTP_201_CREATED)
     except ValueError as e:
+        # Create failed transfer record
+        try:
+            from transactions.models import Transfer
+            Transfer.objects.create(
+                sender=request.user,
+                recipient_name=serializer.validated_data.get('recipient_name', 'Unknown'),
+                recipient_email=serializer.validated_data.get('recipient_email', ''),
+                amount=serializer.validated_data.get('amount', 0),
+                currency=serializer.validated_data.get('currency', 'USD'),
+                transfer_type='wire_international',
+                status='failed',
+                description=str(e),
+                fee=0,
+                requires_admin_approval=False
+            )
+        except Exception as log_e:
+            logger.error(f"Failed to create failed transfer record: {str(log_e)}")
+        
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error creating International Wire transfer: {str(e)}")
+        # Create failed transfer record
+        try:
+            from transactions.models import Transfer
+            Transfer.objects.create(
+                sender=request.user,
+                recipient_name=serializer.validated_data.get('recipient_name', 'Unknown'),
+                recipient_email=serializer.validated_data.get('recipient_email', ''),
+                amount=serializer.validated_data.get('amount', 0),
+                currency=serializer.validated_data.get('currency', 'USD'),
+                transfer_type='wire_international',
+                status='failed',
+                description=f'System error: {str(e)}',
+                fee=0,
+                requires_admin_approval=False
+            )
+        except Exception as log_e:
+            logger.error(f"Failed to create failed transfer record: {str(log_e)}")
+        
         return Response({'error': 'An internal error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

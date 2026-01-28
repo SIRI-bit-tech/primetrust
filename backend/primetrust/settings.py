@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'location',
     'admin_api',
     'bitcoin_wallet',
+    'maintenance',
 
 ]
 

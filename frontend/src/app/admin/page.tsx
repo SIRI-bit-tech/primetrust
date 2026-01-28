@@ -23,7 +23,9 @@ import {
   Lock,
   Trash2,
   CheckCircle,
-  XCircle
+  XCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import {
   User,
@@ -45,6 +47,7 @@ import {
 import PendingTransfersTable from '@/components/admin/PendingTransfersTable'
 import UnlockRequestsTable from '@/components/admin/UnlockRequestsTable'
 import CheckDepositsTable from '@/components/admin/CheckDepositsTable'
+import MaintenanceSettings from '@/components/admin/MaintenanceSettings'
 import AdminActionModal from '@/components/admin/AdminActionModal'
 
 export default function AdminPage() {
@@ -52,6 +55,9 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [tabsScrollRef, setTabsScrollRef] = useState<HTMLDivElement | null>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(true)
 
   // Modal states
   const [showLockModal, setShowLockModal] = useState(false)
@@ -102,6 +108,7 @@ export default function AdminPage() {
     { id: 'investments', label: 'Investments', icon: PiggyBank },
     { id: 'check-deposits', label: 'Check Deposits', icon: Receipt },
     { id: 'security-logs', label: 'Security Logs', icon: AlertTriangle },
+    { id: 'maintenance', label: '🔧 Maintenance', icon: AlertTriangle },
   ]
 
   const loadData = async () => {
@@ -183,6 +190,10 @@ export default function AdminPage() {
           setSecurityLogs(securityLogsData)
           break
         }
+        case 'maintenance': {
+          // Maintenance tab doesn't need data loading here, it's a separate dedicated page
+          break
+        }
         case 'pending-transfers': {
           const pendingTransfersData = await adminAPI.getPendingTransfers()
           setPendingTransfers(pendingTransfersData)
@@ -205,6 +216,39 @@ export default function AdminPage() {
   useEffect(() => {
     loadData()
   }, [activeTab])
+
+  const checkScroll = () => {
+    if (tabsScrollRef) {
+      setCanScrollLeft(tabsScrollRef.scrollLeft > 0)
+      setCanScrollRight(
+        tabsScrollRef.scrollLeft < tabsScrollRef.scrollWidth - tabsScrollRef.clientWidth
+      )
+    }
+  }
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (tabsScrollRef) {
+      const scrollAmount = 300
+      tabsScrollRef.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      })
+      setTimeout(checkScroll, 100)
+    }
+  }
+
+  useEffect(() => {
+    checkScroll()
+    const scrollElement = tabsScrollRef
+    if (scrollElement) {
+      scrollElement.addEventListener('scroll', checkScroll)
+      window.addEventListener('resize', checkScroll)
+      return () => {
+        scrollElement.removeEventListener('scroll', checkScroll)
+        window.removeEventListener('resize', checkScroll)
+      }
+    }
+  }, [tabsScrollRef])
 
   const handleUpdateBalance = async () => {
     if (!selectedUser || !balanceAmount) return
@@ -948,23 +992,59 @@ export default function AdminPage() {
            }
          `}</style>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8 overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
-                    ? 'border-blue-500 text-blue-400'
-                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-                    }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </button>
-              )
-            })}
+          <div className="flex items-center gap-2">
+            {/* Left Scroll Button */}
+            <button
+              onClick={() => scrollTabs('left')}
+              disabled={!canScrollLeft}
+              className={`flex-shrink-0 p-2 rounded transition-colors ${
+                canScrollLeft
+                  ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
+                  : 'text-gray-600 cursor-not-allowed'
+              }`}
+              aria-label="Scroll tabs left"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            {/* Tabs Container */}
+            <div
+              ref={setTabsScrollRef}
+              className="flex-1 flex space-x-8 overflow-x-auto hide-scrollbar"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              onScroll={checkScroll}
+            >
+              {tabs.map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
+                      ? 'border-blue-500 text-blue-400'
+                      : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                      }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Right Scroll Button */}
+            <button
+              onClick={() => scrollTabs('right')}
+              disabled={!canScrollRight}
+              className={`flex-shrink-0 p-2 rounded transition-colors ${
+                canScrollRight
+                  ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
+                  : 'text-gray-600 cursor-not-allowed'
+              }`}
+              aria-label="Scroll tabs right"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </div>
@@ -1177,8 +1257,15 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Maintenance Tab */}
+        {activeTab === 'maintenance' && (
+          <div>
+            <MaintenanceSettings />
+          </div>
+        )}
+
         {/* Other Tabs */}
-        {activeTab !== 'dashboard' && activeTab !== 'pending-transfers' && activeTab !== 'unlock-requests' && activeTab !== 'check-deposits' && (
+        {activeTab !== 'dashboard' && activeTab !== 'pending-transfers' && activeTab !== 'unlock-requests' && activeTab !== 'check-deposits' && activeTab !== 'maintenance' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-white capitalize">

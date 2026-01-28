@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/location/', include('location.urls')),
     path('api/admin/', include('admin_api.urls')),
     path('api/bitcoin-wallet/', include('bitcoin_wallet.urls')),
+    path('api/maintenance/', include('maintenance.urls')),
     
     # Direct investment and bill endpoints (shortcut URLs)
     path('api/investments/', transaction_views.InvestmentListView.as_view(), name='investment-shortcut'),

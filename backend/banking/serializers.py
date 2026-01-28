@@ -144,7 +144,6 @@ class InternationalWireTransferSerializer(serializers.Serializer):
     recipient_name = serializers.CharField()
     swift_code = serializers.CharField()
     iban = serializers.CharField(required=False)
-    routing_number = serializers.CharField(required=False)
     bank_name = serializers.CharField()
     description = serializers.CharField(required=False)
 

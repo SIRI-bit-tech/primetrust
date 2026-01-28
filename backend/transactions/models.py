@@ -26,6 +26,7 @@ class Transaction(models.Model):
         ('failed', 'Failed'),
         ('cancelled', 'Cancelled'),
         ('reversed', 'Reversed'),
+        ('on_hold', 'On Hold'),  # New status for maintenance
     ]
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='transactions')
@@ -49,6 +50,9 @@ class Transaction(models.Model):
     merchant_category = models.CharField(max_length=100, blank=True)
     location = models.CharField(max_length=200, blank=True)
     
+    # Maintenance flag
+    held_due_to_maintenance = models.BooleanField(default=False, help_text="Transaction held due to bank maintenance")
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -70,6 +74,15 @@ class Transaction(models.Model):
         # Generate reference number if not exists
         if not self.reference_number:
             self.reference_number = self.generate_reference_number()
+        
+        # Check if bank is under maintenance
+        from maintenance.models import MaintenanceMode
+        maintenance = MaintenanceMode.get_maintenance()
+        
+        # If maintenance is active and transaction is new (being created)
+        if maintenance.is_within_maintenance_period() and not self.pk:
+            self.status = 'on_hold'
+            self.held_due_to_maintenance = True
         
         super().save(*args, **kwargs)
     

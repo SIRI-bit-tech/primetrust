@@ -145,7 +145,7 @@ export default function SendBitcoinPage() {
           minute: 'numeric'
         }),
         referenceId: response.id?.toString() || generateBitcoinReferenceId(),
-        networkFee: response.transaction_fee ? parseFloat(response.transaction_fee) : 0,
+        networkFee: 0,
         transactionHash: response.transaction_hash ? (response.transaction_hash.length > 12 ? response.transaction_hash.substring(0, 12) + '...' : response.transaction_hash) : '',
       }
       
