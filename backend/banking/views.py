@@ -289,47 +289,57 @@ class TransferListView(generics.ListCreateAPIView):
             'currency': serializer.validated_data.get('currency', 'USD'),
         }
         
-        with transaction.atomic():
-            # Lock sender row
-            sender = User.objects.select_for_update().get(pk=sender.pk)
-            
-            if sender.balance < amount:
-                # Schedule audit record creation after transaction rollback
-                transaction.on_commit(lambda: self._create_failed_transfer(
+        try:
+            with transaction.atomic():
+                # Lock sender row
+                sender = User.objects.select_for_update().get(pk=sender.pk)
+                
+                if sender.balance < amount:
+                    raise serializers.ValidationError({'amount': ['Insufficient funds']})
+                
+                sender.balance -= amount
+                sender.save(update_fields=['balance'])
+                
+                recipient = None
+                recipient_email = serializer.validated_data.get('recipient_email')
+                if recipient_email:
+                    try:
+                        recipient = User.objects.get(email=recipient_email)
+                    except User.DoesNotExist as exc:
+                        # Undo debit within the same transaction and return 400
+                        raise serializers.ValidationError(
+                            {'recipient_email': [f'Recipient with email {recipient_email} not found']}
+                        ) from exc
+                
+                serializer.save(
+                    sender=sender,
+                    recipient=recipient,
+                    transfer_type='internal',
+                    status='pending',
+                    requires_admin_approval=True,
+                )
+        except serializers.ValidationError as e:
+            # Create failed transfer audit record (transaction already rolled back)
+            if 'Insufficient funds' in str(e):
+                self._create_failed_transfer(
                     failure_details,
                     'internal',
                     'Insufficient funds'
-                ))
-                raise serializers.ValidationError({'amount': ['Insufficient funds']})
-            
-            sender.balance -= amount
-            sender.save(update_fields=['balance'])
-            
-            recipient = None
-            recipient_email = serializer.validated_data.get('recipient_email')
-            if recipient_email:
-                try:
-                    recipient = User.objects.get(email=recipient_email)
-                except User.DoesNotExist as exc:
-                    # Schedule audit record creation after transaction rollback
-                    transaction.on_commit(lambda: self._create_failed_transfer(
-                        failure_details,
-                        'internal',
-                        f'Recipient with email {recipient_email} not found'
-                    ))
-                    
-                    # Undo debit within the same transaction and return 400
-                    raise serializers.ValidationError(
-                        {'recipient_email': [f'Recipient with email {recipient_email} not found']}
-                    ) from exc
-            
-            serializer.save(
-                sender=sender,
-                recipient=recipient,
-                transfer_type='internal',
-                status='pending',
-                requires_admin_approval=True,
-            )
+                )
+            elif 'Recipient with email' in str(e):
+                self._create_failed_transfer(
+                    failure_details,
+                    'internal',
+                    f'Recipient with email {failure_details["recipient_email"]} not found'
+                )
+            else:
+                self._create_failed_transfer(
+                    failure_details,
+                    'internal',
+                    str(e)
+                )
+            # Re-raise the exception to maintain existing behavior
+            raise
     
     def _create_failed_transfer(self, failure_details, transfer_type, description):
         """Create a failed transfer audit record outside of atomic block."""
@@ -465,7 +475,7 @@ def create_ach_transfer(request):
     serializer = ACHTransferSerializer(data=request.data)
     if not serializer.is_valid():
         # Schedule failed transfer audit record creation
-        transaction.on_commit(lambda: _create_failed_transfer_audit(
+        _create_failed_transfer_audit(
             request.user,
             request.data.get('recipient_name', 'Unknown'),
             request.data.get('recipient_email', ''),
@@ -473,7 +483,7 @@ def create_ach_transfer(request):
             request.data.get('currency', 'USD'),
             'ach',
             f"Failed validation: {str(serializer.errors)}"
-        ))
+        )
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -497,7 +507,7 @@ def create_ach_transfer(request):
             return Response(TransferSerializer(transfer).data, status=status.HTTP_201_CREATED)
     except ValueError as e:
         # Schedule failed transfer audit record creation
-        transaction.on_commit(lambda: _create_failed_transfer_audit(
+        _create_failed_transfer_audit(
             request.user,
             serializer.validated_data.get('recipient_name', 'Unknown'),
             serializer.validated_data.get('recipient_email', ''),
@@ -505,13 +515,13 @@ def create_ach_transfer(request):
             serializer.validated_data.get('currency', 'USD'),
             'ach',
             str(e)
-        ))
+        )
         
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error creating ACH transfer: {str(e)}")
         # Schedule failed transfer audit record creation
-        transaction.on_commit(lambda: _create_failed_transfer_audit(
+        _create_failed_transfer_audit(
             request.user,
             serializer.validated_data.get('recipient_name', 'Unknown'),
             serializer.validated_data.get('recipient_email', ''),
@@ -519,7 +529,7 @@ def create_ach_transfer(request):
             serializer.validated_data.get('currency', 'USD'),
             'ach',
             f'System error: {str(e)}'
-        ))
+        )
         
         return Response({'error': 'An internal error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -531,7 +541,7 @@ def create_wire_transfer(request):
     serializer = WireTransferSerializer(data=request.data)
     if not serializer.is_valid():
         # Schedule failed transfer audit record creation
-        transaction.on_commit(lambda: _create_failed_transfer_audit(
+        _create_failed_transfer_audit(
             request.user,
             request.data.get('recipient_name', 'Unknown'),
             request.data.get('recipient_email', ''),
@@ -539,7 +549,7 @@ def create_wire_transfer(request):
             request.data.get('currency', 'USD'),
             'wire_domestic',
             f"Failed validation: {str(serializer.errors)}"
-        ))
+        )
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -563,7 +573,7 @@ def create_wire_transfer(request):
             return Response(TransferSerializer(transfer).data, status=status.HTTP_201_CREATED)
     except ValueError as e:
         # Schedule failed transfer audit record creation
-        transaction.on_commit(lambda: _create_failed_transfer_audit(
+        _create_failed_transfer_audit(
             request.user,
             serializer.validated_data.get('recipient_name', 'Unknown'),
             serializer.validated_data.get('recipient_email', ''),
@@ -571,13 +581,13 @@ def create_wire_transfer(request):
             serializer.validated_data.get('currency', 'USD'),
             'wire_domestic',
             str(e)
-        ))
+        )
         
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error creating Wire transfer: {str(e)}")
         # Schedule failed transfer audit record creation
-        transaction.on_commit(lambda: _create_failed_transfer_audit(
+        _create_failed_transfer_audit(
             request.user,
             serializer.validated_data.get('recipient_name', 'Unknown'),
             serializer.validated_data.get('recipient_email', ''),
@@ -585,7 +595,7 @@ def create_wire_transfer(request):
             serializer.validated_data.get('currency', 'USD'),
             'wire_domestic',
             f'System error: {str(e)}'
-        ))
+        )
         
         return Response({'error': 'An internal error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -597,7 +607,7 @@ def create_international_wire_transfer(request):
     serializer = InternationalWireTransferSerializer(data=request.data)
     if not serializer.is_valid():
         # Schedule failed transfer audit record creation
-        transaction.on_commit(lambda: _create_failed_transfer_audit(
+        _create_failed_transfer_audit(
             request.user,
             request.data.get('recipient_name', 'Unknown'),
             request.data.get('recipient_email', ''),
@@ -605,7 +615,7 @@ def create_international_wire_transfer(request):
             request.data.get('currency', 'USD'),
             'wire_international',
             f"Failed validation: {str(serializer.errors)}"
-        ))
+        )
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -629,7 +639,7 @@ def create_international_wire_transfer(request):
             return Response(TransferSerializer(transfer).data, status=status.HTTP_201_CREATED)
     except ValueError as e:
         # Schedule failed transfer audit record creation
-        transaction.on_commit(lambda: _create_failed_transfer_audit(
+        _create_failed_transfer_audit(
             request.user,
             serializer.validated_data.get('recipient_name', 'Unknown'),
             serializer.validated_data.get('recipient_email', ''),
@@ -637,13 +647,13 @@ def create_international_wire_transfer(request):
             serializer.validated_data.get('currency', 'USD'),
             'wire_international',
             str(e)
-        ))
+        )
         
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error creating International Wire transfer: {str(e)}")
         # Schedule failed transfer audit record creation
-        transaction.on_commit(lambda: _create_failed_transfer_audit(
+        _create_failed_transfer_audit(
             request.user,
             serializer.validated_data.get('recipient_name', 'Unknown'),
             serializer.validated_data.get('recipient_email', ''),
@@ -651,7 +661,7 @@ def create_international_wire_transfer(request):
             serializer.validated_data.get('currency', 'USD'),
             'wire_international',
             f'System error: {str(e)}'
-        ))
+        )
         
         return Response({'error': 'An internal error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

@@ -24,7 +24,7 @@ case "$PROCESS_TYPE" in
     collect_static
     echo "Starting Gunicorn..."
     exec gunicorn primetrust.wsgi:application \
-        --bind 0.0.0.0:$PORT \
+        --bind 0.0.0.0:"${PORT:-8000}" \
         --workers 4 \
         --threads 2 \
         --timeout 120 \
