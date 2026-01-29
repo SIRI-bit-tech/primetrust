@@ -162,6 +162,11 @@ export const authAPI = {
     return response.data
   },
 
+  resendVerification: async (email: string): Promise<{ message: string }> => {
+    const response = await api.post('/auth/resend-verification/', { email })
+    return response.data
+  },
+
   logout: async (): Promise<void> => {
     // Tokens are in HTTP-only cookies, backend will clear them
     await api.post('/auth/logout/', {})

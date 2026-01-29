@@ -940,13 +940,22 @@ class AccountStatusView(APIView):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def resend_verification_email(request):
     """Resend verification email."""
-    user = request.user
+    email = request.data.get('email')
+    
+    if not email:
+        return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        # Don't reveal if user exists
+        return Response({'message': 'If an account with this email exists, a verification code has been sent.'}, status=status.HTTP_200_OK)
     
     if user.email_verified:
-        return Response({'error': 'Email is already verified'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'message': 'Email is already verified'}, status=status.HTTP_200_OK)
     
     # Delete existing verification tokens
     EmailVerification.objects.filter(user=user, is_used=False).delete()
@@ -964,22 +973,60 @@ def resend_verification_email(request):
     # Send verification email
     try:
         subject = 'Verify your PrimeTrust account'
-        message = f"""
-        Hello {user.first_name},
+        verification_link = f"{settings.FRONTEND_URL}/verify-email?email={user.email}&code={code}"
         
-        Your new verification code is:
-        
-        {code}
-        
-        This code will expire in 10 minutes.
-        
-        Best regards,
-        The PrimeTrust Team
+        # Create HTML email content
+        html_message = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }}
+                .header {{ background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .header h1 {{ color: #ffffff; margin: 0; font-size: 24px; }}
+                .content {{ background-color: #ffffff; padding: 30px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }}
+                .code-box {{ background-color: #e2e8f0; border-radius: 8px; padding: 15px; font-size: 28px; font-weight: bold; letter-spacing: 5px; text-align: center; margin: 20px 0; color: #0f172a; }}
+                .btn {{ display: inline-block; background-color: #2563eb; color: #ffffff !important; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 10px; }}
+                .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #888; }}
+                .link {{ color: #2563eb; word-break: break-all; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>PrimeTrust Banking</h1>
+                </div>
+                <div class="content">
+                    <h2>Verify Your Email</h2>
+                    <p>Hello {user.first_name},</p>
+                    <p>You requested a new verification code for your PrimeTrust account. Please use the code below to complete your verification:</p>
+                    
+                    <div class="code-box">{code}</div>
+                    
+                    <p style="text-align: center;">
+                        <a href="{verification_link}" class="btn">Verify My Account</a>
+                    </p>
+                    
+                    <p>Or click this link directly: <br>
+                    <a href="{verification_link}" class="link">{verification_link}</a></p>
+                    
+                    <p>This code will expire in 10 minutes.</p>
+                    <p>If you didn't request this code, please ignore this email.</p>
+                </div>
+                <div class="footer">
+                    <p>&copy; {timezone.now().year} PrimeTrust Banking. All rights reserved.</p>
+                    <p>This is an automated message, please do not reply.</p>
+                </div>
+            </div>
+        </body>
+        </html>
         """
         
         send_mail(
             subject=subject,
-            message=message,
+            message="",
+            html_message=html_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=False,
@@ -988,6 +1035,7 @@ def resend_verification_email(request):
         return Response({'message': 'Verification email sent successfully'}, status=status.HTTP_200_OK)
         
     except Exception as e:
+        logger.error(f"Failed to send verification email: {e}")
         return Response({'error': 'Failed to send verification email'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

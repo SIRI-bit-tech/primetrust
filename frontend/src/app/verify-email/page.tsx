@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -17,7 +17,7 @@ const verificationSchema = z.object({
 
 type VerificationFormData = z.infer<typeof verificationSchema>
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -94,10 +94,10 @@ export default function VerifyEmailPage() {
     if (countdown > 0) return
 
     try {
-      // This would typically call an API to resend the verification code
-      // implementation required in api.ts
+      await authAPI.resendVerification(email)
       setCountdown(60) // Start 60-second countdown
       setError('')
+      // Show success message or toast (optional, for now just clearing error)
     } catch {
       setError('Failed to resend code. Please try again.')
     }
@@ -245,5 +245,28 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <Image
+            src="/images/background.jpg"
+            alt="Background"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        </div>
+        <div className="relative z-10 animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
   )
 }
