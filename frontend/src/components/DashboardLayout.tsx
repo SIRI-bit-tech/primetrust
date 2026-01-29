@@ -56,7 +56,6 @@ const navigation = [
   { name: 'Pay Bills', href: '/dashboard/bills', icon: Receipt },
   { name: 'Transaction History', href: '/dashboard/transactions', icon: History },
   { name: 'Profile', href: '/dashboard/profile', icon: User },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {

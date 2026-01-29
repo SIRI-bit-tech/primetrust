@@ -400,11 +400,13 @@ export default function LandingPage() {
               </div>
               <span className="text-xl font-bold text-white">PrimeTrust</span>
             </div>
-            <div className="flex gap-8 text-gray-400 text-sm">
-              <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <div className="flex flex-wrap justify-center md:justify-end gap-x-8 gap-y-4 text-gray-400 text-sm">
+              <Link href="/about-us" className="hover:text-white transition-colors">About Us</Link>
+              <Link href="/contact-us" className="hover:text-white transition-colors">Contact Us</Link>
+              <Link href="/security" className="hover:text-white transition-colors">Security</Link>
+              <Link href="/help-center" className="hover:text-white transition-colors">Help Center</Link>
+              <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
               <Link href="#" className="hover:text-white transition-colors">Terms of Service</Link>
-              <Link href="#" className="hover:text-white transition-colors">Cookie Policy</Link>
-              <Link href="#" className="hover:text-white transition-colors">Legal</Link>
             </div>
             <div className="flex gap-4">
               {/* Social placeholders */}
@@ -417,7 +419,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="text-center text-gray-600 text-xs border-t border-white/5 pt-8">
-            &copy; 2026 PrimeTrust Financial Technologies. All rights reserved. PrimeTrust is a financial technology company, not a bank. Banking services are provided by our partner banks.
+            &copy; 2026 PrimeTrust Financial Technologies. All rights reserved.
           </div>
         </div>
       </footer>
