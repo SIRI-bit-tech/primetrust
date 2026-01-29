@@ -608,7 +608,7 @@ class AdminSystemStatusView(APIView):
             components = [
                 {
                     'name': 'api',
-                    'display_name': 'API',
+                    'display_name': 'API Server',
                     'check': self._check_api_health
                 },
                 {
@@ -618,12 +618,12 @@ class AdminSystemStatusView(APIView):
                 },
                 {
                     'name': 'redis',
-                    'display_name': 'Redis',
+                    'display_name': 'Redis Cache',
                     'check': self._check_redis_health
                 },
                 {
                     'name': 'celery',
-                    'display_name': 'Celery',
+                    'display_name': 'Celery Workers',
                     'check': self._check_celery_health
                 },
                 {
@@ -633,12 +633,12 @@ class AdminSystemStatusView(APIView):
                 },
                 {
                     'name': 'payment',
-                    'display_name': 'Payment Processing',
-                    'check': self._check_payment_health
+                    'display_name': 'Payment Gateway',
+                    'check': self._check_payment_config
                 },
                 {
                     'name': 'market_data',
-                    'display_name': 'Market Data',
+                    'display_name': 'Market Data Feed',
                     'check': self._check_market_data_health
                 }
             ]
@@ -661,7 +661,7 @@ class AdminSystemStatusView(APIView):
                             'response_time': response_time,
                             'uptime_percentage': health_result.get('uptime_percentage', 99.9),
                             'error_count': health_result.get('error_count', 0),
-                            'request_count': health_result.get('request_count', 1000)
+                            'request_count': health_result.get('request_count', 0)
                         }
                     )
                     
@@ -671,6 +671,8 @@ class AdminSystemStatusView(APIView):
                     status_obj.response_time = response_time
                     status_obj.uptime_percentage = health_result.get('uptime_percentage', 99.9)
                     status_obj.last_check = timezone.now()
+                    if health_result['status'] != 'operational':
+                        status_obj.error_count += 1
                     status_obj.save()
                     
                     status_data.append(SystemStatusSerializer(status_obj).data)
@@ -722,13 +724,28 @@ class AdminSystemStatusView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def _check_api_health(self):
-        """Check API health."""
+        """Check API health and detailed system metrics."""
+        import os
+        try:
+            import psutil
+            cpu_usage = psutil.cpu_percent()
+            memory = psutil.virtual_memory()
+            memory_usage = memory.percent
+            message = f"CPU: {cpu_usage}%, Memory: {memory_usage}%"
+        except ImportError:
+            # Fallback if psutil is not installed
+            if hasattr(os, 'getloadavg'):
+                load = os.getloadavg()
+                message = f"Load Avg: {load[0]}, {load[1]}, {load[2]}"
+            else:
+                message = "API responding normally (no metrics available)"
+
         return {
             'status': 'operational',
-            'message': 'API is responding normally',
-            'uptime_percentage': 99.9,
+            'message': message,
+            'uptime_percentage': 99.99,
             'error_count': 0,
-            'request_count': 1000
+            'request_count': 0
         }
     
     def _check_database_health(self):
@@ -738,15 +755,15 @@ class AdminSystemStatusView(APIView):
                 cursor.execute("SELECT 1")
                 return {
                     'status': 'operational',
-                    'message': 'Database connection is healthy',
-                    'uptime_percentage': 99.8,
+                    'message': 'Database connection active',
+                    'uptime_percentage': 99.95,
                     'error_count': 0,
-                    'request_count': 5000
+                    'request_count': 0
                 }
         except Exception as e:
             return {
                 'status': 'major_outage',
-                'message': f'Database connection failed: {str(e)}',
+                'message': f'Connection failed: {str(e)}',
                 'uptime_percentage': 0.0,
                 'error_count': 1,
                 'request_count': 0
@@ -755,49 +772,76 @@ class AdminSystemStatusView(APIView):
     def _check_redis_health(self):
         """Check Redis health."""
         try:
-            cache.set('health_check', 'ok', 1)
+            cache.set('health_check', 'ok', 5)
             result = cache.get('health_check')
             if result == 'ok':
                 return {
                     'status': 'operational',
-                    'message': 'Redis cache is working',
-                    'uptime_percentage': 99.7,
+                    'message': 'Redis operational',
+                    'uptime_percentage': 99.95,
                     'error_count': 0,
-                    'request_count': 2000
+                    'request_count': 0
                 }
             else:
                 return {
                     'status': 'degraded',
-                    'message': 'Redis cache is responding slowly',
+                    'message': 'Cache write succeeded but read failed',
                     'uptime_percentage': 95.0,
                     'error_count': 1,
-                    'request_count': 1000
+                    'request_count': 0
                 }
         except Exception as e:
             return {
                 'status': 'partial_outage',
-                'message': f'Redis connection failed: {str(e)}',
+                'message': f'Redis unavailable: {str(e)}',
                 'uptime_percentage': 0.0,
                 'error_count': 1,
                 'request_count': 0
             }
     
     def _check_celery_health(self):
-        """Check Celery health."""
+        """Check Celery health by inspecting workers."""
         try:
-            # Simulate Celery health check
-            return {
-                'status': 'operational',
-                'message': 'Celery workers are running',
-                'uptime_percentage': 99.5,
+            # We can't always ping workers from the web process reliably without proper config
+            # But we can check if the broker (Redis) is reachable, which we already did.
+            # A more robust check: inspect active queues
+            from primetrust.celery import app as celery_app
+            
+            # Set a short timeout
+            i = celery_app.control.inspect(timeout=1.0)
+            available_nodes = i.ping()
+            
+            if available_nodes:
+                count = len(available_nodes)
+                return {
+                    'status': 'operational',
+                    'message': f'{count} worker node(s) active',
+                    'uptime_percentage': 99.5,
+                    'error_count': 0,
+                    'request_count': 0
+                }
+            else:
+                return {
+                    'status': 'degraded',
+                    'message': 'No active Celery workers found',
+                    'uptime_percentage': 50.0,
+                    'error_count': 1,
+                    'request_count': 0
+                }
+        except ImportError:
+             return {
+                'status': 'maintenance',
+                'message': 'Celery app not found/configured',
+                'uptime_percentage': 0,
                 'error_count': 0,
-                'request_count': 300
+                'request_count': 0
             }
         except Exception as e:
+            # If broker is down, this might fail
             return {
                 'status': 'degraded',
-                'message': f'Celery health check failed: {str(e)}',
-                'uptime_percentage': 85.0,
+                'message': f'Could not contact workers: {str(e)}',
+                'uptime_percentage': 80.0,
                 'error_count': 1,
                 'request_count': 0
             }
@@ -805,59 +849,80 @@ class AdminSystemStatusView(APIView):
     def _check_email_health(self):
         """Check email service health."""
         try:
-            # Simulate email service health check
+             # Actually try to open a connection to the SMTP server
+            from django.core.mail import get_connection
+            connection = get_connection()
+            connection.open()
+            connection.close()
+            
             return {
                 'status': 'operational',
-                'message': 'Email service is operational',
-                'uptime_percentage': 99.6,
+                'message': 'SMTP connection successful',
+                'uptime_percentage': 99.8,
                 'error_count': 0,
-                'request_count': 150
+                'request_count': 0
             }
         except Exception as e:
             return {
                 'status': 'partial_outage',
-                'message': f'Email service failed: {str(e)}',
-                'uptime_percentage': 0.0,
+                'message': f'SMTP connection failed: {str(e)}',
+                'uptime_percentage': 70.0,
                 'error_count': 1,
                 'request_count': 0
             }
     
-    def _check_payment_health(self):
-        """Check payment processing health."""
-        try:
-            # Simulate payment service health check
-            return {
+    def _check_payment_config(self):
+        """Check payment configuration."""
+        # Since we can't easily ping a payment gateway without credentials or making a transaction,
+        # we check if critical settings are present.
+        from django.conf import settings
+        
+        has_stripe = hasattr(settings, 'STRIPE_SECRET_KEY') and settings.STRIPE_SECRET_KEY
+        # Or checking env directly if settings wrapper hides it
+        
+        if has_stripe:
+             return {
                 'status': 'operational',
-                'message': 'Payment processing is operational',
-                'uptime_percentage': 99.9,
+                'message': 'Payment configuration present',
+                'uptime_percentage': 100.0,
                 'error_count': 0,
-                'request_count': 800
+                'request_count': 0
             }
-        except Exception as e:
-            return {
-                'status': 'major_outage',
-                'message': f'Payment processing failed: {str(e)}',
-                'uptime_percentage': 0.0,
-                'error_count': 1,
+        else:
+             # It's not really an outage if it's not configured, but let's call it maintenance
+             return {
+                'status': 'maintenance',
+                'message': 'Payment gateway not configured',
+                'uptime_percentage': 100.0,
+                'error_count': 0,
                 'request_count': 0
             }
     
     def _check_market_data_health(self):
-        """Check market data service health."""
+        """Check market data service (CoinGecko)."""
         try:
-            # Simulate market data service health check
-            return {
-                'status': 'operational',
-                'message': 'Market data service is operational',
-                'uptime_percentage': 99.4,
-                'error_count': 0,
-                'request_count': 1200
-            }
+            response = requests.get('https://api.coingecko.com/api/v3/ping', timeout=3)
+            if response.status_code == 200:
+                return {
+                    'status': 'operational',
+                    'message': 'CoinGecko API reachable',
+                    'uptime_percentage': 99.0,
+                    'error_count': 0,
+                    'request_count': 0
+                }
+            else:
+                return {
+                    'status': 'degraded',
+                    'message': f'CoinGecko returned {response.status_code}',
+                    'uptime_percentage': 80.0,
+                    'error_count': 1,
+                    'request_count': 0
+                }
         except Exception as e:
             return {
-                'status': 'degraded',
-                'message': f'Market data service failed: {str(e)}',
-                'uptime_percentage': 90.0,
+                'status': 'partial_outage',
+                'message': f'Market data unavailable: {str(e)}',
+                'uptime_percentage': 60.0,
                 'error_count': 1,
                 'request_count': 0
             }
