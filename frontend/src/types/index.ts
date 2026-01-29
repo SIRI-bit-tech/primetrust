@@ -34,6 +34,8 @@ export interface User {
   is_superuser: boolean
   balance?: number
   bitcoin_balance?: number
+  bitcoin_wallet_address?: string
+  bitcoin_qr_code?: string
   two_factor_setup_completed?: boolean
   transfer_pin_setup_completed?: boolean
   is_account_locked?: boolean

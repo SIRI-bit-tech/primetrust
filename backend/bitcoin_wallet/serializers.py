@@ -6,6 +6,7 @@ class BitcoinWalletSerializer(serializers.ModelSerializer):
     """Serializer for Bitcoin wallet information"""
     user = serializers.ReadOnlyField(source='user.username')
     qr_code_url = serializers.SerializerMethodField()
+    wallet_address = serializers.SerializerMethodField()
     
     class Meta:
         model = BitcoinWallet
@@ -17,12 +18,28 @@ class BitcoinWalletSerializer(serializers.ModelSerializer):
 
     def get_qr_code_url(self, obj):
         """Get the URL for the QR code image"""
+        # 1. Check BitcoinWallet model's ImageField
         if obj.qr_code:
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.qr_code.url)
             return obj.qr_code.url
+        
+        # 2. Check User model's bitcoin_qr_code field (Cloudinary URL)
+        if hasattr(obj.user, 'bitcoin_qr_code') and obj.user.bitcoin_qr_code:
+            return obj.user.bitcoin_qr_code
+            
         return None
+
+    def get_wallet_address(self, obj):
+        """Get the wallet address, falling back to User model if needed"""
+        if obj.wallet_address:
+            return obj.wallet_address
+        
+        if hasattr(obj.user, 'bitcoin_wallet_address') and obj.user.bitcoin_wallet_address:
+            return obj.user.bitcoin_wallet_address
+            
+        return ""
 
 
 class BitcoinWalletCreateSerializer(serializers.ModelSerializer):

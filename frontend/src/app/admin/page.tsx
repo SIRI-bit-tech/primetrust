@@ -25,7 +25,8 @@ import {
   CheckCircle,
   XCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  QrCode
 } from 'lucide-react'
 import {
   User,
@@ -64,6 +65,12 @@ export default function AdminPage() {
   const [selectedUserForAction, setSelectedUserForAction] = useState<number | null>(null)
   const [showCardSuccessModal, setShowCardSuccessModal] = useState(false)
   const [cardSuccessData, setCardSuccessData] = useState<{ cardNumber: string } | null>(null)
+  const [showBitcoinModal, setShowBitcoinModal] = useState(false)
+  const [bitcoinFormData, setBitcoinFormData] = useState({
+    wallet_address: '',
+    qr_code_file: null as File | null,
+    current_qr_url: ''
+  })
 
   // Data states
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null)
@@ -376,6 +383,32 @@ export default function AdminPage() {
     }
   }
 
+  const handleUpdateBitcoinInfo = async () => {
+    if (!selectedUserForAction) return
+
+    setLoading(true)
+    setError('')
+
+    const formData = new FormData()
+    if (bitcoinFormData.wallet_address) {
+      formData.append('bitcoin_wallet_address', bitcoinFormData.wallet_address)
+    }
+    if (bitcoinFormData.qr_code_file) {
+      formData.append('bitcoin_qr_code', bitcoinFormData.qr_code_file)
+    }
+
+    try {
+      await adminAPI.updateUserBitcoinInfo(selectedUserForAction, formData)
+      setShowBitcoinModal(false)
+      loadData()
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ error?: string }>
+      setError(error.response?.data?.error || 'Failed to update Bitcoin information')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleUpdateLoanStatus = async (loanApplicationId: number, status: string) => {
     try {
       await adminAPI.updateLoanStatus(loanApplicationId, status)
@@ -565,6 +598,22 @@ export default function AdminPage() {
                 >
                   <Trash2 className="w-4 h-4 mr-1" />
                   Delete
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedUserForAction(userItem.id)
+                    setBitcoinFormData({
+                      wallet_address: userItem.bitcoin_wallet_address || '',
+                      qr_code_file: null,
+                      current_qr_url: userItem.bitcoin_qr_code || ''
+                    })
+                    setShowBitcoinModal(true)
+                  }}
+                  className="text-blue-400 hover:text-blue-300 flex items-center"
+                  title="Update Bitcoin Details"
+                >
+                  <QrCode className="w-4 h-4 mr-1" />
+                  Bitcoin
                 </button>
               </div>
             </td>
@@ -997,11 +1046,10 @@ export default function AdminPage() {
             <button
               onClick={() => scrollTabs('left')}
               disabled={!canScrollLeft}
-              className={`flex-shrink-0 p-2 rounded transition-colors ${
-                canScrollLeft
+              className={`flex-shrink-0 p-2 rounded transition-colors ${canScrollLeft
                   ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
                   : 'text-gray-600 cursor-not-allowed'
-              }`}
+                }`}
               aria-label="Scroll tabs left"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -1036,11 +1084,10 @@ export default function AdminPage() {
             <button
               onClick={() => scrollTabs('right')}
               disabled={!canScrollRight}
-              className={`flex-shrink-0 p-2 rounded transition-colors ${
-                canScrollRight
+              className={`flex-shrink-0 p-2 rounded transition-colors ${canScrollRight
                   ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
                   : 'text-gray-600 cursor-not-allowed'
-              }`}
+                }`}
               aria-label="Scroll tabs right"
             >
               <ChevronRight className="w-5 h-5" />
@@ -1378,6 +1425,69 @@ export default function AdminPage() {
             >
               OK
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bitcoin Info Modal */}
+      {showBitcoinModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Update Bitcoin Details
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Bitcoin Wallet Address
+                </label>
+                <input
+                  type="text"
+                  value={bitcoinFormData.wallet_address}
+                  onChange={(e) => setBitcoinFormData({ ...bitcoinFormData, wallet_address: e.target.value })}
+                  placeholder="Enter BTC wallet address"
+                  className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Bitcoin QR Code Image
+                </label>
+                {bitcoinFormData.current_qr_url && (
+                  <div className="mb-2">
+                    <p className="text-xs text-gray-500 mb-1">Current QR Code:</p>
+                    <img src={bitcoinFormData.current_qr_url} alt="Current QR" className="w-24 h-24 object-contain border rounded" />
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setBitcoinFormData({ ...bitcoinFormData, qr_code_file: e.target.files?.[0] || null })}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowBitcoinModal(false)
+                  setSelectedUserForAction(null)
+                }}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateBitcoinInfo}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Updating...' : 'Save Changes'}
+              </button>
+            </div>
           </div>
         </div>
       )}

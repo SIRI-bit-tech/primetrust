@@ -11,13 +11,15 @@ from django.core.cache import cache
 import redis
 import time
 import requests
+import cloudinary
+import cloudinary.uploader
 
 from accounts.models import SecurityAuditLog
 from transactions.models import Transaction, Bill, Investment, BitcoinTransaction
 from loans.models import Loan as AppLoan, LoanApplication
 from banking.models import VirtualCard, CardApplication, Transfer, CheckDeposit
 from api.models import Notification, SystemStatus
-from bitcoin_wallet.models import CurrencySwap
+from bitcoin_wallet.models import CurrencySwap, BitcoinWallet
 
 User = get_user_model()
 
@@ -214,6 +216,51 @@ class AdminUserBitcoinBalanceView(APIView):
                 return Response({'error': 'Invalid Bitcoin balance amount'}, status=status.HTTP_400_BAD_REQUEST)
         
         return Response({'error': 'Bitcoin balance is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminUpdateUserBitcoinInfoView(APIView):
+    """Update user Bitcoin wallet address and QR code (admin only)."""
+    
+    permission_classes = [permissions.IsAdminUser]
+    
+    def post(self, request, user_id):
+        user = get_object_or_404(User, pk=user_id)
+        
+        wallet_address = request.data.get('bitcoin_wallet_address')
+        qr_code_file = request.FILES.get('bitcoin_qr_code')
+        
+        # Sync with BitcoinWallet model if it exists
+        wallet, _ = BitcoinWallet.objects.get_or_create(user=user)
+        
+        if wallet_address:
+            user.bitcoin_wallet_address = wallet_address
+            wallet.wallet_address = wallet_address
+            
+        if qr_code_file:
+            try:
+                # Upload to Cloudinary
+                upload_result = cloudinary.uploader.upload(
+                    qr_code_file,
+                    folder='primetrust/bitcoin_qrs/',
+                    public_id=f"user_{user.id}_bitcoin_qr",
+                    overwrite=True,
+                    resource_type='image'
+                )
+                qr_url = upload_result.get('secure_url')
+                user.bitcoin_qr_code = qr_url
+                # Clear the old ImageField so the serializer falls back to the Cloudinary URL
+                wallet.qr_code = None
+            except Exception as e:
+                return Response({'error': f'Failed to upload QR code: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        user.save()
+        wallet.save()
+        
+        return Response({
+            'message': 'Bitcoin information updated successfully',
+            'bitcoin_wallet_address': user.bitcoin_wallet_address,
+            'bitcoin_qr_code': user.bitcoin_qr_code
+        }, status=status.HTTP_200_OK)
 
 
 class AdminTransactionListView(APIView):

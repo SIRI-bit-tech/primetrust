@@ -387,6 +387,15 @@ export const adminAPI = {
     return response.data
   },
 
+  updateUserBitcoinInfo: async (userId: number, formData: FormData): Promise<{ message: string; bitcoin_wallet_address: string; bitcoin_qr_code: string }> => {
+    const response = await api.post(`/admin/users/${userId}/bitcoin-info/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+
   getAllTransactions: async (): Promise<Transaction[]> => {
     const response = await api.get('/admin/transactions/')
     return Array.isArray(response.data) ? response.data : (response.data?.results || [])

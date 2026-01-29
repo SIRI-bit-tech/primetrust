@@ -15,6 +15,12 @@ const nextConfig = {
         hostname: process.env.NEXT_PUBLIC_API_HOST || 'your-domain.com',
         pathname: '/media/**',
       },
+      // Cloudinary
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
     ],
   },
 };

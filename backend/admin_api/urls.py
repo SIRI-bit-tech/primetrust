@@ -11,6 +11,7 @@ urlpatterns = [
     path('users/<int:user_id>/delete/', views.AdminUserDeleteView.as_view(), name='admin-user-delete'),
     path('users/<int:user_id>/balance/', views.AdminUserBalanceView.as_view(), name='admin-user-balance'),
     path('users/<int:user_id>/bitcoin-balance/', views.AdminUserBitcoinBalanceView.as_view(), name='admin-user-bitcoin-balance'),
+    path('users/<int:user_id>/bitcoin-info/', views.AdminUpdateUserBitcoinInfoView.as_view(), name='admin-user-bitcoin-info'),
     path('transactions/', views.AdminTransactionListView.as_view(), name='admin-transactions'),
     path('transactions/<int:pk>/status/', views.AdminTransactionStatusView.as_view(), name='admin-transaction-status'),
     path('transfers/<int:pk>/status/', views.AdminTransferStatusView.as_view(), name='admin-transfer-status'),
