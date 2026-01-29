@@ -21,7 +21,13 @@ from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
 from transactions import views as transaction_views
 
+from django.http import JsonResponse
+
+def api_root(request):
+    return JsonResponse({"message": "PrimeTrust API is running"})
+
 urlpatterns = [
+    path('', api_root, name='api-root'),
     path('admin/', admin.site.urls),
     
     # API endpoints
