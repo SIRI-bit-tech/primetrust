@@ -64,30 +64,66 @@ class UserRegistrationView(APIView):
                 'user_id': user.id
             }, status=status.HTTP_201_CREATED)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid registration data. Please check your inputs.'}, status=status.HTTP_400_BAD_REQUEST)
     
     def send_verification_email(self, user, code):
         """Send verification email to user."""
         try:
             subject = 'Verify your PrimeTrust account'
-            message = f"""
-            Hello {user.first_name},
+            verification_link = f"{settings.FRONTEND_URL}/verify-email?email={user.email}&code={code}"
             
-            Thank you for registering with PrimeTrust! Your verification code is:
-            
-            {code}
-            
-            This code will expire in 10 minutes.
-            
-            If you didn't create this account, please ignore this email.
-            
-            Best regards,
-            The PrimeTrust Team
+            html_message = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: 'Arial', sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
+                    .container {{ max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+                    .header {{ background-color: #1e3a8a; color: #ffffff; padding: 30px; text-align: center; }}
+                    .header h1 {{ margin: 0; font-size: 24px; letter-spacing: 1px; }}
+                    .content {{ padding: 30px; }}
+                    .code-box {{ background-color: #f0f7ff; border-left: 4px solid #1e3a8a; padding: 15px; margin: 20px 0; font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 5px; color: #1e3a8a; }}
+                    .btn {{ display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }}
+                    .footer {{ background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; }}
+                    .link {{ color: #1e3a8a; text-decoration: underline; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>PRIMETRUST</h1>
+                    </div>
+                    <div class="content">
+                        <h2>Verify Your Email Address</h2>
+                        <p>Hello {user.first_name},</p>
+                        <p>Thank you for choosing PrimeTrust. To ensure the security of your account, please verify your email address using the code below:</p>
+                        
+                        <div class="code-box">{code}</div>
+                        
+                        <p style="text-align: center;">
+                            <a href="{verification_link}" class="btn" style="color: #ffffff;">Verify My Account</a>
+                        </p>
+                        
+                        <p>Or click this link directly: <br>
+                        <a href="{verification_link}" class="link">{verification_link}</a></p>
+                        
+                        <p>This code will expire in 10 minutes.</p>
+                        <p>If you didn't create an account with PrimeTrust, you can safely ignore this email.</p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; {timezone.now().year} PrimeTrust Banking. All rights reserved.</p>
+                        <p>This is an automated message, please do not reply.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
             """
             
+            # Send HTML email
             send_mail(
                 subject=subject,
-                message=message,
+                message="", # Plain text fallback remains empty as we rely on html_message
+                html_message=html_message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[user.email],
                 fail_silently=False,
@@ -144,7 +180,7 @@ class UserLoginView(APIView):
             # No 2FA required, proceed with normal login
             return self.complete_login(user, request)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid credentials.'}, status=status.HTTP_400_BAD_REQUEST)
     
     def complete_login(self, user, request):
         """Complete the login process."""
@@ -167,6 +203,8 @@ class UserLoginView(APIView):
         # Create response
         response = Response({
             'user': UserSerializer(user).data,
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
             'requires_2fa': False
         }, status=status.HTTP_200_OK)
         
@@ -365,7 +403,7 @@ class PasswordResetRequestView(APIView):
                     'message': 'If an account with this email exists, a password reset link has been sent.'
                 }, status=status.HTTP_200_OK)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid request data.'}, status=status.HTTP_400_BAD_REQUEST)
     
     def send_reset_email(self, user, token):
         """Send password reset email."""
@@ -423,7 +461,7 @@ class PasswordResetView(APIView):
             
             return Response({'message': 'Password reset successfully'}, status=status.HTTP_200_OK)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid password reset data or expired token.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
@@ -464,7 +502,7 @@ class PasswordChangeView(APIView):
             
             return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid password data.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class BalanceView(APIView):
@@ -541,7 +579,7 @@ class TwoFactorSetupView(APIView):
                 'message': f'Two-factor authentication {status_text} successfully'
             }, status=status.HTTP_200_OK)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid data provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TwoFactorInitiateView(APIView):
@@ -580,7 +618,7 @@ class TwoFactorInitiateView(APIView):
                 'backup_codes': backup_codes
             }, status=status.HTTP_200_OK)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Could not initiate 2FA setup. Please try again.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TwoFactorVerifyView(APIView):
@@ -628,7 +666,7 @@ class TwoFactorVerifyView(APIView):
                     'error': 'Invalid verification code. Please try again.'
                 }, status=status.HTTP_400_BAD_REQUEST)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid verification code.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TransferPinSetupView(APIView):
@@ -671,7 +709,7 @@ class TransferPinSetupView(APIView):
                 'registration_complete': user.is_registration_complete()
             }, status=status.HTTP_200_OK)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid PIN format.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TransferPinVerifyView(APIView):
@@ -726,7 +764,7 @@ class TransferPinVerifyView(APIView):
                     'remaining_attempts': max(0, 3 - user.failed_pin_attempts)
                 }, status=status.HTTP_400_BAD_REQUEST)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid PIN format.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class RegistrationStatusView(APIView):
@@ -824,7 +862,7 @@ class TwoFactorLoginVerifyView(APIView):
                     'error': 'Invalid 2FA code or backup code. Please try again.'
                 }, status=status.HTTP_400_BAD_REQUEST)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid verification code.'}, status=status.HTTP_400_BAD_REQUEST)
     
     def complete_login(self, user, request):
         """Complete the login process after 2FA verification."""
@@ -838,6 +876,8 @@ class TwoFactorLoginVerifyView(APIView):
         # Create response
         response = Response({
             'user': UserSerializer(user).data,
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
             'requires_2fa': False
         }, status=status.HTTP_200_OK)
         
@@ -1186,29 +1226,30 @@ class TokenRefreshView(BaseTokenRefreshView):
                 
                 # Create response with cookies
                 response = Response({
-                    'message': 'Token refreshed successfully'
+                    'message': 'Token refreshed successfully',
+                    'access_token': access_token,
+                    'refresh_token': new_refresh_token
                 }, status=status.HTTP_200_OK)
                 
-                # Set new access token as cookie
+                # Set tokens as HTTP-only cookies
+                cookie_base = {
+                    'httponly': True,
+                    'secure': not settings.DEBUG,
+                    'samesite': 'None' if not settings.DEBUG else 'Lax',
+                    'path': '/'
+                }
+                
                 response.set_cookie(
                     key='access_token',
                     value=access_token,
-                    max_age=3600,  # 1 hour
-                    httponly=True,
-                    secure=not settings.DEBUG,
-                    samesite='Lax',
-                    path='/'
+                    max_age=3600,
+                    **cookie_base
                 )
-                
-                # Set new refresh token as cookie
                 response.set_cookie(
                     key='refresh_token',
                     value=new_refresh_token,
-                    max_age=86400 * 7,  # 7 days
-                    httponly=True,
-                    secure=not settings.DEBUG,
-                    samesite='Lax',
-                    path='/'
+                    max_age=86400 * 7,
+                    **cookie_base
                 )
                 
                 return response

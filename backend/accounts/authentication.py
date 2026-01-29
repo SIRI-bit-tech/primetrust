@@ -13,17 +13,21 @@ class CookieJWTAuthentication(JWTAuthentication):
     """
     
     def authenticate(self, request):
-        # First try to get token from cookie
-        raw_token = request.COOKIES.get('access_token')
-        
-        # If not in cookie, try Authorization header (backward compatibility)
-        if not raw_token:
-            header = self.get_header(request)
-            if header is None:
-                return None
-            
+        # 1. Try Authorization header first (standard JWT behavior)
+        # This allows the frontend to explicitly override cookies (e.g., using fallback from sessionStorage)
+        header = self.get_header(request)
+        if header is not None:
             raw_token = self.get_raw_token(header)
+            if raw_token is not None:
+                try:
+                    validated_token = self.get_validated_token(raw_token)
+                    return self.get_user(validated_token), validated_token
+                except Exception:
+                    # If header token is invalid, fall through to try cookie
+                    pass
         
+        # 2. Fallback to HTTP-only cookie
+        raw_token = request.COOKIES.get('access_token')
         if raw_token is None:
             return None
         

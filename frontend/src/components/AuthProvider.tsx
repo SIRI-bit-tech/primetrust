@@ -99,7 +99,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const setUserFromTokens = (accessToken: string, refreshToken: string, userData: User) => {
-    // Tokens are now in HTTP-only cookies, just store user data
+    // Tokens are now in HTTP-only cookies, but we store them in session storage as fallback
+    if (accessToken) sessionStorage.setItem('access_token', accessToken)
+    if (refreshToken) sessionStorage.setItem('refresh_token', refreshToken)
+
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
     // Clear temp token after successful 2FA
@@ -120,6 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Normal login flow - tokens are in HTTP-only cookies
+      // We also store them as fallbacks
+      if (response.access_token) sessionStorage.setItem('access_token', response.access_token)
+      if (response.refresh_token) sessionStorage.setItem('refresh_token', response.refresh_token)
+
       localStorage.setItem('user', JSON.stringify(response.user))
       setUser(response.user)
 

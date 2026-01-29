@@ -5,17 +5,19 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { 
-  Lock, 
-  Shield, 
+import {
+  Lock,
+  Shield,
   AlertCircle,
   ArrowRight,
   RefreshCw,
   Eye,
   EyeOff
 } from 'lucide-react'
+import Image from 'next/image'
 import { useAuth } from '@/hooks/useAuth'
 import { authAPI } from '@/lib/api'
+import { cn } from '@/lib/utils'
 
 const transferPinSchema = z.object({
   pin: z.string()
@@ -68,15 +70,12 @@ export default function TransferPinSetupPage() {
   const watchedPin = watch('pin')
 
   useEffect(() => {
-    // Refresh user state to ensure we have the latest authentication
-    // Token is in HTTP-only cookie
     if (!user) {
       refreshUser()
     }
   }, [user, refreshUser])
 
   useEffect(() => {
-    
     // Only redirect to dashboard if user is loaded and PIN is already completed
     if (user && user.transfer_pin_setup_completed) {
       router.push('/dashboard')
@@ -87,12 +86,11 @@ export default function TransferPinSetupPage() {
     try {
       setLoading(true)
       setError('')
-      
+
       const response = await authAPI.setupTransferPin(data.pin, data.confirmPin)
-      
+
       window.location.href = '/dashboard'
     } catch (err: unknown) {
-      // Generic error message to prevent information disclosure
       setError('Failed to set up transfer PIN. Please try again.')
     } finally {
       setLoading(false)
@@ -100,45 +98,58 @@ export default function TransferPinSetupPage() {
   }
 
   const getPinStrength = (pin: string) => {
-    if (!pin || pin.length !== 4) return { strength: 'weak', color: 'text-red-600', bg: 'bg-red-100' }
-    
+    if (!pin || pin.length !== 4) return { strength: 'Weak', color: 'text-red-400', bg: 'bg-red-500/10' }
+
     const uniqueDigits = new Set(pin).size
     const hasConsecutive = /(?:0(?=1)|1(?=2)|2(?=3)|3(?=4)|4(?=5)|5(?=6)|6(?=7)|7(?=8)|8(?=9))/.test(pin)
     const isCommon = ['0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999'].includes(pin)
-    
+
     if (isCommon || hasConsecutive || uniqueDigits === 1) {
-      return { strength: 'weak', color: 'text-red-600', bg: 'bg-red-100' }
+      return { strength: 'Weak', color: 'text-red-400', bg: 'bg-red-500/10' }
     } else if (uniqueDigits === 2) {
-      return { strength: 'medium', color: 'text-yellow-600', bg: 'bg-yellow-100' }
+      return { strength: 'Medium', color: 'text-yellow-400', bg: 'bg-yellow-500/10' }
     } else {
-      return { strength: 'strong', color: 'text-green-600', bg: 'bg-green-100' }
+      return { strength: 'Strong', color: 'text-green-400', bg: 'bg-green-500/10' }
     }
   }
 
   const pinStrength = getPinStrength(watchedPin)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-navy via-primary-dark to-blue-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+      {/* Background Image */}
+      <div className="absolute inset-0">
+        <Image
+          src="/images/background.jpg"
+          alt="Background"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+      </div>
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 shadow-2xl">
+
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 bg-white/10 border border-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-green-400" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-white mb-2">
               Set Up Transfer PIN
             </h1>
-            <p className="text-gray-600">
+            <p className="text-white/80">
               Create a 4-digit PIN for secure money transfers
             </p>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* PIN Input */}
-            <div>
-              <label htmlFor="pin" className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-2">
+              <label htmlFor="pin" className="block text-sm font-medium text-white/90">
                 Transfer PIN
               </label>
               <div className="relative">
@@ -147,32 +158,36 @@ export default function TransferPinSetupPage() {
                   type={showPin ? 'text' : 'password'}
                   id="pin"
                   placeholder="Enter 4-digit PIN"
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={cn(
+                    "w-full px-4 py-3 pr-12 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all duration-200",
+                    errors.pin && "border-red-400 focus:ring-red-400"
+                  )}
                   maxLength={4}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPin(!showPin)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white transition-colors"
                 >
                   {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
               {errors.pin && (
-                <p className="mt-1 text-sm text-red-600">{errors.pin.message}</p>
+                <p className="text-sm text-red-300">{errors.pin.message}</p>
               )}
               {watchedPin && watchedPin.length === 4 && (
-                <div className={`mt-2 px-3 py-2 rounded-lg ${pinStrength.bg}`}>
-                  <p className={`text-sm font-medium ${pinStrength.color}`}>
-                    PIN Strength: {pinStrength.strength.charAt(0).toUpperCase() + pinStrength.strength.slice(1)}
-                  </p>
+                <div className={`mt-2 px-3 py-2 rounded-lg ${pinStrength.bg} border border-white/10 flex items-center justify-between`}>
+                  <span className="text-xs text-white/60 uppercase tracking-wider">Security Level</span>
+                  <span className={`text-sm font-bold ${pinStrength.color}`}>
+                    {pinStrength.strength}
+                  </span>
                 </div>
               )}
             </div>
 
             {/* Confirm PIN Input */}
-            <div>
-              <label htmlFor="confirmPin" className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-2">
+              <label htmlFor="confirmPin" className="block text-sm font-medium text-white/90">
                 Confirm PIN
               </label>
               <div className="relative">
@@ -181,29 +196,30 @@ export default function TransferPinSetupPage() {
                   type={showConfirmPin ? 'text' : 'password'}
                   id="confirmPin"
                   placeholder="Re-enter 4-digit PIN"
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={cn(
+                    "w-full px-4 py-3 pr-12 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all duration-200",
+                    errors.confirmPin && "border-red-400 focus:ring-red-400"
+                  )}
                   maxLength={4}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPin(!showConfirmPin)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white transition-colors"
                 >
                   {showConfirmPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
               {errors.confirmPin && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPin.message}</p>
+                <p className="text-sm text-red-300">{errors.confirmPin.message}</p>
               )}
             </div>
 
             {/* Error Display */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                  <span className="text-red-800 text-sm">{error}</span>
-                </div>
+              <div className="bg-red-500/20 border border-red-400/30 rounded-xl p-4 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-red-300 flex-shrink-0" />
+                <span className="text-red-200 text-sm">{error}</span>
               </div>
             )}
 
@@ -211,7 +227,7 @@ export default function TransferPinSetupPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-500 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] disabled:hover:scale-100 flex items-center justify-center space-x-2 shadow-lg hover:shadow-blue-500/25"
             >
               {loading ? (
                 <>
@@ -228,18 +244,19 @@ export default function TransferPinSetupPage() {
           </form>
 
           {/* Progress Indicator */}
-          <div className="mt-8">
-            <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-              <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-              <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-              <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-            </div>
-            <p className="text-center text-xs text-gray-500 mt-2">
-              Step 3 of 3: Transfer PIN Setup
-            </p>
+          <div className="mt-8 flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
           </div>
+        </div>
+
+        <div className="mt-6 text-center">
+          <p className="text-white/40 text-xs flex items-center justify-center gap-1">
+            <Lock className="w-3 h-3" /> Secure Banking Environment
+          </p>
         </div>
       </div>
     </div>
   )
-} 
+}

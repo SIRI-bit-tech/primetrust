@@ -38,8 +38,25 @@ if not User.objects.filter(email=email).exists():
 else:
     print(f"Superuser {email} already exists.")
 EOF
-  else
     echo "Skipping superuser creation (missing DJANGO_SUPERUSER_EMAIL or DJANGO_SUPERUSER_PASSWORD)"
+  fi
+}
+
+# Function to keep server alive (Self-Ping)
+# NOTE: This is a workaround for Free Tier idling.
+keep_alive() {
+  # Only run if RENDER_EXTERNAL_URL is set (indicates we are on Render)
+  if [ -n "$RENDER_EXTERNAL_URL" ]; then
+    echo "Initializing keep-alive ping for $RENDER_EXTERNAL_URL..."
+    # Run in subshell in background
+    (
+      while true; do
+        sleep 840 # Sleep 14 minutes (just under the 15-min limit)
+        echo "Sending keep-alive ping..."
+        # Use Python to ping the URL (avoids needing curl/wget installed)
+        python -c "import urllib.request; print(urllib.request.urlopen('$RENDER_EXTERNAL_URL').getcode())" || echo "Ping failed"
+      done
+    ) &
   fi
 }
 
@@ -51,6 +68,7 @@ case "$PROCESS_TYPE" in
     run_migrations
     create_superuser
     collect_static
+    keep_alive
     echo "Starting Gunicorn..."
     exec gunicorn primetrust.wsgi:application \
         --bind 0.0.0.0:"${PORT:-8000}" \

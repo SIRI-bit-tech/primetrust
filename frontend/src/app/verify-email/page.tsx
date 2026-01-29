@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Mail, ArrowLeft, CheckCircle, XCircle } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { authAPI } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -24,22 +24,33 @@ export default function VerifyEmailPage() {
   const [email, setEmail] = useState('')
   const [countdown, setCountdown] = useState(0)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    setValue
   } = useForm<VerificationFormData>({
     resolver: zodResolver(verificationSchema),
   })
 
   useEffect(() => {
-    // Get email from localStorage or URL params
+    // Get email/code from URL params or localStorage
+    const emailParam = searchParams.get('email')
+    const codeParam = searchParams.get('code')
     const storedEmail = localStorage.getItem('pending_verification_email')
-    if (storedEmail) {
+
+    if (emailParam) {
+      setEmail(emailParam)
+    } else if (storedEmail) {
       setEmail(storedEmail)
     }
-  }, [])
+
+    if (codeParam) {
+      setValue('code', codeParam)
+    }
+  }, [searchParams, setValue])
 
   useEffect(() => {
     if (countdown > 0) {
@@ -56,11 +67,11 @@ export default function VerifyEmailPage() {
       const response = await authAPI.verifyEmail(email, data.code)
       setSuccess(true)
       localStorage.removeItem('pending_verification_email')
-      
+
       // Store user data (tokens are in HTTP-only cookies)
       if (response.user) {
         localStorage.setItem('user', JSON.stringify(response.user))
-        
+
         // Force a page reload to ensure AuthProvider picks up the new user state
         setTimeout(() => {
           window.location.href = '/two-factor-setup'
@@ -84,6 +95,7 @@ export default function VerifyEmailPage() {
 
     try {
       // This would typically call an API to resend the verification code
+      // implementation required in api.ts
       setCountdown(60) // Start 60-second countdown
       setError('')
     } catch {
@@ -93,29 +105,53 @@ export default function VerifyEmailPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-navy via-primary-dark to-blue-900 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center animate-in zoom-in-95 duration-500">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <Image
+            src="/images/background.jpg"
+            alt="Background"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        </div>
+
+        <div className="relative z-10 backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-12 shadow-2xl max-w-md w-full text-center animate-in zoom-in-95 duration-500">
+          <div className="w-20 h-20 bg-green-500/20 border border-green-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-10 h-10 text-green-400" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Email Verified!</h1>
-          <p className="text-gray-600 mb-6">
+          <h1 className="text-3xl font-bold text-white mb-4">Email Verified!</h1>
+          <p className="text-white/80 mb-8 text-lg">
             Your email has been successfully verified. Redirecting to security setup...
           </p>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-dark mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-navy via-primary-dark to-blue-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+      {/* Background Image */}
+      <div className="absolute inset-0">
+        <Image
+          src="/images/background.jpg"
+          alt="Background"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+      </div>
+
+      <div className="relative z-10 w-full max-w-md">
         {/* Back to Home */}
         <div className="mb-8 animate-in slide-in-from-top-4 duration-500">
           <Link
             href="/"
-            className="inline-flex items-center text-white hover:text-gray-200 transition-colors"
+            className="inline-flex items-center text-white/80 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
@@ -123,29 +159,30 @@ export default function VerifyEmailPage() {
         </div>
 
         {/* Verification Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8 animate-in slide-in-from-bottom-4 duration-500 delay-100">
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 shadow-2xl animate-in slide-in-from-bottom-4 duration-500 delay-100">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-primary-dark/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-primary-dark" />
+            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
+              <Mail className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
-            <p className="text-gray-600">
-              We&apos;ve sent a 6-digit verification code to{' '}
-              <span className="font-semibold text-primary-dark">{email}</span>
+            <h1 className="text-2xl font-bold text-white mb-2">Verify Your Email</h1>
+            <p className="text-white/80">
+              We&apos;ve sent a 6-digit verification code to
+              <br />
+              <span className="font-semibold text-white mt-1 block">{email}</span>
             </p>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center animate-in slide-in-from-top-2 duration-300">
-              <XCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
-              <p className="text-red-600 text-sm">{error}</p>
+            <div className="mb-6 p-4 bg-red-500/20 border border-red-400/30 rounded-xl flex items-center animate-in slide-in-from-top-2 duration-300">
+              <XCircle className="w-5 h-5 text-red-300 mr-2 flex-shrink-0" />
+              <p className="text-red-200 text-sm">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Verification Code */}
             <div>
-              <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="code" className="block text-sm font-medium text-white/90 mb-2">
                 Verification Code
               </label>
               <input
@@ -154,16 +191,14 @@ export default function VerifyEmailPage() {
                 id="code"
                 maxLength={6}
                 className={cn(
-                  "block w-full py-3 px-4 border rounded-lg text-center text-2xl font-mono tracking-widest focus:ring-2 focus:ring-primary-dark focus:border-transparent transition-colors",
-                  errors.code
-                    ? "border-red-300 focus:ring-red-500"
-                    : "border-gray-300 focus:ring-primary-dark"
+                  "block w-full py-4 px-4 bg-white/20 border border-white/30 rounded-xl text-center text-3xl font-mono tracking-[0.5em] text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent transition-all duration-200",
+                  errors.code && "border-red-400 focus:ring-red-400"
                 )}
                 placeholder="000000"
                 autoComplete="one-time-code"
               />
               {errors.code && (
-                <p className="mt-1 text-sm text-red-600">{errors.code.message}</p>
+                <p className="mt-2 text-sm text-red-300 text-center">{errors.code.message}</p>
               )}
             </div>
 
@@ -171,7 +206,7 @@ export default function VerifyEmailPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-primary-dark to-primary-navy text-white py-3 px-4 rounded-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-500 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-blue-500/25"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
@@ -185,41 +220,30 @@ export default function VerifyEmailPage() {
           </form>
 
           {/* Resend Code */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm mb-2">
+          <div className="mt-8 text-center pt-6 border-t border-white/10">
+            <p className="text-white/60 text-sm mb-3">
               Didn&apos;t receive the code?
             </p>
             <button
               onClick={resendCode}
               disabled={countdown > 0}
               className={cn(
-                "text-primary-dark hover:text-primary-navy font-semibold transition-colors text-sm",
-                countdown > 0 && "opacity-50 cursor-not-allowed"
+                "text-blue-300 hover:text-blue-200 font-semibold transition-colors text-sm",
+                countdown > 0 && "opacity-50 cursor-not-allowed text-white/50"
               )}
             >
-              {countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}
+              {countdown > 0 ? `Resend code in ${countdown}s` : 'Resend Verification Code'}
             </button>
-          </div>
-
-          {/* Instructions */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-2">Instructions:</h3>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• Check your email inbox for the verification code</li>
-              <li>• Enter the 6-digit code above</li>
-              <li>• The code expires in 10 minutes</li>
-              <li>• Check your spam folder if you don&apos;t see the email</li>
-            </ul>
           </div>
         </div>
 
         {/* Security Notice */}
         <div className="mt-6 text-center animate-in fade-in duration-500 delay-300">
-          <p className="text-white/80 text-sm">
-            This verification helps us keep your account secure.
+          <p className="text-white/40 text-xs">
+            Secured by PrimeTrust Banking Protection
           </p>
         </div>
       </div>
     </div>
   )
-} 
+}

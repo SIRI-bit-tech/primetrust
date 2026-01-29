@@ -38,12 +38,16 @@ api.interceptors.request.use(
     // Ensure credentials are included to send cookies
     config.withCredentials = true
 
-    // Fallback: If we have a temp 2FA token in session storage, send it in header
+    // Fallback: If we have an access token in session storage, send it in header
     // This helps in environments where cookies are blocked or domain-restricted
     if (typeof window !== 'undefined') {
       const tempToken = sessionStorage.getItem('temp_2fa_token')
+      const accessToken = sessionStorage.getItem('access_token')
+
       if (tempToken && config.url?.includes('auth/')) {
         config.headers.Authorization = `Bearer ${tempToken}`
+      } else if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`
       }
     }
 
@@ -94,12 +98,25 @@ api.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        // Refresh token is now in HTTP-only cookie, sent automatically
-        await axios.post(`${API_BASE_URL}/auth/refresh/`, {}, {
-          withCredentials: true
-        })
+        // Refresh token is now in HTTP-only cookie, but we send it in body as fallback
+        const refreshFallback = typeof window !== 'undefined' ? sessionStorage.getItem('refresh_token') : null
 
-        // Token is now in cookie, just retry the request
+        const refreshResponse = await axios.post(`${API_BASE_URL}/auth/refresh/`,
+          { refresh: refreshFallback },
+          { withCredentials: true }
+        )
+
+        // If backend returned new tokens in body, save them
+        if (typeof window !== 'undefined' && refreshResponse.data) {
+          if (refreshResponse.data.access_token) {
+            sessionStorage.setItem('access_token', refreshResponse.data.access_token)
+          }
+          if (refreshResponse.data.refresh_token) {
+            sessionStorage.setItem('refresh_token', refreshResponse.data.refresh_token)
+          }
+        }
+
+        // Token is now in cookie (or session storage), just retry the request
         return api(originalRequest)
       } catch (refreshError) {
         // Only redirect if we're not already on a login/auth page
