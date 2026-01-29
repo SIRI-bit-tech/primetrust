@@ -155,7 +155,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <p className="text-sm font-medium">{user?.first_name} {user?.last_name}</p>
                 </div>
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="" alt={`${user?.first_name} ${user?.last_name}`} />
+                  <AvatarImage src={user?.profile_image_url || ''} alt={`${user?.first_name} ${user?.last_name}`} />
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     {user?.first_name?.charAt(0).toUpperCase()}
                   </AvatarFallback>

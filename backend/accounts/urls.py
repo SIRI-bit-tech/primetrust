@@ -24,6 +24,7 @@ urlpatterns = [
     path('update/', views.UserUpdateView.as_view(), name='update'),
     path('balance/', views.BalanceView.as_view(), name='balance'),
     path('account-info/', views.AccountInfoView.as_view(), name='account-info'),
+    path('upload-profile-image/', views.ProfileImageUploadView.as_view(), name='upload-profile-image'),
     
     # Security
     path('two-factor-setup/', views.TwoFactorSetupView.as_view(), name='two-factor-setup'),

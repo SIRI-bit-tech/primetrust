@@ -183,6 +183,15 @@ export const authAPI = {
     return response.data
   },
 
+  uploadProfileImage: async (formData: FormData): Promise<{ profile_image_url: string }> => {
+    const response = await api.post('/auth/upload-profile-image/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+
   // 2FA and Transfer PIN methods
   initiateTwoFactor: async (): Promise<{ qr_uri: string; qr_code_image: string; secret: string; backup_codes: string[] }> => {
     const response = await api.post('/auth/two-factor-initiate/')

@@ -13,12 +13,14 @@ import {
   Save,
   Edit,
   Check,
-  X
+  X,
+  Camera
 } from 'lucide-react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { User as UserType } from '@/types'
 import { cn } from '@/lib/utils'
+import { authAPI } from '@/lib/api'
 
 const profileSchema = z.object({
   full_name: z.string().min(2, 'Full name must be at least 2 characters'),
@@ -29,11 +31,34 @@ const profileSchema = z.object({
 type ProfileFormData = z.infer<typeof profileSchema>
 
 export default function ProfilePage() {
-  const { user, updateProfile } = useAuth()
+  const { user, updateProfile, refreshUser } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    setError('')
+    setSuccess('')
+
+    const formData = new FormData()
+    formData.append('image', file)
+
+    try {
+      await authAPI.uploadProfileImage(formData)
+      await refreshUser()
+      setSuccess('Profile image updated successfully!')
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to upload image. Please try again.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   const {
     register,
@@ -139,6 +164,46 @@ export default function ProfilePage() {
 
         {/* Profile Form */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+          <div className="mb-8 flex flex-col items-center">
+            <div className="relative group">
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary-dark/10 relative bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                {user?.profile_image_url ? (
+                  <img
+                    src={user.profile_image_url}
+                    alt={user.full_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-4xl font-bold text-primary-dark dark:text-primary-light">
+                    {user?.first_name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+                  </span>
+                )}
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  </div>
+                )}
+              </div>
+              <label
+                htmlFor="avatar-upload"
+                className="absolute bottom-0 right-0 bg-primary-dark text-white p-2 rounded-full cursor-pointer hover:bg-primary-navy transition-colors shadow-lg border-2 border-white dark:border-gray-800"
+              >
+                <Camera className="w-5 h-5" />
+                <input
+                  type="file"
+                  id="avatar-upload"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+            <p className="mt-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+              Click the camera icon to update your profile photo
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Full Name */}

@@ -25,6 +25,7 @@ export interface User {
   state: string
   zip_code: string
   country: string
+  profile_image_url?: string
   profile?: UserProfile
   is_active: boolean
   date_joined: string

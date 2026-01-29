@@ -135,7 +135,7 @@ class UserSerializer(serializers.ModelSerializer):
             'account_number', 'routing_number', 'balance', 'bitcoin_balance', 'is_verified',
             'email_verified', 'phone_verified', 'two_factor_enabled',
             'is_staff', 'is_superuser', 'is_active', 'date_joined', 'last_login',
-            'created_at', 'last_activity', 'profile', 'is_account_locked',
+            'created_at', 'last_activity', 'profile', 'profile_image_url', 'is_account_locked',
             'account_locked_until', 'account_lock_reason', 'unlock_request_pending'
         ]
         read_only_fields = [
@@ -165,7 +165,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             'account_number', 'routing_number', 'balance', 'bitcoin_balance', 'is_verified',
             'email_verified', 'phone_verified', 'two_factor_enabled',
             'is_staff', 'is_superuser', 'is_active', 'date_joined', 'last_login',
-            'created_at', 'last_activity', 'profile', 'is_account_locked',
+            'created_at', 'last_activity', 'profile', 'profile_image_url', 'is_account_locked',
             'account_locked_until', 'account_lock_reason', 'unlock_request_pending'
         ]
         read_only_fields = [

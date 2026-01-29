@@ -13,6 +13,8 @@ import uuid
 import random
 from rest_framework_simplejwt.views import TokenRefreshView as BaseTokenRefreshView
 import logging
+import cloudinary
+import cloudinary.uploader
 
 logger = logging.getLogger(__name__)
 
@@ -1388,3 +1390,40 @@ class CheckAccountLockStatusView(APIView):
             return Response({
                 'is_locked': False
             }, status=status.HTTP_200_OK)
+
+
+class ProfileImageUploadView(APIView):
+    """View for uploading user profile image."""
+    
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        """Upload a new profile image to Cloudinary."""
+        if 'image' not in request.FILES:
+            return Response({'error': 'No image file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        image_file = request.FILES['image']
+        
+        try:
+            # Upload image to Cloudinary
+            upload_result = cloudinary.uploader.upload(
+                image_file,
+                folder='primetrust/profiles/',
+                public_id=f"user_{request.user.id}_profile",
+                overwrite=True,
+                resource_type='image'
+            )
+            
+            # Update user's profile image URL
+            image_url = upload_result.get('secure_url')
+            request.user.profile_image_url = image_url
+            request.user.save()
+            
+            return Response({
+                'message': 'Profile image uploaded successfully',
+                'profile_image_url': image_url
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Failed to upload profile image: {e}")
+            return Response({'error': 'Failed to upload profile image'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
