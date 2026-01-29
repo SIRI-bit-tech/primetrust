@@ -172,10 +172,12 @@ class CurrencySwapViewSet(viewsets.ModelViewSet):
             if response.status_code == 200:
                 data = response.json()
                 exchange_rate = data['bitcoin']['usd']
+            else:
+                errors.append(f"CoinGecko: Status {response.status_code}")
         except Exception as e:
             errors.append(f"CoinGecko: {str(e)}")
 
-        # 2. Try Binance (if CoinGecko failed)
+        # 2. Try Binance (if previous failed)
         if exchange_rate is None:
             try:
                 response = requests.get(
@@ -186,10 +188,48 @@ class CurrencySwapViewSet(viewsets.ModelViewSet):
                 if response.status_code == 200:
                     data = response.json()
                     exchange_rate = float(data['price'])
+                else:
+                    errors.append(f"Binance: Status {response.status_code}")
             except Exception as e:
                 errors.append(f"Binance: {str(e)}")
+
+        # 3. Try Coinbase (if previous failed)
+        if exchange_rate is None:
+            try:
+                response = requests.get(
+                    'https://api.coinbase.com/v2/prices/BTC-USD/spot',
+                    headers=headers,
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    exchange_rate = float(data['data']['amount'])
+                else:
+                    errors.append(f"Coinbase: Status {response.status_code}")
+            except Exception as e:
+                errors.append(f"Coinbase: {str(e)}")
+
+        # 4. Try Kraken (if previous failed)
+        if exchange_rate is None:
+            try:
+                response = requests.get(
+                    'https://api.kraken.com/0/public/Ticker?pair=XBTUSD',
+                    headers=headers,
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    # Kraken structure: result -> XXBTZUSD -> c -> [price, lot_volume]
+                    # Note: Pair name might vary, sometimes just XBTUSD
+                    result = data.get('result', {})
+                    pair = list(result.keys())[0] # Get first key dynamically (usually XXBTZUSD)
+                    exchange_rate = float(result[pair]['c'][0])
+                else:
+                    errors.append(f"Kraken: Status {response.status_code}")
+            except Exception as e:
+                errors.append(f"Kraken: {str(e)}")
         
-        # 3. Try CoinCap (if others failed)
+        # 5. Try CoinCap (if others failed)
         if exchange_rate is None:
             try:
                 response = requests.get(
@@ -200,22 +240,22 @@ class CurrencySwapViewSet(viewsets.ModelViewSet):
                 if response.status_code == 200:
                     data = response.json()
                     exchange_rate = float(data['data']['priceUsd'])
+                else:
+                    errors.append(f"CoinCap: Status {response.status_code}")
             except Exception as e:
                 errors.append(f"CoinCap: {str(e)}")
 
         if exchange_rate:
-            # Cache for 60 seconds (slightly longer to reduce API load)
+            # Cache for 60 seconds
             cache.set(cache_key, exchange_rate, 60)
             return Response({'exchange_rate': exchange_rate})
         
-        # Log all errors
-        logger.error(f"Failed to fetch BTC exchange rate. Errors: {errors}")
+        # Log all failures
+        logger.error(f"Failed to fetch BTC exchange rate from ALL sources. Errors: {errors}")
         
-        # Return a fallback or 503 if critical
-        # Using a reliable fallback price if all APIs fail is safer than crashing
-        # This prevents the 500 Internal Server Error
-        fallback_price = 95000.00 
-        return Response({'exchange_rate': fallback_price, 'warning': 'Using fallback price'})
+        # Fallback only if absolutely everything fails
+        # fallback_price = 95000.00 
+        # return Response({'exchange_rate': fallback_price, 'warning': 'Using fallback price'})
 
 class AdminBitcoinWalletViewSet(viewsets.ModelViewSet):
     """Admin ViewSet for managing Bitcoin wallets and transactions"""

@@ -209,10 +209,11 @@ class UserLoginView(APIView):
         }, status=status.HTTP_200_OK)
         
         # Set tokens as HTTP-only cookies
+        # Allow cross-port cookies on localhost (requires Secure + SameSite=None)
         cookie_base = {
             'httponly': True,
-            'secure': not settings.DEBUG,
-            'samesite': 'None' if not settings.DEBUG else 'Lax',
+            'secure': True,
+            'samesite': 'None',
             'path': '/'
         }
         
@@ -339,10 +340,11 @@ class EmailVerificationView(APIView):
             }, status=status.HTTP_200_OK)
             
             # Set tokens as HTTP-only cookies
+            # Allow cross-port cookies on localhost (requires Secure + SameSite=None)
             cookie_base = {
                 'httponly': True,
-                'secure': not settings.DEBUG,
-                'samesite': 'None' if not settings.DEBUG else 'Lax',
+                'secure': True,
+                'samesite': 'None',
                 'path': '/'
             }
             
@@ -882,10 +884,11 @@ class TwoFactorLoginVerifyView(APIView):
         }, status=status.HTTP_200_OK)
         
         # Set tokens as HTTP-only cookies
+        # Allow cross-port cookies on localhost (requires Secure + SameSite=None)
         cookie_base = {
             'httponly': True,
-            'secure': not settings.DEBUG,
-            'samesite': 'None' if not settings.DEBUG else 'Lax',
+            'secure': True,
+            'samesite': 'None',
             'path': '/'
         }
         
