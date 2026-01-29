@@ -6,9 +6,16 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // 1. Authentication Check: Extract the access token from cookies
+    // 1. Authentication Check: Extract the access token from cookies or Authorization header
     const cookieStore = await cookies();
-    const accessToken = cookieStore.get('access_token')?.value;
+    let accessToken = cookieStore.get('access_token')?.value;
+
+    if (!accessToken) {
+      const authHeader = request.headers.get('Authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        accessToken = authHeader.split(' ')[1];
+      }
+    }
 
     if (!accessToken) {
       return NextResponse.json(

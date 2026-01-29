@@ -40,8 +40,11 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     }
 
     // Initialize Ably connection
+    const accessToken = sessionStorage.getItem('access_token');
+
     const client = new Ably.Realtime({
       authUrl: `/api/ably/auth?clientId=${user.id}`,
+      authHeaders: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : undefined,
       autoConnect: true
     })
 

@@ -240,7 +240,13 @@ export default function DashboardPage() {
         }
         return <TrendingUp className="w-5 h-5 text-green-500" />
       }
-      if (type === 'withdrawal') {
+      if (type === 'loan') {
+        if (description.toLowerCase().includes('repayment')) {
+          return <TrendingDown className="w-5 h-5 text-red-500" />
+        }
+        return <TrendingUp className="w-5 h-5 text-green-500" />
+      }
+      if (type === 'withdrawal' || type === 'payment' || type === 'fee') {
         return <TrendingDown className="w-5 h-5 text-red-500" />
       }
       // For transfers, use TrendingUp/TrendingDown based on direction
@@ -267,18 +273,22 @@ export default function DashboardPage() {
     }
     if (status === 'completed' || status === 'approved') {
       const type = transaction.transaction_type || transaction.transfer_type
-      const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
+      const recipientId = (transaction as any).recipient?.id || (transaction as any).recipient
+      const isReceiver = currentUserId && recipientId === currentUserId
       const description = transaction.description || ''
 
       if (type === 'investment') {
         // Check description to determine if purchase or sale
         const isSale = description.toLowerCase().includes('sale')
-        return isSale ? 'bg-green-100 dark:bg-green-900/20' : 'bg-purple-100 dark:bg-purple-900/20'
+        return isSale ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20' // Purchase is red (money out)
       }
-      if (type === 'deposit' || (isReceiver && !(transaction as any).sender)) {
+      if (type === 'deposit' || type === 'loan' || (isReceiver && !(transaction as any).sender)) {
+        if (type === 'loan' && description.toLowerCase().includes('repayment')) {
+          return 'bg-red-100 dark:bg-red-900/20'
+        }
         return 'bg-green-100 dark:bg-green-900/20'
       }
-      if (type === 'withdrawal') {
+      if (type === 'withdrawal' || type === 'payment' || type === 'fee') {
         return 'bg-red-100 dark:bg-red-900/20'
       }
       return 'bg-blue-100 dark:bg-blue-900/20'
@@ -289,8 +299,11 @@ export default function DashboardPage() {
 
   const getTransactionColor = (transaction: any) => {
     const type = transaction.transaction_type || transaction.transfer_type
-    const isSender = currentUserId && (transaction as any).sender === currentUserId
-    const isReceiver = currentUserId && (transaction as any).recipient === currentUserId
+    const senderId = (transaction as any).sender?.id || (transaction as any).sender
+    const recipientId = (transaction as any).recipient?.id || (transaction as any).recipient
+
+    const isSender = currentUserId && senderId === currentUserId
+    const isReceiver = currentUserId && recipientId === currentUserId
     const description = transaction.description || ''
 
     // For transfers, color based on direction
@@ -309,8 +322,12 @@ export default function DashboardPage() {
 
     switch (type) {
       case 'deposit':
+      case 'loan': // Disbursement (Green)
+        if (description.toLowerCase().includes('repayment')) return 'text-red-600 dark:text-red-400'
         return 'text-green-600 dark:text-green-400'
       case 'withdrawal':
+      case 'payment':
+      case 'fee':
         return 'text-red-600 dark:text-red-400'
       default:
         return 'text-gray-600 dark:text-gray-400'
@@ -691,16 +708,32 @@ export default function DashboardPage() {
                   let isDebit = false
                   const description = transaction.description || ''
 
-                  if (type === 'withdrawal') {
+                  if (type === 'withdrawal' || type === 'payment' || type === 'fee') {
                     isDebit = true
                   } else if (type === 'investment') {
                     // Check description to determine if purchase (debit) or sale (credit)
                     isDebit = !description.toLowerCase().includes('sale')
                   } else if (type === 'deposit') {
                     isDebit = false
+                  } else if (type === 'loan') {
+                    // Loan disbursement is credit, repayment is debit
+                    isDebit = description.toLowerCase().includes('repayment')
                   } else if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
                     // For transfers, it's a debit if user is the sender
-                    isDebit = !!(isSender && !isReceiver)
+                    // Handle case where sender is an object or ID
+                    const senderId = (transaction as any).sender?.id || (transaction as any).sender
+                    if (senderId && currentUserId) {
+                      isDebit = senderId === currentUserId
+                    } else {
+                      // Fallback for Transaction objects which are usually debits if logged as 'transfer'
+                      isDebit = true
+                    }
+
+                    // If we are the receiver (and explicitly not sender), it's a credit
+                    const recipientId = (transaction as any).recipient?.id || (transaction as any).recipient
+                    if (recipientId && currentUserId && recipientId === currentUserId && senderId !== currentUserId) {
+                      isDebit = false
+                    }
                   }
 
                   return (
@@ -727,7 +760,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <p className={`font-semibold ${getTransactionColor(transaction)}`}>
-                          {isDebit ? '-' : ''}
+                          {isDebit ? '-' : (type === 'deposit' || type === 'loan' || (!isDebit && type !== 'transfer') ? '+' : '')}
                           {formatCurrency(transaction.amount)}
                         </p>
                         <Badge variant="secondary" className="text-xs capitalize mt-1">

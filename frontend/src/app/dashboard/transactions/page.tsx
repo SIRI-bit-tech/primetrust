@@ -176,7 +176,13 @@ export default function TransactionsPage() {
         }
         return <TrendingUp className="w-5 h-5 text-green-500" />
       }
-      if (type === 'withdrawal') {
+      if (type === 'loan') {
+        if (description.toLowerCase().includes('repayment')) {
+          return <TrendingDown className="w-5 h-5 text-red-500" />
+        }
+        return <TrendingUp className="w-5 h-5 text-green-500" />
+      }
+      if (type === 'withdrawal' || type === 'payment' || type === 'fee') {
         return <TrendingDown className="w-5 h-5 text-red-500" />
       }
       // For transfers, use TrendingDown for incoming (green) and TrendingUp for outgoing (red)
@@ -245,8 +251,12 @@ export default function TransactionsPage() {
     // For transfers, use ID-based logic only
     if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
       if (transaction && currentUserId) {
-        const isSender = transaction.sender === currentUserId
-        const isReceiver = transaction.recipient === currentUserId
+        // Handle sender/recipient as ID or Object
+        const senderId = transaction.sender?.id || transaction.sender
+        const recipientId = transaction.recipient?.id || transaction.recipient
+
+        const isSender = senderId === currentUserId
+        const isReceiver = recipientId === currentUserId
 
         // If receiver only (incoming), show green
         if (isReceiver && !isSender) {
@@ -264,8 +274,12 @@ export default function TransactionsPage() {
 
     switch (type) {
       case 'deposit':
+      case 'loan': // Disbursement (Green)
+        if (description.toLowerCase().includes('repayment')) return 'text-red-600 dark:text-red-400'
         return 'text-green-600 dark:text-green-400'
       case 'withdrawal':
+      case 'payment':
+      case 'fee':
         return 'text-red-600 dark:text-red-400'
       default:
         return 'text-gray-600 dark:text-gray-400'
@@ -539,8 +553,14 @@ export default function TransactionsPage() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className={`text-sm font-semibold ${getTransactionColor(type, transaction.description, transaction)}`}>
                               {(() => {
+                                // Show minus sign for payments and fees
+                                if (type === 'payment' || type === 'fee') return '-'
+
                                 // Show minus sign for withdrawals
                                 if (type === 'withdrawal') return '-'
+
+                                // Show minus sign for loan repayment (if any)
+                                if (type === 'loan' && transaction.description?.toLowerCase().includes('repayment')) return '-'
 
                                 // Show minus sign for investment purchases
                                 if (type === 'investment' && !transaction.description?.toLowerCase().includes('sale')) return '-'
@@ -548,14 +568,16 @@ export default function TransactionsPage() {
                                 // Show minus sign for outgoing transfers (use ID-based logic only)
                                 if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
                                   if (currentUserId) {
-                                    const isSender = (transaction as any).sender === currentUserId
-                                    const isReceiver = (transaction as any).recipient === currentUserId
+                                    const senderId = (transaction as any).sender?.id || (transaction as any).sender
+                                    const recipientId = (transaction as any).recipient?.id || (transaction as any).recipient
+                                    const isSender = senderId === currentUserId
+                                    const isReceiver = recipientId === currentUserId
                                     // If sender (outgoing), show minus sign
                                     if (isSender && !isReceiver) return '-'
                                   }
                                 }
 
-                                return ''
+                                return (type === 'deposit' || type === 'loan' ? '+' : '')
                               })()}
                               {formatCurrency(transaction.amount)}
                             </div>
@@ -637,8 +659,14 @@ export default function TransactionsPage() {
                         </div>
                         <div className={`text-sm font-semibold ${getTransactionColor(type, transaction.description, transaction)} ml-2 flex-shrink-0`}>
                           {(() => {
+                            // Show minus sign for payments and fees
+                            if (type === 'payment' || type === 'fee') return '-'
+
                             // Show minus sign for withdrawals
                             if (type === 'withdrawal') return '-'
+
+                            // Show minus sign for loan repayment (if any)
+                            if (type === 'loan' && transaction.description?.toLowerCase().includes('repayment')) return '-'
 
                             // Show minus sign for investment purchases
                             if (type === 'investment' && !transaction.description?.toLowerCase().includes('sale')) return '-'
@@ -646,14 +674,16 @@ export default function TransactionsPage() {
                             // Show minus sign for outgoing transfers (use ID-based logic only)
                             if (type === 'internal' || type === 'ach' || type === 'wire_domestic' || type === 'wire_international') {
                               if (currentUserId) {
-                                const isSender = (transaction as any).sender === currentUserId
-                                const isReceiver = (transaction as any).recipient === currentUserId
+                                const senderId = (transaction as any).sender?.id || (transaction as any).sender
+                                const recipientId = (transaction as any).recipient?.id || (transaction as any).recipient
+                                const isSender = senderId === currentUserId
+                                const isReceiver = recipientId === currentUserId
                                 // If sender (outgoing), show minus sign
                                 if (isSender && !isReceiver) return '-'
                               }
                             }
 
-                            return ''
+                            return (type === 'deposit' || type === 'loan' ? '+' : '')
                           })()}
                           {formatCurrency(transaction.amount)}
                         </div>
@@ -753,6 +783,9 @@ export default function TransactionsPage() {
                     // Only count completed/approved transactions
                     if (t.status !== 'completed' && t.status !== 'approved') return false
 
+                    // Count payments and fees
+                    if (t.transaction_type === 'payment' || t.transaction_type === 'fee') return true
+
                     // Count withdrawals
                     if (t.transaction_type === 'withdrawal') return true
 
@@ -762,10 +795,17 @@ export default function TransactionsPage() {
                       return !desc.includes('sale') // Purchase, not sale
                     }
 
+                    // Count loan repayments
+                    if (t.transaction_type === 'loan') {
+                      const desc = t.description?.toLowerCase() || ''
+                      return desc.includes('repayment')
+                    }
+
                     // For transfers, check if current user is the sender (ID-based only)
                     const transfer = t as any
-                    if (transfer.transfer_type && currentUserId) {
-                      return transfer.sender === currentUserId
+                    if ((transfer.transfer_type || t.transaction_type === 'transfer') && currentUserId) {
+                      const senderId = transfer.sender?.id || transfer.sender
+                      return senderId === currentUserId
                     }
 
                     return false
@@ -785,11 +825,18 @@ export default function TransactionsPage() {
                       return desc.includes('sale') // Sale, not purchase
                     }
 
+                    // Count loan disbursements
+                    if (t.transaction_type === 'loan') {
+                      const desc = t.description?.toLowerCase() || ''
+                      return !desc.includes('repayment')
+                    }
+
                     // Count incoming transfers (where current user is recipient, ID-based only)
                     const transfer = t as any
-                    if (transfer.transfer_type && currentUserId && transfer.recipient) {
+                    if ((transfer.transfer_type || t.transaction_type === 'transfer') && currentUserId) {
+                      const recipientId = transfer.recipient?.id || transfer.recipient
                       // Check if recipient ID matches current user
-                      return transfer.recipient === currentUserId
+                      return recipientId === currentUserId
                     }
 
                     return false
