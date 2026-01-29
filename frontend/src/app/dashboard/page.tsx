@@ -742,24 +742,24 @@ export default function DashboardPage() {
                       className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={() => handleTransactionClick(transaction)}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 ${getTransactionIconBgColor(transaction)} rounded-full flex items-center justify-center`}>
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1 mr-2">
+                        <div className={`w-10 h-10 ${getTransactionIconBgColor(transaction)} rounded-full flex items-center justify-center flex-shrink-0`}>
                           {getTransactionIcon(transaction)}
                         </div>
-                        <div>
-                          <p className="font-medium">{getTransactionDescription(transaction)}</p>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Clock className="w-3 h-3" />
-                            {new Date(transaction.created_at).toLocaleDateString()}
-                            <span className="text-xs">•</span>
-                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate pr-2">{getTransactionDescription(transaction)}</p>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                            <Clock className="w-3 h-3 flex-shrink-0" />
+                            <span className="whitespace-nowrap">{new Date(transaction.created_at).toLocaleDateString()}</span>
+                            <span className="text-xs hidden sm:inline">•</span>
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(transaction.status)} whitespace-nowrap`}>
                               {transaction.status}
                             </span>
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className={`font-semibold ${getTransactionColor(transaction)}`}>
+                      <div className="text-right flex-shrink-0">
+                        <p className={`font-semibold ${getTransactionColor(transaction)} whitespace-nowrap`}>
                           {isDebit ? '-' : (type === 'deposit' || type === 'loan' || (!isDebit && type !== 'transfer') ? '+' : '')}
                           {formatCurrency(transaction.amount)}
                         </p>

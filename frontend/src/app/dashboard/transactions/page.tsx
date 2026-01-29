@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/DashboardLayout'
-import { transactionsAPI } from '@/lib/api'
+import { transactionsAPI, authAPI } from '@/lib/api'
 import { Transaction } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import TransferReceipt from '@/components/receipt/TransferReceipt'
@@ -46,13 +46,13 @@ export default function TransactionsPage() {
 
   const loadCurrentUser = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/auth/profile/`, {
-        credentials: 'include'  // Send cookies with request
-      })
-      if (response.ok) {
-        const userData = await response.json()
-        setCurrentUserId(userData.id)
+      if (user) {
+        setCurrentUserId(user.id)
+        return
       }
+
+      const userData = await authAPI.getProfile()
+      setCurrentUserId(userData.id)
     } catch (error) {
       console.error('Error loading current user:', error)
     }
