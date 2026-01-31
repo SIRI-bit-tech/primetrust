@@ -246,7 +246,7 @@ CORS_ALLOW_HEADERS = [
 
 # Email settings - Using Resend API (Direct)
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend' # Use locmem to prevent SMTP attempts
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='PrimeTrust <onboarding@resend.dev>')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='PrimeTrust <noreply@jimnetwork.org>')
 RESEND_API_KEY = env('RESEND_API_KEY', default='')
 
 # Cloudinary settings
