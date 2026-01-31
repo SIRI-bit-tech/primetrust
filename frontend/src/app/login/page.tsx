@@ -59,19 +59,21 @@ export default function LoginPage() {
         router.push('/dashboard')
       }
     } catch (err: unknown) {
-      const error = err as { 
-        response?: { 
-          data?: { 
+      const error = err as {
+        response?: {
+          data?: {
             message?: string
             account_locked?: boolean
             lock_reason?: string
             locked_until?: string
             unlock_request_pending?: boolean
+            requires_verification?: boolean
+            email?: string
           }
           status?: number
-        } 
+        }
       }
-      
+
       // Check if account is locked
       if (error.response?.status === 403 && error.response?.data?.account_locked) {
         setAccountLocked(true)
@@ -80,6 +82,11 @@ export default function LoginPage() {
           lockedUntil: error.response.data.locked_until || '',
           unlockRequestPending: error.response.data.unlock_request_pending || false
         })
+      } else if (error.response?.status === 403 && error.response?.data?.requires_verification) {
+        const unverifiedEmail = error.response?.data?.email || data.email;
+        // Store email in localStorage for the verification page
+        localStorage.setItem('pending_verification_email', unverifiedEmail);
+        router.push(`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`);
       } else {
         // Generic error message to prevent information disclosure
         setError('Invalid email or password. Please try again.')
@@ -109,18 +116,18 @@ export default function LoginPage() {
         {/* Left Section - Branding */}
         <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12">
           <div className="text-white text-center max-w-md">
-            
+
             {/* Brand Name */}
             <h1 className="text-5xl font-bold mb-4 tracking-wider">PRIMETRUST</h1>
-            
+
             {/* Main Heading */}
             <h2 className="text-3xl font-bold mb-4">SECURE BANKING</h2>
-            
+
             {/* Tagline */}
             <p className="text-xl mb-6 text-white/90">
               Where Your Financial Dreams Become Reality
             </p>
-            
+
             {/* Description */}
             <p className="text-lg text-white/80 leading-relaxed">
               Experience modern banking with cutting-edge security and seamless transactions.
@@ -203,8 +210,8 @@ export default function LoginPage() {
 
                 {/* Forgot Password */}
                 <div className="text-right">
-                  <Link 
-                    href="/forgot-password" 
+                  <Link
+                    href="/forgot-password"
                     className="text-sm text-white/80 hover:text-white transition-colors"
                   >
                     Forgot password?
@@ -225,8 +232,8 @@ export default function LoginPage() {
               <div className="mt-8 text-center">
                 <p className="text-white/80 text-sm">
                   Are you new?{' '}
-                  <Link 
-                    href="/register" 
+                  <Link
+                    href="/register"
                     className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
                   >
                     Create an Account

@@ -51,18 +51,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3. ClientID Validation: Ensure the requester matches the supplied clientId
+    // 3. ClientID Identification: We always use the verified ID from our backend
     const verifiedUserId = user.id.toString().trim();
     const searchParams = request.nextUrl.searchParams;
     const requestedClientId = searchParams.get('clientId')?.trim();
 
-    // If a clientId is provided, it MUST match the authenticated user's ID
+    // If there's a mismatch, we log it but continue with the verified ID.
+    // This prevents the connection from failing due to minor state synchronization issues
+    // while still ensuring the user only gets a token for their own identity.
     if (requestedClientId && requestedClientId !== verifiedUserId) {
-      return NextResponse.json(
-        { errorMessage: 'Forbidden: ClientID mismatch' },
-        { status: 403 }
-      );
+      console.warn(`Ably Auth: ClientID mismatch. Requested: ${requestedClientId}, Verified: ${verifiedUserId}. Using verified ID.`);
     }
+
+    const clientIdToUse = verifiedUserId;
 
     // 4. Ably Token Generation
     if (!process.env.ABLY_API_KEY) {
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
       const client = new Ably.Rest(process.env.ABLY_API_KEY);
       // We only issue tokens for the verified user ID (no anonymous fallback)
       const tokenRequestData = await client.auth.createTokenRequest({
-        clientId: verifiedUserId,
+        clientId: clientIdToUse,
       });
 
       return NextResponse.json(tokenRequestData);

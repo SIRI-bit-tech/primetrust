@@ -67,10 +67,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Try to fetch fresh user data (token is in cookie)
           const userData = await authAPI.getProfile()
           setUser(userData)
-        } catch {
-          // If API call fails, try to use stored user data
-          const parsedUser = JSON.parse(storedUser)
-          setUser(parsedUser)
+        } catch (err: any) {
+          // If it's a 401, the session is definitely invalid
+          if (err.response?.status === 401) {
+            localStorage.removeItem('user');
+            setUser(null);
+          } else {
+            // For other errors (like network issues), fallback to stored data
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+          }
         }
       } else {
         setUser(null)

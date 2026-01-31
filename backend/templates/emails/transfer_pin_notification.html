@@ -1,0 +1,45 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 30px;">
+    <div
+        style="width: 64px; height: 64px; background-color: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 50%; display: inline-block; padding: 16px; margin-bottom: 20px;">
+        <img src="https://img.icons8.com/ios-filled/50/3b82f6/key.png" width="32" height="32" alt="Key">
+    </div>
+    <h2 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Transfer PIN Ready</h2>
+</div>
+
+<p style="font-size: 16px; line-height: 1.6; color: #cbd5e1; margin-bottom: 24px;">
+    Hello {{ first_name }},
+</p>
+
+<p style="font-size: 16px; line-height: 1.6; color: #cbd5e1; margin-bottom: 24px;">
+    Your <strong>Transfer PIN</strong> has been successfully set up. This extra layer of protection ensures that only
+    you can authorize movement of funds from your account.
+</p>
+
+<div
+    style="background-color: rgba(30, 64, 175, 0.1); border-left: 4px solid #3b82f6; padding: 20px; border-radius: 0 12px 12px 0; margin-bottom: 24px;">
+    <p style="margin: 0; color: #bfdbfe; font-size: 14px; font-style: italic;">
+        Stay safe: PrimeTrust will never ask you for your Transfer PIN over the phone, email, or text. Never share this
+        code with anyone.
+    </p>
+</div>
+
+<p style="font-size: 16px; line-height: 1.6; color: #cbd5e1; margin-bottom: 24px;">
+    You will be prompted to enter this PIN for:
+</p>
+<ul style="color: #cbd5e1; font-size: 15px; margin-bottom: 24px; padding-left: 20px;">
+    <li style="margin-bottom: 8px;">ACH and Wire Transfers</li>
+    <li style="margin-bottom: 8px;">Bitcoin Transactions</li>
+    <li style="margin-bottom: 8px;">Currency Swaps</li>
+</ul>
+
+<div
+    style="background-color: rgba(255, 255, 255, 0.03); border-radius: 16px; padding: 24px; margin-top: 32px; border: 1px solid rgba(255, 255, 255, 0.05);">
+    <p style="margin: 0; color: #94a3b8; font-size: 14px; line-height: 1.5;">
+        <strong>Time:</strong> {{ timestamp|date:"F j, Y, g:i a" }}<br>
+        <strong>Action:</strong> Transfer PIN Configuration
+    </p>
+</div>
+{% endblock %}

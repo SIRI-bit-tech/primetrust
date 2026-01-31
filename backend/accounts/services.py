@@ -182,27 +182,23 @@ def send_2fa_enabled_notification(user):
     """Send email notification when 2FA is enabled."""
     try:
         subject = 'Two-Factor Authentication Enabled - PrimeTrust'
-        message = f"""
-        Hello {user.first_name},
-        
-        Two-factor authentication has been successfully enabled for your PrimeTrust account.
-        
-        Your account is now protected with an additional layer of security. You will be required to enter a 6-digit code from your authenticator app when logging in.
-        
-        If you did not enable this feature, please contact our support team immediately.
-        
-        Best regards,
-        The PrimeTrust Security Team
-        """
+        context = {
+            'first_name': user.first_name,
+            'status': 'enabled',
+            'timestamp': timezone.now(),
+            'subject': subject
+        }
+        html_message = render_to_string('emails/2fa_notification.html', context)
+        plain_message = f"Hello {user.first_name}, Two-factor authentication has been successfully enabled for your PrimeTrust account."
         
         send_mail(
             subject=subject,
-            message=message,
+            message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
+            html_message=html_message,
             fail_silently=False,
         )
-        
         return True
     except Exception as e:
         print(f"Failed to send 2FA enabled notification: {e}")
@@ -213,27 +209,23 @@ def send_2fa_disabled_notification(user):
     """Send email notification when 2FA is disabled."""
     try:
         subject = 'Two-Factor Authentication Disabled - PrimeTrust'
-        message = f"""
-        Hello {user.first_name},
-        
-        Two-factor authentication has been disabled for your PrimeTrust account.
-        
-        Your account security has been reduced. We recommend re-enabling two-factor authentication for enhanced protection.
-        
-        If you did not disable this feature, please contact our support team immediately.
-        
-        Best regards,
-        The PrimeTrust Security Team
-        """
+        context = {
+            'first_name': user.first_name,
+            'status': 'disabled',
+            'timestamp': timezone.now(),
+            'subject': subject
+        }
+        html_message = render_to_string('emails/2fa_notification.html', context)
+        plain_message = f"Hello {user.first_name}, Two-factor authentication has been disabled for your PrimeTrust account."
         
         send_mail(
             subject=subject,
-            message=message,
+            message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
+            html_message=html_message,
             fail_silently=False,
         )
-        
         return True
     except Exception as e:
         print(f"Failed to send 2FA disabled notification: {e}")
@@ -244,27 +236,22 @@ def send_transfer_pin_setup_notification(user):
     """Send email notification when transfer PIN is set up."""
     try:
         subject = 'Transfer PIN Setup Complete - PrimeTrust'
-        message = f"""
-        Hello {user.first_name},
-        
-        Your transfer PIN has been successfully set up for your PrimeTrust account.
-        
-        This PIN will be required for all money transfers and Bitcoin transactions to ensure the security of your funds.
-        
-        Please keep your PIN secure and never share it with anyone.
-        
-        Best regards,
-        The PrimeTrust Security Team
-        """
+        context = {
+            'first_name': user.first_name,
+            'timestamp': timezone.now(),
+            'subject': subject
+        }
+        html_message = render_to_string('emails/transfer_pin_notification.html', context)
+        plain_message = f"Hello {user.first_name}, Your transfer PIN has been successfully set up for your PrimeTrust account."
         
         send_mail(
             subject=subject,
-            message=message,
+            message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
+            html_message=html_message,
             fail_silently=False,
         )
-        
         return True
     except Exception as e:
         print(f"Failed to send transfer PIN setup notification: {e}")
@@ -275,32 +262,22 @@ def send_registration_complete_notification(user):
     """Send email notification when registration is complete."""
     try:
         subject = 'Welcome to PrimeTrust - Your Account is Ready!'
-        message = f"""
-        Hello {user.first_name},
-        
-        Welcome to PrimeTrust! Your account setup is now complete.
-        
-        Your account includes:
-        ✅ Email verification
-        ✅ Two-factor authentication
-        ✅ Transfer PIN setup
-        
-        You can now access all features of your PrimeTrust banking account.
-        
-        If you have any questions, please don't hesitate to contact our support team.
-        
-        Best regards,
-        The PrimeTrust Team
-        """
+        context = {
+            'first_name': user.first_name,
+            'dashboard_url': f"{settings.FRONTEND_URL}/dashboard",
+            'subject': subject
+        }
+        html_message = render_to_string('emails/registration_complete.html', context)
+        plain_message = f"Hello {user.first_name}, Welcome to PrimeTrust! Your account setup is now complete."
         
         send_mail(
             subject=subject,
-            message=message,
+            message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
+            html_message=html_message,
             fail_silently=False,
         )
-        
         return True
     except Exception as e:
         print(f"Failed to send registration complete notification: {e}")
@@ -316,21 +293,9 @@ def send_backup_code_used_notification(user, remaining_codes):
         
         A backup code was used to access your PrimeTrust account.
         
-        This could indicate:
-        - You lost access to your authenticator app
-        - Someone else may have accessed your account
-        
         Remaining backup codes: {remaining_codes}
         
         If you did not use this backup code, please contact our support team immediately.
-        
-        For security, we recommend:
-        1. Reviewing your recent account activity
-        2. Changing your password if necessary
-        3. Setting up a new authenticator app if needed
-        
-        Best regards,
-        The PrimeTrust Security Team
         """
         
         send_mail(
@@ -340,8 +305,8 @@ def send_backup_code_used_notification(user, remaining_codes):
             recipient_list=[user.email],
             fail_silently=False,
         )
-        
         return True
     except Exception as e:
         print(f"Failed to send backup code used notification: {e}")
-        return False 
+        return False
+ 

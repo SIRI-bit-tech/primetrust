@@ -56,14 +56,19 @@ class UserRegistrationView(APIView):
             )
             
             # Send verification email
-            self.send_verification_email(user, code)
+            email_sent = self.send_verification_email(user, code)
             
             # Trigger welcome notification
             trigger_account_created_notification(user)
             
+            message = 'User registered successfully. Please check your email to verify your account.'
+            if not email_sent:
+                message = 'User registered successfully, but there was an error sending the verification email. Please try resending it from the login page.'
+
             return Response({
-                'message': 'User registered successfully. Please check your email to verify your account.',
-                'user_id': user.id
+                'message': message,
+                'user_id': user.id,
+                'email_sent': email_sent
             }, status=status.HTTP_201_CREATED)
         
         return Response({'error': 'Invalid registration data. Please check your inputs.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -74,65 +79,28 @@ class UserRegistrationView(APIView):
             subject = 'Verify your PrimeTrust account'
             verification_link = f"{settings.FRONTEND_URL}/verify-email?email={user.email}&code={code}"
             
-            html_message = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body {{ font-family: 'Arial', sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
-                    .container {{ max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
-                    .header {{ background-color: #1e3a8a; color: #ffffff; padding: 30px; text-align: center; }}
-                    .header h1 {{ margin: 0; font-size: 24px; letter-spacing: 1px; }}
-                    .content {{ padding: 30px; }}
-                    .code-box {{ background-color: #f0f7ff; border-left: 4px solid #1e3a8a; padding: 15px; margin: 20px 0; font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 5px; color: #1e3a8a; }}
-                    .btn {{ display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }}
-                    .footer {{ background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; }}
-                    .link {{ color: #1e3a8a; text-decoration: underline; }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>PRIMETRUST</h1>
-                    </div>
-                    <div class="content">
-                        <h2>Verify Your Email Address</h2>
-                        <p>Hello {user.first_name},</p>
-                        <p>Thank you for choosing PrimeTrust. To ensure the security of your account, please verify your email address using the code below:</p>
-                        
-                        <div class="code-box">{code}</div>
-                        
-                        <p style="text-align: center;">
-                            <a href="{verification_link}" class="btn" style="color: #ffffff;">Verify My Account</a>
-                        </p>
-                        
-                        <p>Or click this link directly: <br>
-                        <a href="{verification_link}" class="link">{verification_link}</a></p>
-                        
-                        <p>This code will expire in 10 minutes.</p>
-                        <p>If you didn't create an account with PrimeTrust, you can safely ignore this email.</p>
-                    </div>
-                    <div class="footer">
-                        <p>&copy; {timezone.now().year} PrimeTrust Banking. All rights reserved.</p>
-                        <p>This is an automated message, please do not reply.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
+            context = {
+                'first_name': user.first_name,
+                'code': code,
+                'verification_link': verification_link,
+                'subject': subject
+            }
             
-            # Send HTML email
+            html_message = render_to_string('emails/verification_email.html', context)
+            plain_message = f"Your verification code is: {code}. Visit {verification_link} to verify."
+            
             send_mail(
                 subject=subject,
-                message="", # Plain text fallback remains empty as we rely on html_message
-                html_message=html_message,
+                message=plain_message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[user.email],
+                html_message=html_message,
                 fail_silently=False,
             )
+            return True
         except Exception as e:
-            # Log the error but don't fail the registration
             logger.error(f"Failed to send verification email: {e}")
+            return False
 
 
 class UserLoginView(APIView):
@@ -146,6 +114,13 @@ class UserLoginView(APIView):
         
         if serializer.is_valid():
             user = serializer.validated_data['user']
+            
+            if not user.email_verified:
+                return Response({
+                    'error': 'Email not verified. Please check your inbox for the verification code.',
+                    'requires_verification': True,
+                    'email': user.email
+                }, status=status.HTTP_403_FORBIDDEN)
             
             # Note: We allow locked users to log in, but they'll see a modal on the dashboard
             # The middleware will still block API calls, but they can request unlock
@@ -338,7 +313,9 @@ class EmailVerificationView(APIView):
             response = Response({
                 'message': 'Email verified successfully',
                 'next_step': 'two_factor_setup',
-                'user': UserSerializer(user).data
+                'user': UserSerializer(user).data,
+                'access_token': str(refresh.access_token),
+                'refresh_token': str(refresh)
             }, status=status.HTTP_200_OK)
             
             # Set tokens as HTTP-only cookies
@@ -622,7 +599,7 @@ class TwoFactorInitiateView(APIView):
                 'backup_codes': backup_codes
             }, status=status.HTTP_200_OK)
         
-        return Response({'error': 'Could not initiate 2FA setup. Please try again.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TwoFactorVerifyView(APIView):
@@ -1036,7 +1013,6 @@ def resend_verification_email(request):
             recipient_list=[user.email],
             fail_silently=False,
         )
-        
         return Response({'message': 'Verification email sent successfully'}, status=status.HTTP_200_OK)
         
     except Exception as e:

@@ -1,0 +1,49 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 30px;">
+    {% if status == 'enabled' %}
+    <div
+        style="width: 64px; height: 64px; background-color: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 50%; display: inline-block; padding: 16px; margin-bottom: 20px;">
+        <img src="https://img.icons8.com/ios-filled/50/22c55e/shield.png" width="32" height="32" alt="Success">
+    </div>
+    <h2 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">2FA Activated Successfully</h2>
+    {% else %}
+    <div
+        style="width: 64px; height: 64px; background-color: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 50%; display: inline-block; padding: 16px; margin-bottom: 20px;">
+        <img src="https://img.icons8.com/ios-filled/50/ef4444/security-lock.png" width="32" height="32" alt="Warning">
+    </div>
+    <h2 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">2FA Deactivated</h2>
+    {% endif %}
+</div>
+
+<p style="font-size: 16px; line-height: 1.6; color: #cbd5e1; margin-bottom: 24px;">
+    Hello {{ first_name }},
+</p>
+
+{% if status == 'enabled' %}
+<p style="font-size: 16px; line-height: 1.6; color: #cbd5e1; margin-bottom: 24px;">
+    Two-factor authentication has been successfully <strong>enabled</strong> for your PrimeTrust account. Your account
+    is now protected with an additional layer of security.
+</p>
+<p style="font-size: 16px; line-height: 1.6; color: #cbd5e1; margin-bottom: 24px;">
+    You will now be required to enter a 6-digit code from your authenticator app when logging in.
+</p>
+{% else %}
+<p style="font-size: 16px; line-height: 1.6; color: #f87171; margin-bottom: 24px;">
+    Two-factor authentication has been <strong>disabled</strong> for your PrimeTrust account.
+</p>
+<p style="font-size: 16px; line-height: 1.6; color: #cbd5e1; margin-bottom: 24px;">
+    We strongly recommend keeping 2FA active to protect your funds and personal information. If you did not make this
+    change, please lock your account immediately.
+</p>
+{% endif %}
+
+<div
+    style="background-color: rgba(255, 255, 255, 0.03); border-radius: 16px; padding: 24px; margin-top: 32px; border: 1px solid rgba(255, 255, 255, 0.05);">
+    <p style="margin: 0; color: #94a3b8; font-size: 14px; line-height: 1.5;">
+        <strong>Time:</strong> {{ timestamp|date:"F j, Y, g:i a" }}<br>
+        <strong>Action:</strong> 2FA Configuration Updated
+    </p>
+</div>
+{% endblock %}

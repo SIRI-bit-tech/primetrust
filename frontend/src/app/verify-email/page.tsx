@@ -68,9 +68,11 @@ function VerifyEmailContent() {
       setSuccess(true)
       localStorage.removeItem('pending_verification_email')
 
-      // Store user data (tokens are in HTTP-only cookies)
+      // Store user data and tokens (tokens are in cookies, but we update sessionStorage as fallback)
       if (response.user) {
         localStorage.setItem('user', JSON.stringify(response.user))
+        if (response.access_token) sessionStorage.setItem('access_token', response.access_token)
+        if (response.refresh_token) sessionStorage.setItem('refresh_token', response.refresh_token)
 
         // Force a page reload to ensure AuthProvider picks up the new user state
         setTimeout(() => {

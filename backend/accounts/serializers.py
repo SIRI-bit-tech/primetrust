@@ -336,9 +336,6 @@ class TwoFactorInitiateSerializer(serializers.Serializer):
         """Validate 2FA initiation."""
         user = self.context['request'].user
         
-        if user.two_factor_enabled:
-            raise serializers.ValidationError('Two-factor authentication is already enabled')
-        
         if not user.email_verified:
             raise serializers.ValidationError('Email must be verified before setting up 2FA')
         
