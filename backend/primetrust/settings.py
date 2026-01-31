@@ -245,14 +245,12 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Email settings - Mailgun only
-EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
+# Email settings - Brevo (Sendinblue)
+EMAIL_BACKEND = 'anymail.backends.sendinblue.EmailBackend'
 ANYMAIL = {
-    'MAILGUN_API_KEY': env('MAILGUN_API_KEY', default=''),
-    'MAILGUN_SENDER_DOMAIN': env('MAILGUN_DOMAIN', default=''),
-    'MAILGUN_API_URL': env('MAILGUN_API_URL', default='https://api.mailgun.net/v3'),
+    'SENDINBLUE_API_KEY': env('BREVO_API_KEY', default=''),
 }
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='PrimeTrust <noreply@mg.primetrust.com>')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='PrimeTrust <noreply@primetrust.com>')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 # Cloudinary settings

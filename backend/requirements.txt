@@ -25,4 +25,4 @@ qrcode[pil]
 pyotp
 gunicorn
 whitenoise
-django-anymail[mailgun]
+django-anymail[sendinblue]
