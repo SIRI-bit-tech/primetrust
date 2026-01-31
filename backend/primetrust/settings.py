@@ -58,7 +58,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_filters',
-    'anymail',
     
     # Local apps
     'accounts',
@@ -245,13 +244,18 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Email settings - Brevo (Sendinblue)
-EMAIL_BACKEND = 'anymail.backends.sendinblue.EmailBackend'
-ANYMAIL = {
-    'SENDINBLUE_API_KEY': env('BREVO_API_KEY', default=''),
-}
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='PrimeTrust <noreply@primetrust.com>')
+# Email settings - Using Resend
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.resend.com'
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
+EMAIL_HOST_USER = 'resend'
+EMAIL_HOST_PASSWORD = env('RESEND_API_KEY', default='')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='PrimeTrust <onboarding@resend.dev>')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Resend API Key (also used for direct API calls if needed)
+RESEND_API_KEY = env('RESEND_API_KEY', default='')
 
 # Cloudinary settings
 import cloudinary
