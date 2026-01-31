@@ -15,6 +15,7 @@ from rest_framework_simplejwt.views import TokenRefreshView as BaseTokenRefreshV
 import logging
 import cloudinary
 import cloudinary.uploader
+import resend
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,7 @@ class UserRegistrationView(APIView):
     def send_verification_email(self, user, code):
         """Send verification email to user."""
         try:
+            resend.api_key = settings.RESEND_API_KEY
             subject = 'Verify your PrimeTrust account'
             verification_link = f"{settings.FRONTEND_URL}/verify-email?email={user.email}&code={code}"
             
@@ -87,19 +89,16 @@ class UserRegistrationView(APIView):
             }
             
             html_message = render_to_string('emails/verification_email.html', context)
-            plain_message = f"Your verification code is: {code}. Visit {verification_link} to verify."
             
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False,
-            )
+            resend.Emails.send({
+                "from": settings.DEFAULT_FROM_EMAIL,
+                "to": user.email,
+                "subject": subject,
+                "html": html_message
+            })
             return True
         except Exception as e:
-            logger.error(f"Failed to send verification email: {e}")
+            logger.error(f"Failed to send verification email via Resend: {e}")
             return False
 
 

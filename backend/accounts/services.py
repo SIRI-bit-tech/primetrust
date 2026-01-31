@@ -10,6 +10,7 @@ import environ
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
+import resend
 
 
 env = environ.Env()
@@ -182,6 +183,7 @@ class BitcoinService:
 def send_2fa_enabled_notification(user):
     """Send email notification when 2FA is enabled."""
     try:
+        resend.api_key = settings.RESEND_API_KEY
         subject = 'Two-Factor Authentication Enabled - PrimeTrust'
         context = {
             'first_name': user.first_name,
@@ -190,16 +192,13 @@ def send_2fa_enabled_notification(user):
             'subject': subject
         }
         html_message = render_to_string('emails/2fa_notification.html', context)
-        plain_message = f"Hello {user.first_name}, Two-factor authentication has been successfully enabled for your PrimeTrust account."
         
-        send_mail(
-            subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            html_message=html_message,
-            fail_silently=False,
-        )
+        resend.Emails.send({
+            "from": settings.DEFAULT_FROM_EMAIL,
+            "to": user.email,
+            "subject": subject,
+            "html": html_message
+        })
         return True
     except Exception as e:
         print(f"Failed to send 2FA enabled notification: {e}")
@@ -209,6 +208,7 @@ def send_2fa_enabled_notification(user):
 def send_2fa_disabled_notification(user):
     """Send email notification when 2FA is disabled."""
     try:
+        resend.api_key = settings.RESEND_API_KEY
         subject = 'Two-Factor Authentication Disabled - PrimeTrust'
         context = {
             'first_name': user.first_name,
@@ -217,16 +217,13 @@ def send_2fa_disabled_notification(user):
             'subject': subject
         }
         html_message = render_to_string('emails/2fa_notification.html', context)
-        plain_message = f"Hello {user.first_name}, Two-factor authentication has been disabled for your PrimeTrust account."
         
-        send_mail(
-            subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            html_message=html_message,
-            fail_silently=False,
-        )
+        resend.Emails.send({
+            "from": settings.DEFAULT_FROM_EMAIL,
+            "to": user.email,
+            "subject": subject,
+            "html": html_message
+        })
         return True
     except Exception as e:
         print(f"Failed to send 2FA disabled notification: {e}")
@@ -236,6 +233,7 @@ def send_2fa_disabled_notification(user):
 def send_transfer_pin_setup_notification(user):
     """Send email notification when transfer PIN is set up."""
     try:
+        resend.api_key = settings.RESEND_API_KEY
         subject = 'Transfer PIN Setup Complete - PrimeTrust'
         context = {
             'first_name': user.first_name,
@@ -243,16 +241,13 @@ def send_transfer_pin_setup_notification(user):
             'subject': subject
         }
         html_message = render_to_string('emails/transfer_pin_notification.html', context)
-        plain_message = f"Hello {user.first_name}, Your transfer PIN has been successfully set up for your PrimeTrust account."
         
-        send_mail(
-            subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            html_message=html_message,
-            fail_silently=False,
-        )
+        resend.Emails.send({
+            "from": settings.DEFAULT_FROM_EMAIL,
+            "to": user.email,
+            "subject": subject,
+            "html": html_message
+        })
         return True
     except Exception as e:
         print(f"Failed to send transfer PIN setup notification: {e}")
@@ -262,6 +257,7 @@ def send_transfer_pin_setup_notification(user):
 def send_registration_complete_notification(user):
     """Send email notification when registration is complete."""
     try:
+        resend.api_key = settings.RESEND_API_KEY
         subject = 'Welcome to PrimeTrust - Your Account is Ready!'
         context = {
             'first_name': user.first_name,
@@ -269,16 +265,13 @@ def send_registration_complete_notification(user):
             'subject': subject
         }
         html_message = render_to_string('emails/registration_complete.html', context)
-        plain_message = f"Hello {user.first_name}, Welcome to PrimeTrust! Your account setup is now complete."
         
-        send_mail(
-            subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            html_message=html_message,
-            fail_silently=False,
-        )
+        resend.Emails.send({
+            "from": settings.DEFAULT_FROM_EMAIL,
+            "to": user.email,
+            "subject": subject,
+            "html": html_message
+        })
         return True
     except Exception as e:
         print(f"Failed to send registration complete notification: {e}")
@@ -288,6 +281,7 @@ def send_registration_complete_notification(user):
 def send_backup_code_used_notification(user, remaining_codes):
     """Send email notification when a backup code is used."""
     try:
+        resend.api_key = settings.RESEND_API_KEY
         subject = 'Backup Code Used - PrimeTrust Security Alert'
         message = f"""
         Hello {user.first_name},
@@ -299,13 +293,12 @@ def send_backup_code_used_notification(user, remaining_codes):
         If you did not use this backup code, please contact our support team immediately.
         """
         
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
+        resend.Emails.send({
+            "from": settings.DEFAULT_FROM_EMAIL,
+            "to": user.email,
+            "subject": subject,
+            "text": message
+        })
         return True
     except Exception as e:
         print(f"Failed to send backup code used notification: {e}")
